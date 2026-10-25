@@ -82,3 +82,19 @@ connection-*.json
 *.gguf
 *.safetensors
 # Keep reviewed schemas, synthetic fixtures, licensed notices, and generic profiles tracked.
+
+# Character voice assets are local-only; commit preparation code and licenses.
+/voice-assets/
+/lumendsh-voice/
+*.wav
+*.flac
+*.mp3
+*.ogg
+*.m4a
+*.pcm
+*.ckpt
+*.pth
+*.pt
+*.ort
+*.reference.json
+reference-cache.json

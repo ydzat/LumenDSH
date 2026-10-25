@@ -8,6 +8,10 @@ runtime locks and memory databases in private Termux storage, outside Git.
 
 ## Preparation and activation
 
+For an already configured installation, persona-only updates use
+`node update-persona.mjs` alongside `persona.md`; do not rerun the original plugin
+activation. See [Silver Wolf persona and voice status](../../docs/silver-wolf-persona.md).
+
 Run in the inspected Termux environment with DSH rc.3 already installed:
 
 1. `bash install-runtime.sh` prepares the pinned CLI and isolated plugin profile.

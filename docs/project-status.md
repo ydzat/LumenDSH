@@ -1,11 +1,13 @@
 # Project status and handoff
 
-Date: 2026-10-25. Baseline: Android 0.7.47-branding, independent DSH
+Date: 2026-10-25. Current installation: Android 0.7.48-character-voice, independent DSH
 0.2.1-rc.3 and companion integration 0.2.1.
 
-The user considers the foundation usable and has stopped feature development for
-now. M0–M7 and model adaptation are delivered within their recorded scopes. This
-is the current development checkpoint. No M8 is scheduled.
+M0–M7 and model adaptation are delivered within their recorded scopes. The user
+subsequently resumed character work: persona revision 2 and the accepted Silver
+Wolf voice are integrated. The local engine passed real Android playback, duplicate
+suppression, stop and service recovery checks. See [character speech](character-voice.md)
+for deployment, cold latency and acceptance limits. No M8 is scheduled.
 
 ## Future directions, not scheduled milestones
 

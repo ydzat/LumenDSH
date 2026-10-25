@@ -4,7 +4,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-![Version](https://img.shields.io/badge/version-0.7.47-9274e8)
+![Version](https://img.shields.io/badge/version-0.7.48-9274e8)
 ![Android](https://img.shields.io/badge/Android-10%2B-3ddc84)
 ![Status](https://img.shields.io/badge/status-experimental-orange)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -20,7 +20,7 @@ LumenDSH 承接并替代 [Lumen](https://github.com/ydzat/lumen)，延续个人 
 ## 功能
 
 - **角色主页** — 动态桌宠与赛博空间，支持触摸互动、双指缩放和展开文字聊天。
-- **语音交互** — 语音识别与合成、本地唤醒词、主人声纹匹配和悬浮角色。
+- **语音交互** — 语音识别与合成、本地唤醒词、主人声纹匹配和悬浮角色；可选角色声音在 Termux 本地合成，由应用播放。
 - **长期记忆** — 本地语义检索、记忆整理与来源追溯。
 - **主动协助** — 定时任务和自主活动，支持活动窗口、资源预算和暂停控制。
 - **连续的 Agent 身份** — 日常协助、工具调用与自主改造共享会话和记忆，模型配置跟随 DSH。
@@ -35,9 +35,11 @@ flowchart TB
         app["LumenDSH App<br/>角色 · 语音 · 聊天 · 通知"]
         subgraph termux[Termux]
             dsh["DeepSeek Harness<br/>Agent · 会话 · 记忆 · 工具"]
+            voice["可选角色语音<br/>本地合成 · 预提取音色特征"]
         end
         app <-->|本机会话 API| dsh
         dsh -->|MCP 手机工具| app
+        app <-->|经过认证的本机音频接口| voice
     end
     user <-->|语音 · 触摸 · 文字| app
     dsh <-->|模型请求与响应| provider[LLM 提供商]
@@ -69,6 +71,9 @@ DSH 和构建工具链独立于 APK 运行。客户端连接同一手机上的 D
 形象来源：[awesome-codex-pet / silver-wolf--lingxiaotian](https://github.com/legeling/awesome-codex-pet/tree/main/pets/silver-wolf--lingxiaotian)，
 上游投稿声明许可为 **CC BY-NC 4.0**。外观与声音分别配置。
 
+[角色语音配置](docs/character-voice.md)支持单独准备的音色包。**仓库和 APK 不包含银狼声音样本、音色特征或模型权重**。
+测试手机上的短句冷启动合成约需 15–16 秒，仍可选择系统声音。
+
 ## 文档与反馈
 
 - [开发指南](docs/README.md) · [架构](docs/architecture.md)
@@ -95,6 +100,9 @@ DSH 和构建工具链独立于 APK 运行。客户端连接同一手机上的 D
   [dsh-whale-persona](https://github.com/linsport/dsh-whale-persona) 与
   [Magic Context](https://github.com/cortexkit/magic-context)：伴侣行为与记忆设计参考。
 - [awesome-codex-pet](https://github.com/legeling/awesome-codex-pet)：默认角色资源包。
+- [gpt-sovits-onnx-rs](https://github.com/bailu-obj/gpt-sovits-onnx-rs)、
+  [ort](https://github.com/pykeio/ort) 与 [ONNX Runtime](https://github.com/microsoft/onnxruntime)：
+  复用本地角色语音推理实现，见[版本与适配记录](integrations/voice/README.md)。
 
 具体版本、许可和适配记录见[依赖说明](apps/android/DEPENDENCIES.md)、
 [第三方声明](apps/android/assets/THIRD_PARTY_NOTICES.txt)和

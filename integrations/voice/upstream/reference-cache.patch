@@ -1,0 +1,505 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -14,15 +14,15 @@
+ 
+ [dependencies]
+ ort-sys = { version = "=2.0.0-rc.13" } # https://github.com/pykeio/ort/issues/399
+-ort = { version = "=2.0.0-rc.13", features = [
++ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "api-27", "load-dynamic",
+     "ndarray",
+-    "download-binaries",
+-    "copy-dylibs",
++
++
+     "half",
+ ] }
+ arpabet = "2.0.0"
+ jieba-rs = "0.7.2"
+-ndarray = "=0.17.2"
++ndarray = { version = "=0.17.2", features = ["serde"] }
+ pinyin = "0.10.0"
+ log = "0.4.25"
+ hound = "3.5.1"
+@@ -58,11 +58,14 @@
+ jni = ["dep:jni"] # Enables JNI and dynamic ONNX loading for Android
+ 
+ [target.'cfg(target_os = "android")'.dependencies]
+-ort = { version = "=2.0.0-rc.13", features = [
++ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "api-27", "load-dynamic",
+     "ndarray",
+-    "download-binaries",
+-    "copy-dylibs",
++
++
+     "half",
+     "load-dynamic",
+ ] }
+ android_logger = "0.15"
++
++[patch.crates-io]
++ort = { path = "../ort-runtime" }
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -77,20 +77,22 @@
+     (ik, iv, k, v)
+ }
+ 
+-#[derive(Clone)]
++#[derive(Clone, serde::Serialize, serde::Deserialize)]
+ pub struct ReferenceData {
+     ref_seq: Array2<i64>,
+     ref_bert: Array2<f32>,
+     ref_audio_32k: Array2<f32>,
+-    ssl_content: ArrayBase<OwnedRepr<f32>, IxDyn>,
++    prompts: Array2<i64>,
++    #[serde(default)]
++    vits_conditioning: std::collections::BTreeMap<String, ArrayD<f32>>,
+     sv_emb: Option<ArrayD<f32>>,
+ }
+ 
+ pub struct TTSModel {
+-    text_processor: TextProcessor,
++    text_processor: Option<TextProcessor>,
+     sovits: Session,
+-    ssl: Session,
+-    t2s_encoder: Session,
++    ssl: Option<Session>,
++    t2s_encoder: Option<Session>,
+     t2s_fs_decoder: Session,
+     t2s_s_decoder: Session,
+     sv: Option<SvModel>,
+@@ -109,13 +111,117 @@
+ /// How much to increment the KV cache size by when reallocating.
+ const CACHE_REALLOC_INCREMENT: usize = 1024;
+ 
++#[derive(serde::Serialize, serde::Deserialize)]
++struct PreparedText {
++    schema_version: u32,
++    text: String,
++    fragments: Vec<(String, Vec<i64>, Array2<f32>)>,
++}
++
++pub fn export_prepared_text(root: &Path, text: &str, destination: &Path) -> Result<(), GSVError> {
++    let mut processor = TextProcessor::new(
++        G2PW::new(Some(root.join("g2pW.onnx")))?,
++        G2pEn::new(Some(root.join("g2p_en")))?,
++        BertModel::new(Some(root.join("bert.onnx")))?,
++    )?;
++    let fragments = processor.get_phone_and_bert(&ensure_punctuation(text), LangId::Auto)?;
++    let prepared = PreparedText { schema_version: 1, text: text.to_owned(), fragments };
++    std::fs::write(destination, serde_json::to_vec(&prepared).map_err(|e| GSVError::from(e.to_string()))?)?;
++    Ok(())
++}
++
+ impl TTSModel {
++    fn process_text(&mut self, text: &str, lang_id: LangId) -> Result<Vec<(String, Vec<i64>, Array2<f32>)>, GSVError> {
++        if let Some(processor) = self.text_processor.as_mut() {
++            return Ok(processor.get_phone_and_bert(text, lang_id)?);
++        }
++        let path = std::env::var("LUMENDSH_PREPARED_TEXT").map_err(|e| GSVError::from(e.to_string()))?;
++        let prepared: PreparedText = serde_json::from_slice(&std::fs::read(path)?)
++            .map_err(|e| GSVError::from(e.to_string()))?;
++        if prepared.schema_version != 1 || ensure_punctuation(&prepared.text) != ensure_punctuation(text)
++            || prepared.fragments.is_empty() {
++            return Err("Prepared text does not match this request".into());
++        }
++        Ok(prepared.fragments)
++    }
++    /// Original preparation path, retained for desktop extraction and parity checks.
++    pub fn new<P: AsRef<Path>>(
++        sovits: P,
++        ssl: P,
++        encoder: P,
++        first: P,
++        decoder: P,
++        bert: Option<P>,
++        g2pw: Option<P>,
++        english: Option<P>,
++        sv: Option<P>,
++    ) -> Result<Self, GSVError> {
++        Self::new_internal(
++            sovits, ssl, encoder, first, decoder, bert, g2pw, english, sv, true,
++        )
++    }
++
++    /// Read a desktop-prepared cache without loading SSL, SV or the reference encoder.
++    pub fn from_reference_cache(root: &Path, cache: &Path) -> Result<Self, GSVError> {
++        let bytes = std::fs::read(cache)?;
++        if bytes.len() > 32 * 1024 * 1024 {
++            return Err("Reference cache exceeds 32 MiB".into());
++        }
++        let envelope: serde_json::Value =
++            serde_json::from_slice(&bytes).map_err(|e| GSVError::from(e.to_string()))?;
++        if envelope["schemaVersion"] != 1 {
++            return Err("Unsupported reference cache".into());
++        }
++        let data: ReferenceData = serde_json::from_value(envelope["reference"].clone())
++            .map_err(|e| GSVError::from(e.to_string()))?;
++        if data.ref_seq.nrows() != 1
++            || data.ref_seq.is_empty()
++            || data.prompts.nrows() != 1
++            || data.prompts.is_empty()
++            || data.ref_bert.nrows() != data.ref_seq.ncols()
++            || data.ref_bert.ncols() != 1024
++            || data.ref_audio_32k.nrows() != 1
++        {
++            return Err("Invalid reference tensor dimensions".into());
++        }
++        let mut model = Self::new_internal(
++            root.join("vits.onnx"),
++            root.join("ssl.onnx"),
++            root.join("t2s_encoder.onnx"),
++            root.join("t2s_fs_decoder.onnx"),
++            root.join("t2s_s_decoder.onnx"),
++            Some(root.join("bert.onnx")),
++            Some(root.join("g2pW.onnx")),
++            Some(root.join("g2p_en")),
++            None,
++            false,
++        )?;
++        if model.sovits.inputs().iter().any(|input| input.name() == "ref_audio") && data.ref_audio_32k.is_empty() {
++            return Err("Unfrozen model requires reference waveform".into());
++        }
++        model.ref_data = Some(Arc::new(data));
++        Ok(model)
++    }
++
++    pub fn save_reference_cache(&self, destination: &Path) -> Result<(), GSVError> {
++        let data = self
++            .ref_data
++            .as_ref()
++            .ok_or_else(|| GSVError::from("Reference not prepared"))?;
++        let envelope = serde_json::json!({"schemaVersion":1,"reference":data.as_ref()});
++        std::fs::write(
++            destination,
++            serde_json::to_vec(&envelope).map_err(|e| GSVError::from(e.to_string()))?,
++        )?;
++        Ok(())
++    }
++
+     /// create new tts instance
+     /// bert_path, g2pw_path and g2p_en_path can be None
+     /// if bert path is none, the speech speed in chinese may become worse
+     /// if g2pw path is none, the chinese speech quality may be worse
+     /// g2p_en is still experimental, english speak quality may not be better because of bugs
+-    pub fn new<P: AsRef<Path>>(
++    fn new_internal<P: AsRef<Path>>(
+         sovits_path: P,
+         ssl_path: P,
+         t2s_encoder_path: P,
+@@ -125,6 +231,7 @@
+         g2pw_path: Option<P>,
+         g2p_en_path: Option<P>,
+         sv_path: Option<P>,
++        prepare_reference: bool,
+     ) -> Result<Self, GSVError> {
+         info!("Initializing TTSModel with ONNX sessions");
+         info!("use cpu cores: {:?}", BIG_CORES.as_slice());
+@@ -160,17 +267,25 @@
+             t2s_kv_io_names(num_layers);
+ 
+         Ok(TTSModel {
+-            text_processor: TextProcessor::new(
++            text_processor: if std::env::var_os("LUMENDSH_PREPARED_TEXT").is_some() { None } else { Some(TextProcessor::new(
+                 G2PW::new(g2pw_path)?,
+                 G2pEn::new(g2p_en_path)?,
+                 BertModel::new(bert_path)?,
+-            )?,
++            )?) },
+             sovits: create_onnx_cpu_session(sovits_path)?,
+-            ssl: create_onnx_cpu_session(ssl_path)?,
+-            t2s_encoder: create_onnx_cpu_session(t2s_encoder_path)?,
++            ssl: if prepare_reference {
++                Some(create_onnx_cpu_session(ssl_path)?)
++            } else {
++                None
++            },
++            t2s_encoder: if prepare_reference {
++                Some(create_onnx_cpu_session(t2s_encoder_path)?)
++            } else {
++                None
++            },
+             t2s_fs_decoder: create_onnx_cpu_session(t2s_fs_decoder_path)?,
+             t2s_s_decoder,
+-            sv: match sv_path {
++            sv: match sv_path.filter(|_| prepare_reference) {
+                 Some(p) => Some(SvModel::new(create_onnx_cpu_session(p)?)),
+                 None => None,
+             },
+@@ -216,7 +331,7 @@
+         info!("Processing reference audio and text: {}", ref_text);
+         let ref_text = ensure_punctuation(ref_text);
+         let (ref_norm, ref_phone_ids, ref_bert) = self
+-            .text_processor
++            .text_processor.as_mut().ok_or_else(|| GSVError::from("Reference preparation needs text models"))?
+             .get_phone_and_bert_whole(&ref_text, lang_id)?;
+         let ref_seq = Array2::from_shape_vec((1, ref_phone_ids.len()), ref_phone_ids)?;
+         debug!("Reference norm text: {}", ref_norm);
+@@ -240,12 +355,22 @@
+             }
+         };
+ 
++        let output = self
++            .t2s_encoder
++            .as_mut()
++            .ok_or_else(|| GSVError::from("Reference encoder is unavailable"))?
++            .run(inputs!["ssl_content" => TensorRef::from_array_view(&ssl_content)?])?;
++        let prompts = output["prompts"]
++            .try_extract_array::<i64>()?
++            .to_owned()
++            .into_dimensionality::<ndarray::Ix2>()?;
+         self.ref_data = Some(Arc::new(ReferenceData {
+             ref_seq,
+             ref_bert,
+             sv_emb,
+             ref_audio_32k,
+-            ssl_content,
++            prompts,
++            vits_conditioning: Default::default(),
+         }));
+ 
+         Ok(())
+@@ -258,6 +383,8 @@
+         let time = SystemTime::now();
+         let ssl_output = self
+             .ssl
++            .as_mut()
++            .ok_or_else(|| GSVError::from("Reference extraction is unavailable in playback mode"))?
+             .run(inputs!["ref_audio_16k" => TensorRef::from_array_view(ref_audio_16k).unwrap()])?;
+         debug!("SSL processing time: {:?}", time.elapsed()?);
+         Ok(ssl_output["ssl_content"]
+@@ -299,7 +426,7 @@
+         lang_id: LangId,
+     ) -> Result<Vec<(String, Vec<i64>, Array2<f32>)>, GSVError> {
+         let text = ensure_punctuation(text);
+-        Ok(self.text_processor.get_phone_and_bert(&text, lang_id)?)
++        Ok(self.process_text(&text, lang_id)?)
+     }
+ 
+     /// Debug snapshot of T2S inputs and first-stage logits (for parity checks).
+@@ -325,12 +452,7 @@
+         let bert = concatenate(Axis(1), &[ref_data.ref_bert.t(), text_bert.t()])?;
+         let bert = bert.insert_axis(Axis(0)).to_owned();
+ 
+-        let encoder_output = self.t2s_encoder.run(inputs![
+-            "ssl_content" => TensorRef::from_array_view(&ref_data.ssl_content)?
+-        ])?;
+-        let prompts = encoder_output["prompts"]
+-            .try_extract_array::<i64>()?
+-            .into_owned();
++        let prompts = &ref_data.prompts;
+ 
+         let fs_decoder_output = self.t2s_fs_decoder.run(inputs![
+             "x" => TensorRef::from_array_view(&x.as_standard_layout())?,
+@@ -353,7 +475,7 @@
+             "bert_mean": bert.mean().unwrap_or(0.0),
+             "prompts_len": prompts.shape()[1],
+             "prompts_head": prompts.slice(s![0, ..5]).iter().copied().collect::<Vec<_>>(),
+-            "ssl_shape": ref_data.ssl_content.shape().to_vec(),
++            "prompts_shape": ref_data.prompts.shape().to_vec(),
+             "fs_argmax_masked": argmax,
+         }))
+     }
+@@ -531,9 +653,9 @@
+             .ok_or(GSVError::from("Reference data not initialized"))?;
+         let spec = self.output_spec;
+         let time = SystemTime::now();
+-        let texts_and_seqs = self.text_processor.get_phone_and_bert(&text, lang_id)?;
++        let ref_data = ref_data.clone();
++        let texts_and_seqs = self.process_text(&text, lang_id)?;
+         debug!("g2pw and preprocess time: {:?}", time.elapsed()?);
+-        let ref_data = ref_data.clone();
+         let sample_rate = spec.sample_rate;
+ 
+         let stream = stream! {
+@@ -585,7 +707,7 @@
+             .ok_or_else(|| GSVError::from("Reference data not initialized"))?
+             .clone();
+         let spec = self.output_spec;
+-        let fragments = self.text_processor.get_phone_and_bert(text, lang_id)?;
++        let fragments = self.process_text(text, lang_id)?;
+         let stream = stream! {
+             for (text, seq, bert) in fragments {
+                 match self.in_stream_once_gen(&text, &bert, &seq, &ref_data, sampling_param).await {
+@@ -633,16 +755,7 @@
+             None => Sampler::new(VOCAB_SIZE),
+         };
+ 
+-        let prompts = {
+-            let time = SystemTime::now();
+-            let encoder_output = self.t2s_encoder.run(inputs![
+-                "ssl_content" => TensorRef::from_array_view(&ref_data.ssl_content)?
+-            ])?;
+-            debug!("T2S Encoder time: {:?}", time.elapsed()?);
+-            encoder_output["prompts"]
+-                .try_extract_array::<i64>()?
+-                .into_owned()
+-        };
++        let prompts = &ref_data.prompts;
+ 
+         let mut y_vec: Vec<i64> = prompts.iter().copied().collect();
+         let prefix_len = y_vec.len();
+@@ -656,7 +769,7 @@
+             let time = SystemTime::now();
+             let fs_decoder_output = self.t2s_fs_decoder.run(inputs![
+                 "x" => TensorRef::from_array_view(&x.as_standard_layout())?,
+-                "prompts" => TensorRef::from_array_view(&prompts)?,
++                "prompts" => TensorRef::from_array_view(prompts)?,
+                 "bert" => TensorRef::from_array_view(&bert.as_standard_layout())?,
+             ])?;
+             debug!("T2S FS Decoder time: {:?}", time.elapsed()?);
+@@ -724,18 +837,38 @@
+ 
+         let time = SystemTime::now();
+         // use sv_emb if have
+-        let outputs = match &ref_data.sv_emb {
+-            Some(sv_emb) => self.sovits.run(inputs![
+-                "text_seq" => TensorRef::from_array_view(text_seq)?,
+-                "pred_semantic" => TensorRef::from_array_view(&pred_semantic)?,
+-                "ref_audio" => TensorRef::from_array_view(&ref_data.ref_audio_32k)?,
+-                "sv_emb" => TensorRef::from_array_view(sv_emb)?,
+-            ])?,
+-            None => self.sovits.run(inputs![
+-                "text_seq" => TensorRef::from_array_view(text_seq)?,
+-                "pred_semantic" => TensorRef::from_array_view(&pred_semantic)?,
+-                "ref_audio" => TensorRef::from_array_view(&ref_data.ref_audio_32k)?,
+-            ])?,
++        if let Ok(path) = std::env::var("LUMENDSH_VITS_CAPTURE") {
++            let capture = serde_json::json!({"text_seq":text_seq.to_owned(), "pred_semantic":pred_semantic});
++            std::fs::write(path, serde_json::to_vec(&capture).map_err(|e| GSVError::from(e.to_string()))?)?;
++        }
++        let fixed_voice = !self
++            .sovits
++            .inputs()
++            .iter()
++            .any(|input| input.name() == "ref_audio");
++        let outputs = if fixed_voice {
++            let mut tensors: Vec<(&str, SessionInputValue<'_>)> = vec![
++                ("text_seq", TensorRef::from_array_view(text_seq)?.into()),
++                ("pred_semantic", TensorRef::from_array_view(&pred_semantic)?.into()),
++            ];
++            for (name, value) in &ref_data.vits_conditioning {
++                tensors.push((name.as_str(), TensorRef::from_array_view(value)?.into()));
++            }
++            self.sovits.run(tensors)?
++        } else {
++            match &ref_data.sv_emb {
++                Some(sv_emb) => self.sovits.run(inputs![
++                    "text_seq" => TensorRef::from_array_view(text_seq)?,
++                    "pred_semantic" => TensorRef::from_array_view(&pred_semantic)?,
++                    "ref_audio" => TensorRef::from_array_view(&ref_data.ref_audio_32k)?,
++                    "sv_emb" => TensorRef::from_array_view(sv_emb)?,
++                ])?,
++                None => self.sovits.run(inputs![
++                    "text_seq" => TensorRef::from_array_view(text_seq)?,
++                    "pred_semantic" => TensorRef::from_array_view(&pred_semantic)?,
++                    "ref_audio" => TensorRef::from_array_view(&ref_data.ref_audio_32k)?,
++                ])?,
++            }
+         };
+         debug!("SoVITS all time: {:?}", time.elapsed()?);
+         let semantic_len = pred_semantic.shape()[2];
+--- a/src/onnx_builder.rs
++++ b/src/onnx_builder.rs
+@@ -44,18 +44,33 @@
+ /// Existing callers retain independent pools unless they opt into the feature.
+ pub fn create_onnx_cpu_session<P: AsRef<Path>>(path: P) -> Result<Session, GSVError> {
+     let options = SESSION_OPTIONS.get_or_init(OnnxSessionOptions::default);
++    let low_memory = std::env::var("LUMENDSH_LOW_MEMORY").as_deref() == Ok("1");
++    let path = path.as_ref();
++    if low_memory { report_memory("loading", path); }
+     let builder = Session::builder()?
+-        .with_execution_providers([CPU::default().with_arena_allocator(true).build()])?
++        .with_execution_providers([CPU::default().with_arena_allocator(!low_memory).build()])?
+         .with_optimization_level(GraphOptimizationLevel::Level3)?
+-        .with_prepacking(true)?
++        .with_prepacking(!low_memory)?
++        .with_memory_pattern(!low_memory)?
+         .with_config_entry("session.enable_mem_reuse", "1")?
+-        .with_intra_op_spinning(options.spinning)?
+-        .with_inter_op_spinning(options.spinning)?;
++        .with_intra_op_spinning(options.spinning && !low_memory)?
++        .with_inter_op_spinning(options.spinning && !low_memory)?;
+     #[cfg(feature = "shared-ort-pool")]
+     let mut builder = builder;
+     #[cfg(not(feature = "shared-ort-pool"))]
+     let mut builder = builder
+-        .with_intra_threads(BIG_CORES.len())?
++        .with_intra_threads(if low_memory { 2 } else { BIG_CORES.len() })?
+         .with_independent_thread_pool()?;
+-    Ok(builder.commit_from_file(path)?)
++    let session = builder.commit_from_file(path)?;
++    if low_memory { report_memory("loaded", path); }
++    Ok(session)
+ }
++
++/// Only model filenames and process memory counters enter the feasibility log.
++fn report_memory(stage: &str, path: &Path) {
++    let status = std::fs::read_to_string("/proc/self/status").unwrap_or_default();
++    let counters: Vec<_> = status.lines().filter(|line|
++        line.starts_with("VmRSS:") || line.starts_with("VmSize:") || line.starts_with("VmHWM:")
++    ).collect();
++    eprintln!("MODEL_MEMORY {} {:?} {}", stage, path.file_name(), counters.join("; "));
++}
+--- a/examples/gpt_sovits_demo.rs
++++ b/examples/gpt_sovits_demo.rs
+@@ -6,6 +6,12 @@
+ 
+ #[derive(Parser, Debug)]
+ struct Args {
++    #[arg(long)]
++    prepare_text: Option<PathBuf>,
++    #[arg(long)]
++    reference_cache: Option<PathBuf>,
++    #[arg(long)]
++    export_reference: Option<PathBuf>,
+     #[arg(long, default_value = "gpt-sovits-upstream/onnx-patched/v2pro-quality")]
+     model_path: PathBuf,
+     /// Optional JSON file to override built-in sampling defaults.
+@@ -17,7 +23,7 @@
+     text: String,
+     #[arg(long, default_value = "zh")]
+     lang: String,
+-    #[arg(long)]
++    #[arg(long, default_value = "")]
+     ref_text: String,
+     #[arg(long)]
+     top_k: Option<usize>,
+@@ -156,14 +162,31 @@
+ fn main() -> Result<(), GSVError> {
+     env_logger::init();
+     let args = Args::parse();
++    if let Some(path) = &args.prepare_text {
++        export_prepared_text(&args.model_path, &args.text, path)?;
++        println!("TEXT_PREPARED");
++        return Ok(());
++    }
+     let infer = resolve_infer_params(&args)?;
+ 
+-    let mut model = create_model(&args.model_path)?;
+-    model.process_reference_sync(
+-        args.model_path.join("ref.wav"),
+-        &args.ref_text,
+-        LangId::Auto,
+-    )?;
++    let mut model = match &args.reference_cache {
++        Some(cache) => TTSModel::from_reference_cache(&args.model_path, cache)?,
++        None => {
++            if args.ref_text.trim().is_empty() { return Err("Reference transcript is required for preparation".into()); }
++            let mut model = create_model(&args.model_path)?;
++            model.process_reference_sync(
++                args.model_path.join("ref.wav"),
++                &args.ref_text,
++                LangId::Auto,
++            )?;
++            model
++        }
++    };
++    if let Some(output) = &args.export_reference {
++        model.save_reference_cache(output)?;
++        println!("REFERENCE_CACHE_EXPORTED");
++        return Ok(());
++    }
+ 
+     println!("text: {:?} ref_text: {:?}", args.text, args.ref_text);
+     println!(

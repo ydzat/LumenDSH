@@ -4,7 +4,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-![Version](https://img.shields.io/badge/version-0.7.47-9274e8)
+![Version](https://img.shields.io/badge/version-0.7.48-9274e8)
 ![Android](https://img.shields.io/badge/Android-10%2B-3ddc84)
 ![Status](https://img.shields.io/badge/status-experimental-orange)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -23,7 +23,8 @@ and companionship direction to a DSH-based Android client.
 - **Character home screen** — a cyber habitat with animated pets, touch interactions,
   pinch-to-zoom and expandable text chat.
 - **Voice interaction** — speech recognition and synthesis, local wake words,
-  owner-speaker matching and a floating character overlay.
+  owner-speaker matching and a floating character overlay. Optional character speech
+  is synthesized locally in Termux and played by the app.
 - **Long-term memory** — local semantic retrieval, memory consolidation and traceable sources.
 - **Proactive assistance** — scheduled tasks and autonomous activities with configurable
   windows, budgets and pause controls.
@@ -40,9 +41,11 @@ flowchart TB
         app["LumenDSH App<br/>Character · Voice · Chat · Notifications"]
         subgraph termux[Termux]
             dsh["DeepSeek Harness<br/>Agent · Sessions · Memory · Tools"]
+            voice["Optional character speech<br/>Local synthesis · Prepared voice features"]
         end
         app <-->|Local session API| dsh
         dsh -->|MCP device tools| app
+        app <-->|Authenticated local audio transport| voice
     end
     user <-->|Voice · Touch · Text| app
     dsh <-->|Model requests and responses| provider[LLM provider]
@@ -80,6 +83,11 @@ Artwork: [awesome-codex-pet / silver-wolf--lingxiaotian](https://github.com/lege
 licensed **CC BY-NC 4.0** according to its upstream submission. Appearance and voice
 are configured separately.
 
+[Character voice setup](docs/character-voice.md) supports a separately prepared voice
+package. Silver Wolf audio samples, voice features and model weights are **not included
+in this repository or APK**. Short cold-start synthesis took about 15–16 seconds on
+the test phone; system speech remains selectable.
+
 ## Documentation and support
 
 - [Development guide](docs/README.md) · [Architecture](docs/architecture.md)
@@ -107,6 +115,9 @@ Thanks to the upstream authors whose implementations and design work made this p
   [dsh-whale-persona](https://github.com/linsport/dsh-whale-persona) and
   [Magic Context](https://github.com/cortexkit/magic-context) — companion and memory design references.
 - [awesome-codex-pet](https://github.com/legeling/awesome-codex-pet) — the default character pack.
+- [gpt-sovits-onnx-rs](https://github.com/bailu-obj/gpt-sovits-onnx-rs),
+  [ort](https://github.com/pykeio/ort) and [ONNX Runtime](https://github.com/microsoft/onnxruntime) —
+  reused local character speech inference; [pins and adaptations](integrations/voice/README.md).
 
 Pinned revisions, licenses and adaptation details are recorded in
 [dependency notes](apps/android/DEPENDENCIES.md),

@@ -1,0 +1,40 @@
+--- a/src/environment.rs
++++ b/src/environment.rs
+@@ -81,12 +81,12 @@
+ // `CreateEnv` once throughout the lifetime of the process, *even if* the last env was `ReleaseEnv`'d. So once all
+ // `Session`s fell out of scope, if you ever tried to create another one, you'd crash. Grand.
+ #[cfg_attr(any(target_os = "linux", target_os = "android"), unsafe(link_section = ".text.exit"))]
+-unsafe extern "C" fn release_env_on_exit(#[cfg(target_vendor = "apple")] _: *const ()) {
++unsafe extern "C" fn release_env_on_exit(#[cfg(any(target_vendor = "apple", target_os = "android"))] _: *const ()) {
+ 	G_ENV.lock().take();
+ }
+ 
+ #[used]
+-#[cfg(all(not(windows), not(target_vendor = "apple"), not(target_arch = "wasm32")))]
++#[cfg(all(not(windows), not(target_vendor = "apple"), not(target_os = "android"), not(target_arch = "wasm32")))]
+ #[unsafe(link_section = ".fini_array")]
+ static _ON_EXIT: unsafe extern "C" fn() = release_env_on_exit;
+ #[used]
+@@ -103,11 +103,12 @@
+ 	on_exit
+ };
+ 
++// Android also needs cleanup registered after loading C++ runtime statics.
+ // macOS used to have the __mod_term_func section which worked similar to `.fini_array`, but one day they just decided
+ // to remove it I guess? So we have to set an atexit handler instead. But normal atexit doesn't work, we need to use
+ // __cxa_atexit. And if you register it too early in the program (i.e. in __mod_init_func), it'll fire *after* C++
+ // destructors. So we call this after we create the environment instead. This shit took years off my life.
+-#[cfg(target_vendor = "apple")]
++#[cfg(any(target_vendor = "apple", target_os = "android"))]
+ fn register_atexit() {
+ 	unsafe extern "C" {
+ 		static __dso_handle: *const ();
+@@ -157,7 +158,7 @@
+ 		let env = options.create_environment().map(Arc::new)?;
+ 		*env_lock = Some(Arc::clone(&env));
+ 
+-		#[cfg(target_vendor = "apple")]
++		#[cfg(any(target_vendor = "apple", target_os = "android"))]
+ 		register_atexit();
+ 
+ 		Ok(env)

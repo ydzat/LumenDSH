@@ -1,7 +1,7 @@
 # Architecture Baseline
 
-Current checkpoint: usable Android 0.7.47 with DSH 0.2.1-rc.3; feature development
-is paused. See [current status](project-status.md). The dated baseline below
+Current checkpoint: Android 0.7.48 with DSH 0.2.1-rc.3 and separately deployed
+phone-local character speech. See [current status](project-status.md). The dated baseline below
 describes responsibility boundaries and does not supersede later evidence.
 
 Status: accepted responsibility baseline; independent phone build and M1 native

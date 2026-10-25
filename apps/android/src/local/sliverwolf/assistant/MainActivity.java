@@ -922,6 +922,8 @@ public final class MainActivity extends Activity {
             LinearLayout form=column();EditText name=new EditText(this);name.setHint("配置名称");name.setText("我的配置");form.addView(name);
             java.util.List<String> keys=new java.util.ArrayList<>(looks.keySet());
             android.widget.Spinner appearance=choices(form,"外观",looks.values().toArray(new String[0]),Math.max(0,keys.indexOf(activePet==null?"":activePet.key)));
+            String[] engines=deviceBridge.characterConfigured()?new String[]{deviceBridge.systemVoiceEngine(),CharacterSpeech.ENGINE}:new String[]{deviceBridge.systemVoiceEngine()};
+            android.widget.Spinner engine=choices(form,"朗读声音",deviceBridge.characterConfigured()?new String[]{"系统声音","银狼 · 本地合成"}:new String[]{"系统声音"},CharacterSpeech.ENGINE.equals(current.engine)?1:0);
             android.widget.Spinner language=choices(form,"识别与朗读语言",new String[]{"zh-CN","en-US"},current.language.equals("en-US")?1:0);
             android.widget.Spinner rate=choices(form,"语速",new String[]{"0.75","1.0","1.25"},current.rate<1?0:current.rate>1?2:1);
             android.widget.Spinner pitch=choices(form,"音高",new String[]{"0.85","1.0","1.15"},current.pitch<1?0:current.pitch>1?2:1);
@@ -931,7 +933,7 @@ public final class MainActivity extends Activity {
             dialog.setOnShowListener(unused->dialog.getButton(-1).setOnClickListener(v->{
                 try {
                     AssistantProfile candidate=new AssistantProfile(name.getText().toString().trim(),keys.get(appearance.getSelectedItemPosition()),
-                        new AssistantProfile.Voice(current.engine,language.getSelectedItem().toString(),Float.parseFloat(rate.getSelectedItem().toString()),Float.parseFloat(pitch.getSelectedItem().toString())));
+                        new AssistantProfile.Voice(engines[engine.getSelectedItemPosition()],language.getSelectedItem().toString(),Float.parseFloat(rate.getSelectedItem().toString()),Float.parseFloat(pitch.getSelectedItem().toString())));
                     dialog.dismiss();activateProfile(candidate,null);
                 }catch(Exception e){name.setError(e.getMessage());}
             }));dialog.show();
@@ -1006,6 +1008,7 @@ public final class MainActivity extends Activity {
         String feedback=voiceStatus.getText().toString();
         if(!controller.pendingId.isEmpty()) feedback="消息状态："+controller.pendingState+" · 详情见文字记录";
         else if(!controller.notice.isEmpty()) feedback=controller.notice;
+        if(!deviceBridge.speechNotice().isEmpty())feedback=deviceBridge.speechNotice();
         String snapshot=controller.connected+"|"+listening+"|"+speaking+"|"+controller.running+"|"
             +controller.decisions.size()+"|"+controller.taskState()+"|"+feedback+"|"+spoken+"|"+habitatTrace+"|"+habitatFeed.phase+"|"+habitat.getHeight();
         if(snapshot.equals(habitatSnapshot)) return;

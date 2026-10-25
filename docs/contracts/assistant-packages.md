@@ -4,6 +4,13 @@ Status: composition and import strategy accepted; external format revisions must
 
 ## Package types
 
+Android 0.7.48 additionally recognizes the voice engine ID
+`lumendsh.silver_wolf.local`. It references an already installed, authenticated
+Termux synthesis runtime; a profile never installs that runtime or contains its
+credential. Existing six-field voice-profile schema and immutable composition
+hashes are unchanged. Rate and pitch are applied by Android playback. See
+[character speech](../character-voice.md).
+
 - `appearance`: images/animations and semantic state mappings.
 - `voice-profile`: installed STT/TTS provider references and parameters; no credentials.
 - `behavior-profile`: explicit agent-style and interaction preferences; application to DSH requires a verified adapter capability.

@@ -104,7 +104,11 @@ public final class WakeVoiceService extends Service {
             return;
         }
         if("listening".equals(mode))return;
-        if(bridge.isSpeaking())return;
+        if(bridge.isSpeaking()){
+            String message=bridge.synthesizing()?"正在本地合成银狼语音…":"正在回复";
+            if(!message.equals(status)){status=message;publish();}return;
+        }
+        if("speaking".equals(mode)&&bridge.speechNotice().startsWith("语音播放失败")){fail(bridge.speechNotice());return;}
         if("speaking".equals(mode)){mode="paused";nextWake=SystemClock.elapsedRealtime()+1500;return;}
         if("standby".equals(mode)){if(session.running||!session.decisions.isEmpty()||!session.canSend())pause("任务执行中，等待下一次唤醒");return;}
         if(SystemClock.elapsedRealtime()<nextWake||detector.busy()||session.running||!session.canSend()||!session.decisions.isEmpty()

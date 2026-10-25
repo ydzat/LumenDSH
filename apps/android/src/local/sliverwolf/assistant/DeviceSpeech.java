@@ -19,13 +19,17 @@ final class DeviceSpeech {
     private final AudioManager audio;
     private final AudioFocusRequest focus;
     private final TextToSpeech tts;
+    private final CharacterSpeech character;
     private String readiness = "initializing", activeKey = "", activeId = "";
     private boolean closed, profileChanging;
-    private String initializedEngine="", activeText="";
+    private String initializedEngine="", activeText="", notice="";
+    String notice(){return notice;}
+    boolean synthesizing(){return localVoice()&&!activeKey.isEmpty()&&!character.playing();}
     private AssistantProfile.Voice profile;
     java.util.function.BooleanSupplier microphoneActive = () -> false;
     DeviceSpeech(Context context, DeviceOperations operations) {
         this.operations = operations;
+        character=new CharacterSpeech(context);
         audio = context.getSystemService(AudioManager.class);
         AudioAttributes attributes = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build();
@@ -49,7 +53,11 @@ final class DeviceSpeech {
     }
     private void captureEngine() {initializedEngine=tts.getDefaultEngine();}
     String spokenText() {return activeKey.isEmpty()?"":activeText;}
-    boolean profileReady() { return "ready".equals(readiness); }
+    boolean profileReady() { return localVoice()?character.configured():"ready".equals(readiness); }
+    private boolean localVoice(){return profile!=null&&CharacterSpeech.ENGINE.equals(profile.engine);}
+    boolean characterConfigured(){return character.configured();}
+    String systemEngine(){return initializedEngine;}
+    void pairCharacter(String token){if(!activeKey.isEmpty())throw new IllegalStateException("Finish speech before pairing");character.pair(token);}
     void holdProfile(boolean hold) { profileChanging=hold; }
     AssistantProfile.Voice voiceProfile() {
         if(!profileReady()) throw new IllegalStateException("Speech engine is not ready");
@@ -59,6 +67,10 @@ final class DeviceSpeech {
         if(!profileReady()) throw new IllegalStateException("Speech engine is not ready");
         if(microphoneActive.getAsBoolean()||!activeKey.isEmpty()||tts.isSpeaking())
             throw new IllegalStateException("Finish current voice interaction before switching profiles");
+        if(CharacterSpeech.ENGINE.equals(candidate.engine)){
+            if(!character.configured())throw new IllegalArgumentException("Character voice has not been paired");
+            profileChanging=true;return;
+        }
         if(!candidate.engine.equals(initializedEngine)) throw new IllegalArgumentException("Profile requires a different TTS engine");
         if(tts.isLanguageAvailable(Locale.forLanguageTag(candidate.language))<0)
             throw new IllegalArgumentException("Profile language is unavailable");
@@ -72,8 +84,8 @@ final class DeviceSpeech {
     void finishProfile(AssistantProfile.Voice candidate) {if(candidate!=null) profile=candidate; profileChanging=false;}
     boolean isSpeaking() { return !activeKey.isEmpty() || tts.isSpeaking(); }
     JSONObject status() {
-        return object("state", readiness, "engine", tts.getDefaultEngine() == null ? "unknown" : tts.getDefaultEngine(),
-            "activeOperationId", activeId, "speaking", tts.isSpeaking(), "profileChanging", profileChanging,
+        return object("state", profileReady()?"ready":readiness, "engine", localVoice()?CharacterSpeech.ENGINE:(tts.getDefaultEngine() == null ? "unknown" : tts.getDefaultEngine()),
+            "activeOperationId", activeId, "speaking", localVoice()?character.playing():tts.isSpeaking(), "synthesizing", localVoice()&&!activeKey.isEmpty()&&!character.playing(), "profileChanging", profileChanging,
             "rate",profile==null?1:profile.rate,"pitch",profile==null?1:profile.pitch,"language",profile==null?"zh-CN":profile.language);
     }
     JSONObject speak(JSONObject args) throws Exception {
@@ -87,17 +99,23 @@ final class DeviceSpeech {
         if (previous != null) return previous;
         if(profileChanging) throw new IllegalStateException("busy: voice profile is changing");
         if (microphoneActive.getAsBoolean()) throw new IllegalStateException("busy: microphone recognition active");
-        if (!"ready".equals(readiness)) throw new IllegalStateException("service-unavailable: TTS " + readiness);
+        if (!profileReady()) throw new IllegalStateException("service-unavailable: TTS " + readiness);
         if (!activeKey.isEmpty()) throw new IllegalStateException("busy: speech already active");
         if (audio.getMode() != AudioManager.MODE_NORMAL) throw new IllegalStateException("busy: communication audio active");
-        if (tts.setLanguage(Locale.forLanguageTag(language)) < 0) throw new IllegalStateException("unsupported-capability: TTS language data unavailable");
-        if(tts.setSpeechRate(profile==null?1:profile.rate)!=TextToSpeech.SUCCESS||tts.setPitch(profile==null?1:profile.pitch)!=TextToSpeech.SUCCESS)
+        if (!localVoice() && tts.setLanguage(Locale.forLanguageTag(language)) < 0) throw new IllegalStateException("unsupported-capability: TTS language data unavailable");
+        if(!localVoice() && (tts.setSpeechRate(profile==null?1:profile.rate)!=TextToSpeech.SUCCESS||tts.setPitch(profile==null?1:profile.pitch)!=TextToSpeech.SUCCESS))
             throw new IllegalStateException("Speech engine rejected voice parameters");
         JSONObject record = operations.reserve(key, "speak", fingerprint);
         if (audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             operations.transition(key, "failed", "Audio focus denied"); return operations.get(key);
         }
-        activeKey = key; activeId = record.getString("operationId"); activeText=text;
+        activeKey = key; activeId = record.getString("operationId"); activeText=text; notice=localVoice()?"正在本地合成银狼语音…":"正在朗读";
+        if(localVoice()){
+            operations.transition(key,"running","Synthesizing character voice locally");
+            try {character.speak(activeId,text,profile.rate,profile.pitch,this::event);}
+            catch(Exception error){operations.transition(key,"failed",error.getMessage());clearActive();}
+            return operations.get(key);
+        }
         if (tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, activeId) != TextToSpeech.SUCCESS) {
             operations.transition(key, "failed", "TTS queue rejected"); clearActive();
         }
@@ -119,6 +137,7 @@ final class DeviceSpeech {
     }
     boolean stopLocal(String reason) {
         if (activeKey.isEmpty()) return true;
+        notice="";character.stop();
         int result = tts.stop();
         try { operations.transition(activeKey, result == TextToSpeech.SUCCESS ? "cancelled" : "unknown", reason); }
         catch (Exception error) { readiness = "storage-failed"; }
@@ -128,11 +147,12 @@ final class DeviceSpeech {
     private void event(String id, String state, String detail, boolean terminal) {
         main.post(() -> {
             if (!id.equals(activeId)) return;
+            notice="failed".equals(state)?"语音播放失败："+detail:terminal?"":"正在朗读";
             try { operations.transition(activeKey, state, detail); }
-            catch (Exception error) { readiness = "storage-failed"; tts.stop(); clearActive(); return; }
+            catch (Exception error) { readiness = "storage-failed"; character.stop(); tts.stop(); clearActive(); return; }
             if (terminal) clearActive();
         });
     }
     private void clearActive() { activeKey = ""; activeId = ""; activeText=""; audio.abandonAudioFocusRequest(focus); }
-    void close() { closed = true; stopLocal("Client closed"); tts.shutdown(); }
+    void close() { closed = true; stopLocal("Client closed"); tts.shutdown(); character.close(); }
 }

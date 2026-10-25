@@ -1,11 +1,14 @@
 # Development Baseline
 
-Current handoff: **usable baseline; feature development paused by user decision**.
+Current handoff: **usable baseline with the user-requested character voice integration**.
 See [project status](project-status.md), [English introduction](../README.md),
 [Chinese introduction](../README.zh-CN.md) and [data boundaries](data-and-publication.md).
 UI polish and further validation remain future work, not a new scheduled milestone.
 
-Current backend/client (2026-10-25): DSH `0.2.1-rc.3` and Android `0.7.47-branding`.
+Current backend/client (2026-10-25): DSH `0.2.1-rc.3` and Android `0.7.48-character-voice`.
+The user resumed character work after this baseline:
+[Silver Wolf persona revision 2 and character voice investigation](silver-wolf-persona.md).
+The accepted voice is now integrated through [phone-local character speech](character-voice.md).
 Current model-aware adaptation and C26 evidence: [model configuration](model-configuration.md).
 The explicitly authorized upgrade is installed; the old runtime and compatibility
 branch are removed. Original conversations are retained. See the

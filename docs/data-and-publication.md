@@ -19,8 +19,10 @@ Termux; this handoff does not copy, delete or relocate it. An exported live prof
 is not a reusable example merely because it is JSON. Examples must use placeholders
 or deliberately synthetic data.
 
-Do not blanket-ignore JSON, Markdown or audio extensions: schemas, design documents
-and licensed fixtures can be project data. Conversely, file format alone cannot
+Do not blanket-ignore JSON or Markdown: schemas, design documents
+and licensed fixtures can be project data. Character audio files, extracted voice
+features and model weights are excluded; only preparation/integration code, pins,
+licenses and technical evidence are submitted. Conversely, file format alone cannot
 identify personal content. The code's MIT license does not license downloaded
 character art, model weights or voice assets under MIT.
 

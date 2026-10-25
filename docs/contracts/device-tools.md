@@ -7,6 +7,16 @@ is M3. See [implementation](../../integrations/device-tools/README.md) and
 
 ## Direction and placement
 
+The 0.7.48 character voice adapter keeps `assistant_speak` and
+`assistant_stop_speaking` unchanged. The Android speech owner calls a separate
+authenticated loopback synthesis service at port 3086; this is an internal audio
+transport, not a DSH/session API or a new MCP Agent. Its credential is delivered
+through the existing authenticated bridge's `voice/pair` method and stored in
+private preferences. Completed synthesis alone does not settle speech: Android's
+playback completion callback does. Pending HTTP results are invalidated on stop,
+so cancellation cannot be followed by late playback. Remote cancellation delivery
+can fail if the service is unreachable; native work retains its bounded deadline.
+
 The app is a client of DSH for conversations and a provider of device tools for DSH. Prefer a loopback-only MCP service in the Android app, with DSH acting as its MCP client. If the installed DSH cannot consume the selected transport, first evaluate a thin adapter in Termux; do not upgrade DSH implicitly.
 
 M2 preview uses an explicit thin Termux adapter even though installed DSH supports

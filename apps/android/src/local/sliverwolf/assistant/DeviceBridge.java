@@ -106,6 +106,10 @@ final class DeviceBridge extends WebSocketServer {
                 String method = request.getString("method");
                 Object result;
                 if ("list".equals(method)) result = tools();
+                else if ("voice/pair".equals(method)) {
+                    JSONObject args=request.getJSONObject("arguments");arguments(args,"token");
+                    speech.pairCharacter(args.getString("token"));result=object("paired",true,"engine",CharacterSpeech.ENGINE);
+                }
                 else if ("backend/pair".equals(method)) result = pairBackend(request.getJSONObject("arguments"));
                 else if ("call".equals(method)) result = call(request.getString("name"), request.getJSONObject("arguments"));
                 else if (method.startsWith("share/")) result = new ShareInbox(context).transfer(method,request.getJSONObject("arguments"));
@@ -221,9 +225,13 @@ final class DeviceBridge extends WebSocketServer {
         java.util.Iterator<String> keys = args.keys();
         while (keys.hasNext()) if (!names.contains(keys.next())) throw new IllegalArgumentException("invalid-input: unexpected argument");
     }
+    String speechNotice(){return speech.notice();}
+    boolean synthesizing(){return speech.synthesizing();}
     String spokenText() {return speech.spokenText();}
     boolean profileReady() {return speech.profileReady();}
     void holdProfile(boolean hold) {speech.holdProfile(hold);}
+    boolean characterConfigured(){return speech.characterConfigured();}
+    String systemVoiceEngine(){return speech.systemEngine();}
     AssistantProfile.Voice voiceProfile() {return speech.voiceProfile();}
     void beginProfile(AssistantProfile.Voice voice) {speech.beginProfile(voice);}
     void finishProfile(AssistantProfile.Voice voice) {speech.finishProfile(voice);}

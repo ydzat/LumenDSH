@@ -2,10 +2,7 @@
 
 Application name: **LumenDSH**. Silver Wolf / 银狼 is the customizable default
 character. The historical Android package ID is retained for upgrade compatibility.
-The source label has been updated; the installed baseline below predates that
-branding-only change and has not been rebuilt in the documentation handoff.
-
-Current version: **0.7.46-model-config**, package `local.sliverwolf.assistant`,
+Current version: **0.7.48-character-voice**, package `local.sliverwolf.assistant`,
 min/target SDK 29. Built and signed using an independent Termux toolchain.
 DSH 0.2.1-rc.3 runs separately behind authenticated phone-local HTTP/WebSocket APIs.
 
@@ -30,3 +27,11 @@ and [acceptance evidence](../../tests/acceptance.md). The supported external pet
 subset is described in [the format contract](../../docs/design/m4-pet-format.md).
 Downloaded models and bundled default character resources are excluded from Git;
 their preparation scripts pin origins, hashes and licensing separately.
+
+## Character voice update (0.7.48)
+
+The shared speech owner now supports the paired, phone-local Silver Wolf engine
+in addition to Android system speech. The application plays synthesized PCM audio
+and preserves existing focus, stop, reply correlation and operation recovery.
+Models and native synthesis remain outside the APK. Setup and real-phone evidence:
+[local character speech](../../docs/character-voice.md).
