@@ -5,6 +5,13 @@ artifact handoff implemented. Foreground recovery paths are verified; background
 is M3. See [implementation](../../integrations/device-tools/README.md) and
 [device evidence](../../tests/m2-evidence.md).
 
+## Foreground interaction update (0.7.49)
+
+The ordinary-reply policy and foreground keyword mode live in the client interaction
+settings; MCP method names and explicit speech semantics remain unchanged. Foreground
+keyword capture reuses the existing owner-gated service and relinquishes the microphone
+for settings, dialogs, chat and manual recognition. See [interaction design](../design/settings-drawer.md).
+
 ## Direction and placement
 
 The 0.7.48 character voice adapter keeps `assistant_speak` and
@@ -104,3 +111,12 @@ operations. The user performs enrollment locally after Android device-credential
 confirmation. `assistant_get_status` exposes only wake phase and numeric diagnostics,
 including owner rejection count; it does not export audio or voiceprint vectors. A
 voiceprint match permits the wake cue/command recognition, not blanket tool approval.
+
+## M8 speech providers
+
+Existing `assistant_speak`, `assistant_stop_speaking` and operation/status contracts
+remain unchanged for system, phone-local and HTTPS speech. Each utterance is one
+operation even when split into network/audio segments. The authenticated internal
+`voice/provider` pairing method saves device-local provider credentials and returns
+only its selection reference; it is not advertised as an Agent MCP tool and requires
+the foreground app. Only actual model/voice IDs may be activated.

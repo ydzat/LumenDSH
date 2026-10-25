@@ -12,4 +12,8 @@
     <instrumentation android:name=".HabitatInteractionChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Installed habitat gesture checks" />
     <instrumentation android:name=".ReleaseChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Isolated content release checks" />
     <instrumentation android:name=".ReleaseCrash" android:targetPackage="local.sliverwolf.assistant" android:label="Explicit release process death check" />
+    <instrumentation android:name=".SettingsChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Settings checks" />
+    <instrumentation android:name=".VoiceReplyChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Real automatic voice reply checks" />
+    <instrumentation android:name=".VoiceProviderChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Real speech provider checks" />
+    <instrumentation android:name=".BackgroundVoiceChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Real background provider reply" />
 </manifest>

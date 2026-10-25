@@ -141,3 +141,12 @@ content. Its upper edge follows the scaled feet through unused scene space while
 its lower edge stays above voice controls. This replaces the fixed 140 dp visible
 height; that value remains only a layout reservation. Fade and conversation ownership
 are unchanged. See the latest section of `docs/design/m4-attention.md`.
+
+## M8 voice selection references
+
+The voice profile schema remains unchanged. `engine` may be a system TTS package,
+legacy `lumendsh.silver_wolf.local`, or `lumendsh.voice.<selection-sha256>`.
+The latter resolves to immutable provider/model/voice settings on this device.
+Export does not contain URLs, API keys or reference audio. A recipient must
+configure a matching local selection; a missing provider fails explicitly.
+Provider edits retain the selection ID; switching voices activates a new profile.

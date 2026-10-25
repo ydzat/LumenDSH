@@ -2,7 +2,7 @@
 
 Application name: **LumenDSH**. Silver Wolf / 银狼 is the customizable default
 character. The historical Android package ID is retained for upgrade compatibility.
-Current version: **0.7.48-character-voice**, package `local.sliverwolf.assistant`,
+Current version: **0.7.50-voice-handoff**, package `local.sliverwolf.assistant`,
 min/target SDK 29. Built and signed using an independent Termux toolchain.
 DSH 0.2.1-rc.3 runs separately behind authenticated phone-local HTTP/WebSocket APIs.
 
@@ -16,6 +16,7 @@ and lifecycle evidence remains partial; no broad device-support claim is made.
 | --- | --- |
 | `DshTransport`, `Rc3Protocol`, `SessionController` | Authenticated sessions, decisions, reconnect and model metadata |
 | `Conversation`, `HabitatFeed`, `HabitatView` | Actual conversation events, sourced presentation and character scene |
+| `SettingsDrawer`, `InteractionSettings` | Grouped settings, independent home/chat input and reply policy |
 | `VoiceInput`, `WakeVoiceService`, `OwnerSpeaker` | System speech, local wake and owner matching |
 | `DeviceBridge`, `DeviceOperations`, `ArtifactInbox` | Local MCP and bounded authenticated side effects |
 | `PetStore`, `AssistantProfile`, `PresentationSettings` | Appearance import and independent configuration |
@@ -35,3 +36,9 @@ in addition to Android system speech. The application plays synthesized PCM audi
 and preserves existing focus, stop, reply correlation and operation recovery.
 Models and native synthesis remain outside the APK. Setup and real-phone evidence:
 [local character speech](../../docs/character-voice.md).
+
+## 0.8.0 speech providers
+
+The settings drawer selects system/local/HTTPS synthesis, with model and voice
+discovery or manual IDs. See [setup](../../integrations/voice/providers.md) and
+[real-device evidence](../../tests/m8-evidence.md). Models remain outside the APK.

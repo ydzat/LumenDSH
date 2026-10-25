@@ -4,7 +4,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-![Version](https://img.shields.io/badge/version-0.7.48-9274e8)
+![Version](https://img.shields.io/badge/version-0.8.0-9274e8)
 ![Android](https://img.shields.io/badge/Android-10%2B-3ddc84)
 ![Status](https://img.shields.io/badge/status-experimental-orange)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -23,8 +23,9 @@ and companionship direction to a DSH-based Android client.
 - **Character home screen** — a cyber habitat with animated pets, touch interactions,
   pinch-to-zoom and expandable text chat.
 - **Voice interaction** — speech recognition and synthesis, local wake words,
-  owner-speaker matching and a floating character overlay. Optional character speech
-  is synthesized locally in Termux and played by the app.
+  owner-speaker matching and a floating character overlay. Choose system speech,
+  local hoyoTTS/GPT-SoVITS, or an HTTPS provider with selectable models and voices.
+- **Grouped settings** — a side drawer with independent input/reply preferences; home voice sends when recognition finishes.
 - **Long-term memory** — local semantic retrieval, memory consolidation and traceable sources.
 - **Proactive assistance** — scheduled tasks and autonomous activities with configurable
   windows, budgets and pause controls.
@@ -49,6 +50,7 @@ flowchart TB
     end
     user <-->|Voice · Touch · Text| app
     dsh <-->|Model requests and responses| provider[LLM provider]
+    app <-->|Optional HTTPS speech API| speech[Speech provider]
 ```
 
 ## Getting started
@@ -83,10 +85,10 @@ Artwork: [awesome-codex-pet / silver-wolf--lingxiaotian](https://github.com/lege
 licensed **CC BY-NC 4.0** according to its upstream submission. Appearance and voice
 are configured separately.
 
-[Character voice setup](docs/character-voice.md) supports a separately prepared voice
-package. Silver Wolf audio samples, voice features and model weights are **not included
-in this repository or APK**. Short cold-start synthesis took about 15–16 seconds on
-the test phone; system speech remains selectable.
+[Voice provider setup](integrations/voice/providers.md) covers local models and
+OpenAI-compatible remote speech. The evaluated CPUFast server offers Silver Wolf,
+Firefly and Robin. Audio samples, voice features and model weights are **not included
+in this repository or APK**.
 
 ## Documentation and support
 

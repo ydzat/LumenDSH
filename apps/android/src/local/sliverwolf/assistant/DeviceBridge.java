@@ -110,6 +110,20 @@ final class DeviceBridge extends WebSocketServer {
                     JSONObject args=request.getJSONObject("arguments");arguments(args,"token");
                     speech.pairCharacter(args.getString("token"));result=object("paired",true,"engine",CharacterSpeech.ENGINE);
                 }
+                else if ("voice/provider".equals(method)) {
+                    if(!visible||speech.isSpeaking())throw new IllegalStateException("Open the app and finish speech before configuring a provider");
+                    JSONObject args=request.getJSONObject("arguments");arguments(args,"name","url","token","model","voice");
+                    VoiceProviders store=new VoiceProviders(context);
+                    String provider=store.save(null,args.getString("name"),args.getString("url"),args.getString("token"));
+                    result=object("provider",provider,"engine",store.select(provider,args.getString("model"),args.getString("voice")));
+                }
+                else if ("voice/provider".equals(method)) {
+                    if(!visible||speech.isSpeaking())throw new IllegalStateException("Open the app and finish speech before configuring a provider");
+                    JSONObject args=request.getJSONObject("arguments");arguments(args,"name","url","token","model","voice");
+                    VoiceProviders store=new VoiceProviders(context);
+                    String provider=store.save(null,args.getString("name"),args.getString("url"),args.getString("token"));
+                    result=object("provider",provider,"engine",store.select(provider,args.getString("model"),args.getString("voice")));
+                }
                 else if ("backend/pair".equals(method)) result = pairBackend(request.getJSONObject("arguments"));
                 else if ("call".equals(method)) result = call(request.getString("name"), request.getJSONObject("arguments"));
                 else if (method.startsWith("share/")) result = new ShareInbox(context).transfer(method,request.getJSONObject("arguments"));

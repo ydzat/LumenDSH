@@ -154,3 +154,10 @@ The full-requirements follow-up uses [C20-C25](../docs/m7-behavior-policy.md#con
 for behavior recovery/authentication, same-session activity, hard execution budgets,
 identity synchronization, sourced memory presentation and phone inference lifetime.
 Keep native-hook observation separate from a successful model/memory operation.
+
+## M8 speech providers
+
+S01-S08 are defined in [the M8 milestone](../docs/m8-voice-providers.md).
+See [executed evidence and resource limitations](m8-evidence.md). The local
+GPT-SoVITS resource-rejection result is not a successful-playback result.
+Previous waived acoustic tests retain their prior status.

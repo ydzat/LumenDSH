@@ -53,22 +53,22 @@ final class DeviceSpeech {
     }
     private void captureEngine() {initializedEngine=tts.getDefaultEngine();}
     String spokenText() {return activeKey.isEmpty()?"":activeText;}
-    boolean profileReady() { return localVoice()?character.configured():"ready".equals(readiness); }
-    private boolean localVoice(){return profile!=null&&CharacterSpeech.ENGINE.equals(profile.engine);}
+    boolean profileReady() { return localVoice()?character.configured(profile.engine):"ready".equals(readiness); }
+    private boolean localVoice(){return profile!=null&&VoiceProviders.handles(profile.engine);}
     boolean characterConfigured(){return character.configured();}
     String systemEngine(){return initializedEngine;}
     void pairCharacter(String token){if(!activeKey.isEmpty())throw new IllegalStateException("Finish speech before pairing");character.pair(token);}
     void holdProfile(boolean hold) { profileChanging=hold; }
     AssistantProfile.Voice voiceProfile() {
+        if(profile!=null)return profile;
         if(!profileReady()) throw new IllegalStateException("Speech engine is not ready");
         return profile!=null?profile:new AssistantProfile.Voice(initializedEngine,"zh-CN",1,1);
     }
     void beginProfile(AssistantProfile.Voice candidate) {
-        if(!profileReady()) throw new IllegalStateException("Speech engine is not ready");
         if(microphoneActive.getAsBoolean()||!activeKey.isEmpty()||tts.isSpeaking())
             throw new IllegalStateException("Finish current voice interaction before switching profiles");
-        if(CharacterSpeech.ENGINE.equals(candidate.engine)){
-            if(!character.configured())throw new IllegalArgumentException("Character voice has not been paired");
+        if(VoiceProviders.handles(candidate.engine)){
+            if(!character.configured(candidate.engine))throw new IllegalArgumentException("Character voice has not been paired");
             profileChanging=true;return;
         }
         if(!candidate.engine.equals(initializedEngine)) throw new IllegalArgumentException("Profile requires a different TTS engine");
@@ -84,7 +84,7 @@ final class DeviceSpeech {
     void finishProfile(AssistantProfile.Voice candidate) {if(candidate!=null) profile=candidate; profileChanging=false;}
     boolean isSpeaking() { return !activeKey.isEmpty() || tts.isSpeaking(); }
     JSONObject status() {
-        return object("state", profileReady()?"ready":readiness, "engine", localVoice()?CharacterSpeech.ENGINE:(tts.getDefaultEngine() == null ? "unknown" : tts.getDefaultEngine()),
+        return object("state", profileReady()?"ready":readiness, "engine", localVoice()?profile.engine:(tts.getDefaultEngine() == null ? "unknown" : tts.getDefaultEngine()),
             "activeOperationId", activeId, "speaking", localVoice()?character.playing():tts.isSpeaking(), "synthesizing", localVoice()&&!activeKey.isEmpty()&&!character.playing(), "profileChanging", profileChanging,
             "rate",profile==null?1:profile.rate,"pitch",profile==null?1:profile.pitch,"language",profile==null?"zh-CN":profile.language);
     }
@@ -109,10 +109,10 @@ final class DeviceSpeech {
         if (audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             operations.transition(key, "failed", "Audio focus denied"); return operations.get(key);
         }
-        activeKey = key; activeId = record.getString("operationId"); activeText=text; notice=localVoice()?"正在本地合成银狼语音…":"正在朗读";
+        activeKey = key; activeId = record.getString("operationId"); activeText=text; notice=localVoice()?"正在合成语音…":"正在朗读";
         if(localVoice()){
-            operations.transition(key,"running","Synthesizing character voice locally");
-            try {character.speak(activeId,text,profile.rate,profile.pitch,this::event);}
+            operations.transition(key,"running","Synthesizing with selected voice provider");
+            try {character.speak(profile.engine,activeId,text,profile.rate,profile.pitch,this::event);}
             catch(Exception error){operations.transition(key,"failed",error.getMessage());clearActive();}
             return operations.get(key);
         }

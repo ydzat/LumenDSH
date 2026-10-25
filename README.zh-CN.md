@@ -4,7 +4,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-![Version](https://img.shields.io/badge/version-0.7.48-9274e8)
+![Version](https://img.shields.io/badge/version-0.8.0-9274e8)
 ![Android](https://img.shields.io/badge/Android-10%2B-3ddc84)
 ![Status](https://img.shields.io/badge/status-experimental-orange)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
@@ -20,7 +20,8 @@ LumenDSH 承接并替代 [Lumen](https://github.com/ydzat/lumen)，延续个人 
 ## 功能
 
 - **角色主页** — 动态桌宠与赛博空间，支持触摸互动、双指缩放和展开文字聊天。
-- **语音交互** — 语音识别与合成、本地唤醒词、主人声纹匹配和悬浮角色；可选角色声音在 Termux 本地合成，由应用播放。
+- **语音交互** — 语音识别与合成、本地唤醒词、主人声纹匹配和悬浮角色；可选系统声音、本地 hoyoTTS/GPT-SoVITS，或支持模型与音色选择的 HTTPS 语音服务。
+- **分组设置** — 抽屉式菜单，独立配置输入和回复方式；主页语音默认说完即发送。
 - **长期记忆** — 本地语义检索、记忆整理与来源追溯。
 - **主动协助** — 定时任务和自主活动，支持活动窗口、资源预算和暂停控制。
 - **连续的 Agent 身份** — 日常协助、工具调用与自主改造共享会话和记忆，模型配置跟随 DSH。
@@ -43,6 +44,7 @@ flowchart TB
     end
     user <-->|语音 · 触摸 · 文字| app
     dsh <-->|模型请求与响应| provider[LLM 提供商]
+    app <-->|可选 HTTPS 语音接口| speech[语音提供商]
 ```
 
 ## 开始使用
@@ -71,8 +73,8 @@ DSH 和构建工具链独立于 APK 运行。客户端连接同一手机上的 D
 形象来源：[awesome-codex-pet / silver-wolf--lingxiaotian](https://github.com/legeling/awesome-codex-pet/tree/main/pets/silver-wolf--lingxiaotian)，
 上游投稿声明许可为 **CC BY-NC 4.0**。外观与声音分别配置。
 
-[角色语音配置](docs/character-voice.md)支持单独准备的音色包。**仓库和 APK 不包含银狼声音样本、音色特征或模型权重**。
-测试手机上的短句冷启动合成约需 15–16 秒，仍可选择系统声音。
+[语音提供商配置](integrations/voice/providers.md)介绍本地模型与 OpenAI 兼容远程语音服务。
+已验证的 CPUFast 服务提供银狼、流萤、知更鸟音色。**仓库和 APK 不包含声音样本、音色特征或模型权重**。
 
 ## 文档与反馈
 

@@ -32,7 +32,6 @@ public final class MainActivity extends Activity {
     private String dialogId = "";
     private VoiceInput voiceInput;
     private TextView voiceStatus;
-    private CheckBox voiceSend;
     private String voiceSession = "", voiceRequest = "";
     private boolean voiceAutoSend;
     private HabitatView habitat;
@@ -50,11 +49,11 @@ public final class MainActivity extends Activity {
     private HabitatFeed habitatFeed=new HabitatFeed("等待下一次交互","",-1,false);
     private String habitatSession = "", habitatTrace = "", habitatSnapshot = "";
     private final Runnable habitatTick = new Runnable() {
-        @Override public void run() { if (!isDestroyed()) { renderHabitat(); main.postDelayed(this, 250); } }
+        @Override public void run() { if (!isDestroyed()) { updateVoice(); syncWakeScope(); renderHabitat(); main.postDelayed(this, 250); } }
     };
 
     @Override public void onCreate(Bundle saved) {
-        super.onCreate(saved);if(saved!=null){documentPending=saved.getBoolean("documentPending",false);presentationExport=saved.getString("presentationExport");}
+        super.onCreate(saved);interaction=new InteractionSettings(this);if(saved!=null){documentPending=saved.getBoolean("documentPending",false);presentationExport=saved.getString("presentationExport");}
         try{new ContentReleases(this).recover();}catch(Exception error){throw new IllegalStateException("Content recovery failed",error);}
         LinearLayout root = column();
         transcriptPage = root; root.setBackgroundColor(0xff0c1420);
@@ -103,22 +102,19 @@ public final class MainActivity extends Activity {
         draft.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         LinearLayout composer=row(root);
         composer.addView(draft,new LinearLayout.LayoutParams(0,-2,1));
-        send = HabitatView.iconControl(this,"ic_arrow_up","发送",()->{if(controller.send(draft.getText().toString()))draft.setText("");});
+        send = HabitatView.iconControl(this,"ic_arrow_up","发送",()->{if(sendInteractive(draft.getText().toString(),false,false))draft.setText("");});
         composer.addView(send);
         send.setLayoutParams(new LinearLayout.LayoutParams((int)(76*getResources().getDisplayMetrics().density),-2));
         if(getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
             connection.setVisibility(android.view.View.GONE);session.setVisibility(android.view.View.GONE);status.setMaxLines(1);
         }
         voiceStatus = label(root, "我在。", 13); voiceStatus.setVisibility(android.view.View.GONE);
-        voiceSend = new CheckBox(this); voiceSend.setText("Auto-send voice and read reply"); root.addView(voiceSend); voiceSend.setVisibility(android.view.View.GONE);
-        LinearLayout voiceActions = row(root); voiceActions.setVisibility(android.view.View.GONE);
-        button(voiceActions, "Speak (Chinese)", this::startVoice);
-        button(voiceActions, "Stop voice", () -> stopVoice("Voice stopped"));
+        composer.addView(HabitatView.iconControl(this,"ic_mic","语音输入",()->{if(voiceInput.active()||deviceBridge.isSpeaking())stopVoice("语音已停止");else startVoice();}),new LinearLayout.LayoutParams(touchSize,touchSize));
         pages = new android.widget.FrameLayout(this);
         pages.addView(root, new android.widget.FrameLayout.LayoutParams(-1,-1));
         habitat = new HabitatView(this, new HabitatView.Actions() {
             public void voice() {
-                if (voiceInput != null && (voiceInput.active() || deviceBridge.isSpeaking())) stopVoice("语音已停止");
+                if (voiceInput != null && (voiceInput.active() || deviceBridge.isSpeaking() || (WakeVoiceService.homeAllowed&&"listening".equals(WakeVoiceService.phase())))) stopVoice("语音已停止");
                 else startVoice();
             }
             public void stop() { stopVoice("语音已停止"); }
@@ -138,22 +134,10 @@ public final class MainActivity extends Activity {
         if(saved==null)main.post(()->receiveShare(getIntent()));
         deviceBridge = SharedDeviceBridge.acquire(this);
         voiceInput = new VoiceInput(this, new VoiceInput.Listener() {
-            public void state(String state) { voiceStatus.setText(state); renderHabitat(); }
-            public void result(String text) {
-                if (!voiceSession.equals(controller.selected)) { voiceStatus.setText("Conversation changed; speech discarded"); return; }
-                if (!draft.getText().toString().trim().isEmpty()) {
-                    voiceStatus.setText("Draft changed while listening; speech not submitted"); return;
-                }
-                draft.setText(text);
-                if (voiceAutoSend && controller.send(text)) {
-                    voiceRequest = controller.pendingId; draft.setText("");
-                    voiceStatus.setText("Voice submitted; waiting for this reply");
-                } else voiceStatus.setText("Recognized draft; review and tap Send");
-            }
+            public void state(String state) { voiceStatus.setText(state); renderHabitat();main.post(()->{if(voiceInput!=null&&!voiceInput.active()&&manualCapture){manualCapture=false;syncWakeScope();}}); }
+            public void result(String text) { acceptVoice(text); }
         });
         deviceBridge.microphoneActive = voiceInput::active;
-        voiceSend.setChecked(getSharedPreferences("voice",MODE_PRIVATE).getBoolean("autoSend",false));
-        voiceSend.setOnCheckedChangeListener((button, checked) -> getSharedPreferences("voice",MODE_PRIVATE).edit().putBoolean("autoSend",checked).apply());
         try {
             petStore=new PetStore(new java.io.File(getFilesDir(),"appearances"));
             profileStore=new AssistantProfile.Store(new java.io.File(getFilesDir(),"assistant-profiles"));
@@ -162,47 +146,87 @@ public final class MainActivity extends Activity {
         } catch(Exception e) { petError(e); }
         if(saved!=null&&saved.getBoolean("transcriptVisible",false))showTranscript(true);
     }
+    private boolean sendInteractive(String text,boolean home,boolean voice){
+        if(!controller.send(text))return false;
+        if(interaction.speak(home,voice))spokenRequests.put(controller.pendingId,controller.selected);
+        if(voice)voiceRequest=controller.pendingId;
+        syncWakeScope();
+        return true;
+    }
+    private void acceptVoice(String text){
+        manualCapture=false;
+        if(!voiceSession.equals(controller.selected)){voiceStatus.setText("会话已变化，识别内容未发送");syncWakeScope();return;}
+        if(!voiceFromHome){
+            if(!draft.getText().toString().trim().isEmpty()){voiceStatus.setText("草稿已变化，识别内容需单独确认");confirmVoice(text,false);return;}
+            draft.setText(text);
+            if(!voiceAutoSend){voiceStatus.setText("已转成草稿，可编辑后发送");syncWakeScope();return;}
+        }
+        if(voiceAutoSend&&sendInteractive(text,voiceFromHome,true)){
+            if(!voiceFromHome)draft.setText("");voiceStatus.setText("已发送，等待回复");
+        }else confirmVoice(text,voiceFromHome);
+        syncWakeScope();renderHabitat();
+    }
+    private void confirmVoice(String text,boolean home){
+        // Confirmation stays on the originating page and never overwrites the chat draft.
+        EditText content=new EditText(this);content.setText(text);content.setMinLines(2);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(voiceAutoSend?"尚未发送":"确认语音消息").setView(content)
+            .setNegativeButton("取消",null).setPositiveButton("发送",null).create();
+        voiceConfirmation=dialog;final String selected=voiceSession;
+        WakeVoiceService.homeAllowed=false;WakeVoiceService.activity(true);
+        dialog.setOnDismissListener(v->{voiceConfirmation=null;syncWakeScope();});dialog.show();dialog.getWindow().setGravity(android.view.Gravity.BOTTOM);dialog.getWindow().setLayout(-1,-2);
+        dialog.getButton(-1).setOnClickListener(v->{
+            if(!selected.equals(controller.selected)){content.setError("会话已变化，请取消后重新输入");return;}
+            if(sendInteractive(content.getText().toString(),home,true)){if(!home&&text.equals(draft.getText().toString()))draft.setText("");voiceStatus.setText("已发送，等待回复");dialog.dismiss();}
+            else content.setError("尚未发送：请等待连接恢复或处理待确认请求");
+        });
+        voiceStatus.setText("识别完成，等待确认发送");
+    }
     private void startVoice() {
-        if(WakeVoiceService.microphoneBusy()||OwnerEnrollment.active){voiceStatus.setText("正在释放后台麦克风，请稍候");return;}
-        if(petBusy) {voiceStatus.setText("配置正在校验，请稍候");return;}
-        if (!controller.canSend() || controller.running || !voiceRequest.isEmpty()) {
-            voiceStatus.setText("Wait for the current request and connection before speaking"); return;
+        if(OwnerEnrollment.active){voiceStatus.setText("正在录入声纹，请稍候");return;}
+        if(petBusy){voiceStatus.setText("配置正在校验，请稍候");return;}
+        if(!controller.canSend()||controller.running||!voiceRequest.isEmpty()){voiceStatus.setText("请等待当前任务结束或连接恢复");return;}
+        voiceFromHome=transcriptPage.getVisibility()!=android.view.View.VISIBLE;
+        if(!voiceFromHome&&!draft.getText().toString().trim().isEmpty()){voiceStatus.setText("请先发送或清除聊天草稿");return;}
+        if(checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},91);return;}
+        manualCapture=true;syncWakeScope();deviceBridge.stopSpeaking();voiceSession=controller.selected;voiceAutoSend=interaction.autoSend(voiceFromHome);
+        startAfterMicrophoneRelease(android.os.SystemClock.elapsedRealtime()+2500);
+    }
+    private void startAfterMicrophoneRelease(long deadline){
+        if(!manualCapture||!resumed)return;
+        if(WakeVoiceService.microphoneBusy()){
+            if(android.os.SystemClock.elapsedRealtime()>=deadline){manualCapture=false;voiceStatus.setText("麦克风仍在使用，请重试");syncWakeScope();return;}
+            main.postDelayed(()->startAfterMicrophoneRelease(deadline),80);return;
         }
-        if (!draft.getText().toString().trim().isEmpty()) { voiceStatus.setText("Send or clear the existing draft first"); return; }
-        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            new AlertDialog.Builder(this).setTitle("Enable speech input?")
-                .setMessage("The installed recognition service may send audio to its provider. This client does not retain recordings. Tap Speak again after granting microphone access.")
-                .setNegativeButton("返回", null).setPositiveButton("Continue", (d, w) -> requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 31)).show();
-            return;
-        }
-        deviceBridge.stopSpeaking(); voiceSession = controller.selected; voiceAutoSend = voiceSend.isChecked();
-        voiceInput.start(activeProfile==null?"zh-CN":activeProfile.voice.language);
+        try{voiceInput.start(interaction.language(deviceBridge.voiceProfile().language));}
+        catch(Exception error){manualCapture=false;voiceStatus.setText(error.getMessage());syncWakeScope();}
     }
     private void stopVoice(String reason) {
-        if (voiceInput != null) voiceInput.stop();
-        voiceRequest = "";
-        if (deviceBridge != null) deviceBridge.stopSpeaking();
-        if (voiceStatus != null) voiceStatus.setText(reason);
+        manualCapture=false;if(voiceInput!=null)voiceInput.stop();WakeVoiceService.stopForegroundCapture();
+        voiceRequest="";spokenRequests.clear();
+        if(deviceBridge!=null)deviceBridge.stopSpeaking();
+        if(voiceStatus!=null)voiceStatus.setText(reason);syncWakeScope();
     }
     private void updateVoice() {
-        if (voiceInput == null) return;
-        if ((!voiceSession.equals(controller.selected) || !controller.connected)
-                && (voiceInput.active() || !voiceRequest.isEmpty())) {
-            stopVoice("Voice stopped: connection or conversation changed"); return;
+        if(voiceInput==null)return;
+        if((!voiceSession.equals(controller.selected)||!controller.connected)&&(voiceInput.active()||!voiceRequest.isEmpty())){stopVoice("会话或连接已变化，语音已停止");return;}
+        if(!voiceRequest.isEmpty()&&VoiceReply.find(controller.conversation,voiceRequest)!=null)voiceRequest="";
+        java.util.Iterator<java.util.Map.Entry<String,String>> iterator=spokenRequests.entrySet().iterator();
+        while(iterator.hasNext()){
+            java.util.Map.Entry<String,String> entry=iterator.next();
+            if(!entry.getValue().equals(controller.selected)){iterator.remove();continue;}
+            VoiceReply reply=VoiceReply.find(controller.conversation,entry.getKey());if(reply==null)continue;
+            // Keep the correlated reply queued until keyword/manual capture releases the microphone.
+            if(deviceBridge.isSpeaking()||voiceInput.active()||WakeVoiceService.microphoneBusy()||OwnerEnrollment.active)return;
+            String key="voice-"+entry.getKey();
+            if(reply.text.isEmpty()){iterator.remove();voiceStatus.setText(reply.notice);continue;}
+            try{deviceBridge.speakReply(key,reply.text);iterator.remove();voiceStatus.setText("正在回复");}
+            catch(Exception error){iterator.remove();voiceStatus.setText("播放失败："+error.getMessage());}
         }
-        if (voiceRequest.isEmpty()) return;
-        VoiceReply reply=VoiceReply.find(controller.conversation,voiceRequest);
-        if(reply==null)return;
-        String key="voice-"+voiceRequest;voiceRequest="";
-        if(reply.text.isEmpty()){voiceStatus.setText(reply.notice);return;}
-        try{deviceBridge.speakReply(key,reply.text);voiceStatus.setText("Reply sent to speech engine; tap Speak for the next request");}
-        catch(Exception error){voiceStatus.setText("Reply playback unavailable: "+error.getMessage());}
     }
     private void showDeviceTools() {
         new AlertDialog.Builder(this).setTitle("Device tools")
             .setMessage(deviceBridge.state + "\n\nAvailable: status, notification, explicit speech, operation lookup, and artifact handoff. Pair only with your local Termux adapter.")
             .setNegativeButton("Close", null)
-            .setNeutralButton("Stop speaking", (d, w) -> deviceBridge.stopSpeaking())
             .setPositiveButton("Pair Termux", (d, w) -> {
                 TextView credential = new TextView(this);
                 credential.setText(deviceBridge.pairingToken()); credential.setTextIsSelectable(true);
@@ -210,8 +234,16 @@ public final class MainActivity extends Activity {
                     .setView(credential).setPositiveButton("Done", null).show();
             }).show();
     }
-    @Override protected void onResume() { super.onResume(); if(voiceStatus!=null&&"已暂停前台语音".contentEquals(voiceStatus.getText()))voiceStatus.setText("我在。"); WakeVoiceService.activity(true); if(getSharedPreferences("wake",0).getBoolean("enabled",false)&&new OwnerVoiceStore(this).exists()&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)==android.content.pm.PackageManager.PERMISSION_GRANTED&&!WakeVoiceService.running())startForegroundService(new android.content.Intent(this,WakeVoiceService.class)); CompanionOverlayService.activity(true); if(getSharedPreferences("overlay",0).getBoolean("enabled",false)&&android.provider.Settings.canDrawOverlays(this))startForegroundService(new android.content.Intent(this,CompanionOverlayService.class)); CompletionService.foreground=true; if(getSharedPreferences("completion",0).getBoolean("enabled",false))startForegroundService(new android.content.Intent(this,CompletionService.class)); if (deviceBridge != null) deviceBridge.visible = true; main.removeCallbacks(habitatTick); main.post(habitatTick); }
-    @Override protected void onPause() { CompanionOverlayService.activity(documentPending); CompletionService.foreground=false; main.removeCallbacks(habitatTick); stopVoice("已暂停前台语音"); WakeVoiceService.activity(documentPending); if (deviceBridge != null) deviceBridge.visible = false; super.onPause(); }
+    @Override public void onWindowFocusChanged(boolean focused){super.onWindowFocusChanged(focused);if(!focused&&voiceInput!=null&&(voiceInput.active()||manualCapture))stopVoice("操作设置期间暂停语音");syncWakeScope();}
+    @Override protected void onResume(){
+        super.onResume();resumed=true;syncWakeScope();ensureWakeService();
+        CompanionOverlayService.activity(true);CompletionService.foreground=true;
+        if(getSharedPreferences("overlay",0).getBoolean("enabled",false)&&android.provider.Settings.canDrawOverlays(this))startForegroundService(new android.content.Intent(this,CompanionOverlayService.class));
+        if(getSharedPreferences("completion",0).getBoolean("enabled",false))startForegroundService(new android.content.Intent(this,CompletionService.class));
+        if(deviceBridge!=null)deviceBridge.visible=true;main.removeCallbacks(habitatTick);main.post(habitatTick);
+        if(settingsDrawer!=null&&settingsDrawer.isShowing())settingsDrawer.refresh();
+    }
+    @Override protected void onPause(){resumed=false;CompanionOverlayService.activity(documentPending);CompletionService.foreground=false;main.removeCallbacks(habitatTick);stopVoice("已暂停前台语音");syncWakeScope();if(deviceBridge!=null)deviceBridge.visible=false;super.onPause();}
     private LinearLayout column() {
         LinearLayout layout = new LinearLayout(this); layout.setOrientation(LinearLayout.VERTICAL); return layout;
     }
@@ -287,6 +319,7 @@ public final class MainActivity extends Activity {
             .hideSoftInputFromWindow(draft.getWindowToken(),0);
         transcriptPage.setVisibility(show ? android.view.View.VISIBLE : android.view.View.GONE);
         habitat.setVisibility(show ? android.view.View.GONE : android.view.View.VISIBLE);
+        syncWakeScope();
         if (show) {
             stopVoice("阅读文字记录中");
             transcript.post(()->transcript.fullScroll(android.view.View.FOCUS_DOWN));
@@ -398,74 +431,199 @@ public final class MainActivity extends Activity {
             .setPositiveButton("返回",null).create();
         dialog.setOnDismissListener(d->modelDetails=null);dialog.show();controller.refreshModel();
     }
+    private AlertDialog voiceConfirmation;
+    private String agentName(){try{return PresentationSettings.load(this).name;}catch(Exception e){throw new IllegalStateException("Invalid presentation settings",e);}}
+    private SettingsDrawer settingsDrawer;
+    private InteractionSettings interaction;
+    private boolean resumed,voiceFromHome,manualCapture;
+    private final java.util.LinkedHashMap<String,String> spokenRequests=new java.util.LinkedHashMap<>();
     private void showHabitatMenu() {
-        String[] choices = {"选择会话", "语音自动发送与朗读：" + (voiceSend.isChecked()?"开":"关"),
-            "重新连接", "断开客户端连接", "设备工具与配对", "文字记录与任务控制", "新建会话", "角色形象", "组合配置", "资源管理", "空间展示设置", "完成提醒与历史", "分享收件箱", "定时任务", "悬浮角色", "自动语音待命", "当前任务状态", "本地更新", "长期记忆", "自主活动与行为", "模型与上下文"};
-        new AlertDialog.Builder(this).setTitle("LumenDSH · 设置").setItems(choices,(d,w)-> {
-            if(w==20) showModelSettings();
-            else if(w==19) new CompanionSettings(this,petIo,controller.selected).show();
-            else if(w==18) showMemory(0);
-            else if(w==17) showLocalUpdate();
-            else if(w==0) chooseSession();
-            else if(w==1) voiceSend.setChecked(!voiceSend.isChecked());
-            else if(w==2) controller.connect();
-            else if(w==3) controller.disconnect();
-            else if(w==4) showDeviceTools();
-            else if(w==5) showTranscript(true);
-            else if(w==7) showAppearance();
-            else if(w==8) showProfiles();
-            else if(w==9) showLibrary();
-            else if(w==10) showPresentationSettings();
-            else if(w==11) showCompletionSettings();
-            else if(w==12) showShareInbox();
-            else if(w==13) showSchedules();
-            else if(w==14) showOverlaySettings();
-            else if(w==15) showWakeSettings();
-            else if(w==16) {
-                updateHabitatContent();HabitatFeed feed=HabitatFeed.from(controller.conversation);
-                showTranscript(false);habitat.offerSource(feed.source,"event:"+feed.sequence,
-                    (controller.connected?"":"连接中断 · 以下为最近已知状态\n")+feed.title+(feed.trace.isEmpty()?"":"\n"+feed.trace));
+        if(settingsDrawer!=null&&settingsDrawer.isShowing())return;
+        settingsDrawer=new SettingsDrawer(this,()->{settingsDrawer=null;syncWakeScope();});
+        syncWakeScope();settingsDrawer.open(this::settingsHome);
+    }
+    private void settingsHome() {
+        SettingsDrawer d=settingsDrawer;d.title("LumenDSH");
+        d.note(agentName()+" · "+(controller.connected?"已连接":"未连接")+" · "+controller.taskState());
+        d.section("日常");
+        d.row("会话","记录与任务控制",()->d.go(this::settingsSessions));
+        d.row("任务与收件箱","定时任务 · 分享收件箱",()->d.go(this::settingsTasks));
+        d.row("记忆","工作记忆与长期记忆",()->showMemory(0));
+        d.section("偏好");
+        d.row("交互与声音","输入、回复、唤醒和声纹",()->d.go(this::settingsInteraction));
+        d.row("角色与空间","形象、名称、动画和预设",()->d.go(this::settingsAppearance));
+        d.row("行为与自主活动","表达偏好与活动安排",()->new CompanionSettings(this,petIo,controller.selected).show());
+        d.row("通知与后台","悬浮角色与任务提醒",()->d.go(this::settingsBackground));
+        d.section("系统");d.row("连接与系统","设备配对、模型信息、更新与恢复",()->d.go(this::settingsSystem));
+    }
+    private void settingsSessions(){
+        SettingsDrawer d=settingsDrawer;d.title("会话");
+        d.row("展开当前对话","文字输入、复制、审批与任务控制",()->{d.dismiss();showTranscript(true);});
+        JSONArray items=controller.sessions;String[] labels=new String[items.length()];int selected=-1;
+        for(int i=0;i<items.length();i++){String id=items.optJSONObject(i).optString("sessionId");labels[i]="会话 · "+id.substring(Math.max(0,id.length()-12));if(id.equals(controller.selected))selected=i;}
+        d.choice("当前会话",selected<0?"尚未选择":labels[selected],labels,selected,i->{stopVoice("会话已切换");controller.select(items.optJSONObject(i).optString("sessionId"));});
+        d.row("新建会话","保留原有会话",()->new AlertDialog.Builder(this).setTitle("新建会话？").setNegativeButton("取消",null).setPositiveButton("创建",(v,w)->controller.create()).show());
+    }
+    private void settingsTasks(){SettingsDrawer d=settingsDrawer;d.title("任务与收件箱");d.row("定时任务","创建、暂停和管理任务",this::showSchedules);d.row("分享收件箱","查看分享给 Agent 的内容",this::showShareInbox);}
+    private void replyChoice(boolean home){
+        String key=home?"homeReply":"chatReply";String value=interaction.values.getString(key,home?"voice":"follow");
+        String[] values={"voice","text","follow"},labels={"语音并显示文字","仅文字","跟随输入方式"};int index=java.util.Arrays.asList(values).indexOf(value);
+        settingsDrawer.choice("回复方式",labels[Math.max(0,index)],labels,index,i->interaction.values.edit().putString(key,values[i]).apply());
+    }
+    private void settingsInteraction(){
+        SettingsDrawer d=settingsDrawer;d.title("交互与声音");d.section("主页");
+        String[] input={"点击麦克风","说唤醒词"};d.choice("开始说话",input[interaction.homeWake()?1:0],input,interaction.homeWake()?1:0,i->{
+            if(i==1&&!wakeReady())return;interaction.values.edit().putBoolean("homeWake",i==1).apply();ensureWakeService();syncWakeScope();});
+        d.toggle("说完自动发送","关闭后在主页确认文字",interaction.autoSend(true),on->interaction.values.edit().putBoolean("homeAutoSend",on).apply());replyChoice(true);
+        d.section("文字聊天页");d.toggle("语音说完自动发送","关闭后保留为可编辑草稿",interaction.autoSend(false),on->interaction.values.edit().putBoolean("chatAutoSend",on).apply());replyChoice(false);
+        d.section("识别与唤醒");String language=interaction.language(deviceBridge.voiceProfile().language);
+        d.choice("识别语言",language.equals("en-US")?"英语":"中文",new String[]{"中文","英语"},language.equals("en-US")?1:0,i->interaction.values.edit().putString("inputLanguage",i==1?"en-US":"zh-CN").apply());
+        d.note("唤醒词：嗨，"+agentName()+"。当前唤醒模型支持中文名称。");
+        d.toggle("后台关键词唤醒",WakeVoiceService.status(),getSharedPreferences("wake",0).getBoolean("enabled",false),on->{
+            if(on&&!wakeReady()){d.refresh();return;}getSharedPreferences("wake",0).edit().putBoolean("enabled",on).apply();ensureWakeService();});
+        d.row("主人声纹",new OwnerVoiceStore(this).exists()?"已录入 · 唤醒时验证主人":"尚未录入",()->startActivity(new android.content.Intent(this,OwnerVoiceActivity.class)));
+        d.row("朗读声音","声音、语速、音高与试听",()->d.go(this::settingsVoice));
+    }
+    private boolean wakeReady(){
+        if(!new OwnerVoiceStore(this).exists()){startActivity(new android.content.Intent(this,OwnerVoiceActivity.class));return false;}
+        if(checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},91);return false;}return true;
+    }
+    private void ensureWakeService(){
+        boolean wanted=getSharedPreferences("wake",0).getBoolean("enabled",false)||interaction.homeWake();
+        if(wanted&&new OwnerVoiceStore(this).exists()&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)==android.content.pm.PackageManager.PERMISSION_GRANTED){
+            if(!WakeVoiceService.running())startForegroundService(new android.content.Intent(this,WakeVoiceService.class));
+        }else if(!wanted)stopService(new android.content.Intent(this,WakeVoiceService.class));
+    }
+    private void syncWakeScope(){
+        if(interaction==null||habitat==null)return;
+        WakeVoiceService.homeAllowed=resumed&&hasWindowFocus()&&transcriptPage.getVisibility()!=android.view.View.VISIBLE&&settingsDrawer==null&&voiceConfirmation==null&&interaction.homeWake()&&!manualCapture
+            &&voiceRequest.isEmpty()&&spokenRequests.isEmpty()&&deviceBridge!=null&&!deviceBridge.isSpeaking();
+        WakeVoiceService.homeResult=WakeVoiceService.homeAllowed?this::homeWakeResult:null;
+        WakeVoiceService.activity(resumed||documentPending);
+    }
+    private void homeWakeResult(String text){voiceSession=controller.selected;voiceFromHome=true;voiceAutoSend=interaction.autoSend(true);acceptVoice(text);}
+    private void settingsVoice(){
+        SettingsDrawer d=settingsDrawer;d.title("朗读声音");AssistantProfile.Voice voice=deviceBridge.voiceProfile();
+        VoiceProviders providers=new VoiceProviders(this);
+        d.row("语音提供商",VoiceProviders.handles(voice.engine)?providers.label(voice.engine):"系统声音",()->d.go(this::settingsVoiceProviders));
+        d.choice("朗读语言",voice.language,new String[]{"中文 · zh-CN","英语 · en-US"},voice.language.equals("en-US")?1:0,i->saveVoice(new AssistantProfile.Voice(voice.engine,i==1?"en-US":"zh-CN",voice.rate,voice.pitch)));
+        d.slider("语速",voice.rate,.5f,1.5f,.05f,v->saveVoice(new AssistantProfile.Voice(voice.engine,voice.language,v,deviceBridge.voiceProfile().pitch)));
+        d.slider("音高",voice.pitch,.75f,1.25f,.05f,v->saveVoice(new AssistantProfile.Voice(voice.engine,voice.language,deviceBridge.voiceProfile().rate,v)));
+        d.row("试听","使用当前声音朗读",()->{try{deviceBridge.speakReply("preview-"+java.util.UUID.randomUUID(),"你好，我在这里。这是当前声音的试听。");}catch(Exception e){petError(e);}});
+    }
+    private void settingsVoiceProviders(){
+        SettingsDrawer d=settingsDrawer;d.title("语音提供商");VoiceProviders store=new VoiceProviders(this);
+        d.row("系统声音","使用 Android 已安装的语音引擎",()->{AssistantProfile.Voice v=deviceBridge.voiceProfile();saveVoice(new AssistantProfile.Voice(deviceBridge.systemVoiceEngine(),v.language,v.rate,v.pitch));});
+        try{for(VoiceProviders.Provider p:store.list())d.row(p.name,p.id.equals("local")?"hoyoTTS / GPT-SoVITS":p.url,()->d.go(()->settingsProvider(p.id)));}catch(Exception e){d.note(e.getMessage());}
+        d.row("添加远程服务","OpenAI 兼容语音接口 · HTTPS",()->d.go(()->editVoiceProvider(null)));
+        d.note("远程服务只接收本次朗读文本。失败时显示错误，不自动换声音或重发。");
+    }
+    private void editVoiceProvider(String id){
+        SettingsDrawer d=settingsDrawer;d.title("配置语音服务");VoiceProviders store=new VoiceProviders(this);
+        try{
+            VoiceProviders.Provider old=id==null?null:store.provider(id);
+            EditText name=d.input("名称",old==null?"":old.name,false);
+            EditText url=d.input("API 地址",old==null?"":old.url,false);url.setHint("https://example.com/v1");
+            EditText key=d.input("API key", "",false);key.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            if(old!=null)key.setHint("留空保留已保存的密钥");
+            d.row("保存","密钥仅加密保存在此设备",()->{try{String secret=key.getText().toString();String saved=store.save(id,name.getText().toString(),url.getText().toString(),secret.isEmpty()&&old!=null?old.key:secret);d.go(()->settingsProvider(saved));}catch(Exception e){petError(e);}});
+        }catch(Exception e){d.note(e.getMessage());}
+    }
+    private int voiceCatalogGeneration;
+    private void settingsProvider(String id){
+        SettingsDrawer d=settingsDrawer;d.title("服务模型");final int generation=++voiceCatalogGeneration;VoiceProviders store=new VoiceProviders(this);
+        try{VoiceProviders.Provider p=store.provider(id);d.note(p.name);
+            if(!id.equals("local")){
+                d.row("编辑服务","地址与密钥",()->d.go(()->editVoiceProvider(id)));
+                d.row("删除服务","先切换当前使用的声音",()->{try{store.remove(id,deviceBridge.voiceProfile().engine);d.onBackPressed();}catch(Exception e){petError(e);}});
             }
-            else new AlertDialog.Builder(this).setTitle("新建会话？")
-                .setMessage("这会创建新的 DSH 会话；现有会话仍然保留。")
-                .setNegativeButton("返回",null).setPositiveButton("创建",(dialog,which)->controller.create()).show();
-        }).setNegativeButton("返回",null).show();
+            d.row("手动指定模型与音色","用于不提供音色目录的兼容服务",()->d.go(()->manualVoice(id,"")));
+            d.row("刷新模型目录","从服务获取实际可用模型",()->settingsProvider(id));TextView loading=d.note("正在读取模型…");
+            petIo.execute(()->{try{org.json.JSONArray models=store.catalog(id,null).getJSONArray("data");main.post(()->{
+                if(settingsDrawer!=d||generation!=voiceCatalogGeneration||!d.isPage("服务模型"))return;loading.setVisibility(android.view.View.GONE);
+                for(int i=0;i<models.length();i++){String model=models.optJSONObject(i)==null?"":models.optJSONObject(i).optString("id");if(!model.isEmpty())d.row(model,"选择音色",()->d.go(()->settingsProviderVoices(id,model)));}
+                if(models.length()==0)d.note("服务未提供模型");
+            });}catch(Exception e){main.post(()->{if(settingsDrawer==d&&generation==voiceCatalogGeneration&&d.isPage("服务模型")){loading.setText(e.getMessage()+"；可手动填写模型和音色。");}});}});
+        }catch(Exception e){d.note(e.getMessage());}
+    }
+    private void settingsProviderVoices(String id,String model){
+        SettingsDrawer d=settingsDrawer;d.title("选择音色");final int generation=++voiceCatalogGeneration;d.note(model);VoiceProviders store=new VoiceProviders(this);
+        d.row("手动输入音色 ID","使用服务文档中的名称",()->d.go(()->manualVoice(id,model)));TextView loading=d.note("正在读取音色…");
+        petIo.execute(()->{try{
+            JSONObject catalog=store.catalog(id,model);org.json.JSONArray voices=catalog.optJSONArray("voices");if(voices==null)voices=catalog.optJSONArray("data");
+            if(voices==null)throw new java.io.IOException("音色目录格式不支持");java.util.ArrayList<String> ids=new java.util.ArrayList<>(),names=new java.util.ArrayList<>();
+            for(int i=0;i<voices.length();i++){Object value=voices.get(i);String key=value instanceof JSONObject?((JSONObject)value).optString("id",((JSONObject)value).optString("name")):String.valueOf(value);
+                if(!key.isEmpty()){ids.add(key);names.add(value instanceof JSONObject?((JSONObject)value).optString("name",key):key);}}
+            main.post(()->{if(settingsDrawer!=d||generation!=voiceCatalogGeneration||!d.isPage("选择音色"))return;loading.setVisibility(android.view.View.GONE);String[] labels=names.toArray(new String[0]);int current=-1;
+                try{VoiceProviders.Selection selected=store.resolve(deviceBridge.voiceProfile().engine);if(selected.provider.id.equals(id)&&selected.model.equals(model))current=ids.indexOf(selected.voice);}catch(Exception ignored){}
+                d.choice("音色",current<0?"请选择":labels[current],labels,current,i->applyProviderVoice(id,model,ids.get(i)));});
+        }catch(Exception e){main.post(()->{if(settingsDrawer==d&&generation==voiceCatalogGeneration&&d.isPage("选择音色")){loading.setText(e.getMessage()+"；可手动输入音色 ID。");}});}});
+    }
+    private void manualVoice(String id,String initial){
+        SettingsDrawer d=settingsDrawer;d.title("指定模型与音色");EditText model=d.input("模型 ID",initial,false),voice=d.input("音色 ID","",false);
+        d.row("使用此声音","可以在朗读声音页面试听",()->applyProviderVoice(id,model.getText().toString().trim(),voice.getText().toString().trim()));
+    }
+    private void applyProviderVoice(String id,String model,String voice){try{
+        String engine=new VoiceProviders(this).select(id,model,voice);AssistantProfile.Voice old=deviceBridge.voiceProfile();
+        saveVoice(new AssistantProfile.Voice(engine,old.language,old.rate,old.pitch));
+    }catch(Exception e){petError(e);}}
+    private void saveVoice(AssistantProfile.Voice voice){activateProfile(new AssistantProfile(activeProfile==null?"当前配置":activeProfile.name,activePet==null?"":activePet.key,voice),null);}
+    private void settingsAppearance(){
+        SettingsDrawer d=settingsDrawer;d.title("角色与空间");
+        EditText name=d.input("Agent 名称",agentName(),false);
+        d.row("保存名称","同时更新唤醒词与行为名称",()->savePresentation("name",name.getText().toString().trim()));
+        d.row("角色库","选择、导入或移除形象",()->d.go(this::settingsLooks));
+        d.row("预设","保存与切换形象和声音搭配",this::showProfiles);
+        d.row("空间展示","大小、动画、文字与颜色",()->d.go(this::settingsPresentation));
+    }
+    private void settingsLooks(){
+        SettingsDrawer d=settingsDrawer;d.title("角色库");
+        if(petBusy){d.note("形象正在准备，请稍候");return;}
+        petIo.execute(()->{try{java.util.LinkedHashMap<String,String> looks=petStore.appearances();main.post(()->{
+            if(settingsDrawer!=d||!d.isPage("角色库"))return;java.util.List<String> keys=new java.util.ArrayList<>(looks.keySet());
+            String[] labels=looks.values().toArray(new String[0]);int selected=keys.indexOf(activePet==null?"":activePet.key);
+            d.choice("当前形象",selected<0?"未选择":labels[selected],labels,selected,i->activateProfile(new AssistantProfile("当前配置",keys.get(i),deviceBridge.voiceProfile()),null));
+            d.row("导入角色 ZIP","Codex 桌宠资源",this::showAppearance);
+            d.row("管理已安装资源","移除不用的形象或预设",this::showLibrary);
+        });}catch(Exception e){main.post(()->petError(e));}});
+    }
+    private void savePresentation(String key,Object value){try{JSONObject data=new JSONObject(PresentationSettings.stored(this));data.put(key,value);habitat.configure(PresentationSettings.save(this,data.toString()));}catch(Exception e){petError(e);}}
+    private void settingsPresentation(){
+        SettingsDrawer d=settingsDrawer;d.title("空间展示");
+        try{JSONObject p=new JSONObject(PresentationSettings.stored(this));
+            d.slider("角色缩放 · 与双指手势同步",habitat.zoom(),0,1,.05f,habitat::setZoom);
+            d.slider("动画速度",(float)p.optDouble("animationSpeed",1),.5f,1.5f,.05f,v->savePresentation("animationSpeed",v));
+            d.slider("文字记录闲置隐藏秒数",p.optInt("holdSeconds",10),5,60,1,v->savePresentation("holdSeconds",Math.round(v)));
+            String[] colors={"#E0E5F0","#C5B3EE","#A7DCD5","#FFFFFF"};d.choice("文字颜色",p.optString("textColor"),new String[]{"银灰","浅紫","青绿","白色"},java.util.Arrays.asList(colors).indexOf(p.optString("textColor")),i->savePresentation("textColor",colors[i]));
+            d.row("恢复默认大小与速度","恢复全身视角 · 动画速度 1.0",()->{habitat.setZoom(0);savePresentation("animationSpeed",1);d.refresh();});
+            d.row("高级与配置文件","自定义标签、精确色值、导入导出与历史",this::showPresentationSettings);
+        }catch(Exception e){petError(e);}
+    }
+    private void settingsBackground(){
+        SettingsDrawer d=settingsDrawer;d.title("通知与后台");
+        boolean allowed=android.provider.Settings.canDrawOverlays(this);
+        d.toggle("悬浮角色",allowed?"显示角色与任务状态；语音唤醒独立设置":"需要系统悬浮窗权限",getSharedPreferences("overlay",0).getBoolean("enabled",false),on->{
+            if(on&&!allowed){startActivity(new android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,android.net.Uri.parse("package:"+getPackageName())));d.refresh();return;}
+            getSharedPreferences("overlay",0).edit().putBoolean("enabled",on).apply();android.content.Intent service=new android.content.Intent(this,CompanionOverlayService.class);if(on)startForegroundService(service);else stopService(service);});
+        d.toggle("任务完成通知","超过 20 秒的任务；前台静默；最短间隔 60 秒",getSharedPreferences("completion",0).getBoolean("enabled",false),on->{
+            if(on&&controller.selected.isEmpty()){petError(new IllegalStateException("请先选择会话"));d.refresh();return;}
+            getSharedPreferences("completion",0).edit().putBoolean("enabled",on).apply();android.content.Intent service=new android.content.Intent(this,CompletionService.class);if(on)startForegroundService(service);else stopService(service);});
+        d.row("通知历史","查看已送达提醒",this::showNotificationHistory);
+        d.row("系统通知权限","Android 通知设置",()->startActivity(new android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,getPackageName())));
+        d.row("关键词与声纹","配置后台自动语音",()->d.go(this::settingsInteraction));
+    }
+    private void settingsSystem(){
+        SettingsDrawer d=settingsDrawer;d.title("连接与系统");d.note(controller.connection);
+        d.row("重新连接","恢复当前会话连接",controller::connect);
+        d.row("断开客户端连接","DSH 与正在执行的任务继续运行",controller::disconnect);
+        d.row("设备工具与配对","连接本机 Termux",this::showDeviceTools);
+        d.row("模型与上下文信息","自动读取 DSH 当前模型配置",this::showModelSettings);
+        d.row("更新与恢复","查看本地候选版本和安装状态",this::showLocalUpdate);
     }
     @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);openNotification(intent);receiveShare(intent);}
     private void openNotification(android.content.Intent intent) {
         String selected=intent.getStringExtra("notificationSession");intent.removeExtra("notificationSession");
         if(selected!=null&&!selected.isEmpty()&&controller!=null)controller.select(selected);
-    }
-    private void showWakeSettings() {
-        try {
-            boolean enabled=WakeVoiceService.running();
-            String phrase="嗨，"+PresentationSettings.load(this).name.trim();
-            new AlertDialog.Builder(this).setTitle("自动语音待命")
-                .setMessage("唤醒词："+phrase+"\n须先录入主人声纹。离开主界面后，在本机检测完整唤醒词并验证主人声纹。未通过验证时保持静默。听到提示音后再说指令，自动发送到当前会话并朗读回复。\n系统语音识别可能联网；本机唤醒不代表离线识别。通知栏可随时停止。当前中文模型仅支持中文角色名。\n\n"+WakeVoiceService.status())
-                .setPositiveButton(enabled?"关闭待命":"开启待命",(d,w)->{
-                    if(!enabled&&!new OwnerVoiceStore(this).exists()){startActivity(new android.content.Intent(this,OwnerVoiceActivity.class));return;}
-                    if(!enabled&&checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){
-                        requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},91);return;
-                    }
-                    getSharedPreferences("wake",0).edit().putBoolean("enabled",!enabled).apply();
-                    android.content.Intent intent=new android.content.Intent(this,WakeVoiceService.class);
-                    if(enabled)stopService(intent);else startForegroundService(intent);
-                }).setNeutralButton("主人声纹",(d,w)->startActivity(new android.content.Intent(this,OwnerVoiceActivity.class))).setNegativeButton("返回",null).show();
-        }catch(Exception error){voiceStatus.setText(error.getMessage());}
-    }
-    private void showOverlaySettings() {
-        android.content.SharedPreferences settings=getSharedPreferences("overlay",0);
-        boolean enabled=settings.getBoolean("enabled",false),allowed=android.provider.Settings.canDrawOverlays(this);
-        new AlertDialog.Builder(this).setTitle("悬浮角色")
-            .setMessage("离开主界面后显示角色和真实任务状态，可拖动贴边。悬浮窗没有语音按钮；隐藏和召回放在通知中。自动唤醒可在菜单的“自动语音待命”中开启；手动语音保留在主界面。\n"+settings.getString("error",""))
-            .setPositiveButton(!allowed?"授权悬浮窗":enabled?"关闭悬浮角色":"开启悬浮角色",(d,w)->{
-                if(!allowed){startActivity(new android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,android.net.Uri.parse("package:"+getPackageName())));return;}
-                settings.edit().putBoolean("enabled",!enabled).putBoolean("hidden",false).remove("error").apply();
-                android.content.Intent intent=new android.content.Intent(this,CompanionOverlayService.class);
-                if(enabled)stopService(intent);else startForegroundService(intent);
-            }).setNeutralButton("召回",(d,w)->{
-                if(enabled&&allowed)startForegroundService(new android.content.Intent(this,CompanionOverlayService.class).setAction("recall"));
-            }).setNegativeButton("返回",null).show();
     }
     private void showSchedules() {
         try {
@@ -492,28 +650,34 @@ public final class MainActivity extends Activity {
         label(form,"到时提交到当前会话。应用关闭也可触发；强行停止后需重新打开。",14);
         if(!initialText.isEmpty()) label(form,"记忆整理每天最多触发一次；会话忙碌时跳过，不打断任务。",13);
         EditText text=new EditText(this);text.setHint("要交给 Agent 的任务");text.setText(initialText);form.addView(text);
-        label(form,"从现在起等待多少分钟（1–10080）",13);
-        EditText delay=new EditText(this);delay.setInputType(2);delay.setText("1");form.addView(delay);
-        label(form,"重复间隔分钟（0表示仅一次）",13);
-        EditText repeat=new EditText(this);repeat.setInputType(2);repeat.setText("0");form.addView(repeat);
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("新建定时任务").setView(form)
+        java.util.Calendar when=java.util.Calendar.getInstance();when.add(java.util.Calendar.MINUTE,1);
+        Button date=button(form,android.text.format.DateFormat.format("yyyy-MM-dd",when).toString(),()->{});
+        date.setOnClickListener(v->new android.app.DatePickerDialog(this,(picker,y,m,day)->{when.set(y,m,day);date.setText(android.text.format.DateFormat.format("yyyy-MM-dd",when));},when.get(java.util.Calendar.YEAR),when.get(java.util.Calendar.MONTH),when.get(java.util.Calendar.DAY_OF_MONTH)).show());
+        Button time=button(form,android.text.format.DateFormat.format("HH:mm",when).toString(),()->{});
+        time.setOnClickListener(v->new android.app.TimePickerDialog(this,(picker,h,m)->{when.set(java.util.Calendar.HOUR_OF_DAY,h);when.set(java.util.Calendar.MINUTE,m);time.setText(android.text.format.DateFormat.format("HH:mm",when));},when.get(java.util.Calendar.HOUR_OF_DAY),when.get(java.util.Calendar.MINUTE),true).show());
+        label(form,"重复",13);android.widget.RadioGroup repetitions=new android.widget.RadioGroup(this);form.addView(repetitions);
+        String[] names={"仅一次","每 24 小时","自定义间隔"};for(int i=0;i<names.length;i++){android.widget.RadioButton option=new android.widget.RadioButton(this);option.setId(200+i);option.setText(names[i]);repetitions.addView(option);}repetitions.check(200);
+        EditText repeat=new EditText(this);repeat.setInputType(2);repeat.setHint("间隔分钟（1–10080）");repeat.setText("1440");form.addView(repeat);repeat.setVisibility(android.view.View.GONE);
+        repetitions.setOnCheckedChangeListener((group,id)->repeat.setVisibility(id==202?android.view.View.VISIBLE:android.view.View.GONE));
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("新建定时任务").setView(scrollForm(form))
             .setPositiveButton("保存并启用",null).setNegativeButton("返回",null).create();
         dialog.show();dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             try {
-                int minutes=Integer.parseInt(delay.getText().toString()),interval=Integer.parseInt(repeat.getText().toString());
+                long trigger=when.getTimeInMillis();int interval=repetitions.getCheckedRadioButtonId()==200?0:repetitions.getCheckedRadioButtonId()==201?1440:Integer.parseInt(repeat.getText().toString());
                 String prompt=text.getText().toString().trim();
-                if(minutes<1||minutes>10080||interval<0||interval>10080||prompt.isEmpty()||prompt.length()>8192)
+                if(trigger<=System.currentTimeMillis()||trigger-System.currentTimeMillis()>10080*60000L||interval<0||interval>10080||(repetitions.getCheckedRadioButtonId()==202&&interval==0)||prompt.isEmpty()||prompt.length()>8192)
                     throw new IllegalArgumentException("Task text or schedule interval is invalid");
                 if(!initialText.isEmpty() && interval>0 && interval<1440)
                     throw new IllegalArgumentException("Memory reflection interval must be at least 1440 minutes");
                 ScheduledTaskStore.Task task=new ScheduledTaskStore.Task((initialText.isEmpty()?"":"companion-")+java.util.UUID.randomUUID().toString(),
-                    System.currentTimeMillis()+minutes*60000L,interval==0?"once":"interval",interval,prompt).withSession(selected);
+                    trigger,interval==0?"once":"interval",interval,prompt).withSession(selected);
                 ScheduledTaskStore store=new ScheduledTaskStore(getFilesDir());store.put(task);
                 try{ScheduleAlarms.register(this,task);}catch(Exception failure){store.pause(task.id,true);throw failure;}
                 dialog.dismiss();showSchedules();
             }catch(Exception error){petError(error);}
         });
     }
+    private ScrollView scrollForm(LinearLayout form){ScrollView scroll=new ScrollView(this);scroll.addView(form);return scroll;}
     private void showSchedule(ScheduledTaskStore.Task task) {
         try {
             ScheduledTaskStore store=new ScheduledTaskStore(getFilesDir());boolean paused=store.isPaused(task.id);
@@ -603,18 +767,6 @@ public final class MainActivity extends Activity {
             }catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}
         });
     }
-    private void showCompletionSettings() {
-        android.content.SharedPreferences prefs=getSharedPreferences("completion",0);
-        boolean enabled=prefs.getBoolean("enabled",false);
-        new AlertDialog.Builder(this).setTitle("任务完成提醒")
-            .setMessage("开启后以常驻通知监听当前会话。仅提醒超过20秒的任务，间隔至少60秒；应用在前台时不打扰。强行停止应用后需重新打开应用。\n"+prefs.getString("observer","")+"\n"+prefs.getString("outcome","")+"\n"+prefs.getString("error",""))
-            .setPositiveButton(enabled?"关闭监听":"开启监听",(d,w)->{
-                if(!enabled&&controller.selected.isEmpty()){petError(new IllegalStateException("Select a conversation first"));return;}
-                prefs.edit().putBoolean("enabled",!enabled).remove("error").apply();
-                android.content.Intent service=new android.content.Intent(this,CompletionService.class);
-                if(enabled)stopService(service);else startForegroundService(service);
-            }).setNeutralButton("查看历史",(d,w)->showNotificationHistory()).setNegativeButton("返回",null).show();
-    }
     private void showNotificationHistory() {
         try {
             JSONArray records=NotificationArchive.list(getFilesDir());String[] labels=new String[records.length()];
@@ -631,27 +783,16 @@ public final class MainActivity extends Activity {
     }
     private void showPresentationSettings() {
         try {
-            JSONObject original=new JSONObject(PresentationSettings.stored(this));
-            LinearLayout form=column();
-            String[] keys={"name","tag","size","holdSeconds","textColor","animationSpeed"};
-            String[] labels={"角色显示名","状态标签","角色大小（0.7–1.2）","文字记录闲置隐藏秒数（5–60）","文字颜色（#RRGGBB）","动画速度（0.5–1.5）"};
-            EditText[] inputs=new EditText[keys.length];
-            for(int i=0;i<keys.length;i++){
-                label(form,labels[i],13);inputs[i]=new EditText(this);
-                if(i==2||i==3||i==5)inputs[i].setInputType(android.text.InputType.TYPE_CLASS_NUMBER|(i==3?0:android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL));
-                inputs[i].setText(original.optString(keys[i],"animationSpeed".equals(keys[i])?"1":""));form.addView(inputs[i]);
-            }
-            ScrollView scroll=new ScrollView(this);scroll.addView(form);
-            AlertDialog dialog=new AlertDialog.Builder(this).setTitle("空间展示设置").setView(scroll)
+            JSONObject original=new JSONObject(PresentationSettings.stored(this));LinearLayout form=column();
+            label(form,"自定义标签",13);EditText tag=new EditText(this);tag.setText(original.getString("tag"));form.addView(tag);
+            label(form,"文字颜色（#RRGGBB）",13);EditText color=new EditText(this);color.setText(original.getString("textColor"));form.addView(color);
+            label(form,"资源基础比例（0.7–1.2；主页缩放在上一级调整）",13);EditText size=new EditText(this);size.setInputType(8194);size.setText(original.getString("size"));form.addView(size);
+            AlertDialog dialog=new AlertDialog.Builder(this).setTitle("高级展示设置").setView(scrollForm(form))
                 .setNeutralButton("配置文件",(d,w)->showPresentationFiles()).setNegativeButton("取消",null).setPositiveButton("保存",null).create();
             dialog.setOnShowListener(unused->dialog.getButton(-1).setOnClickListener(v->{try {
-                original.put("name",inputs[0].getText().toString());original.put("tag",inputs[1].getText().toString());
-                original.put("size",Double.parseDouble(inputs[2].getText().toString()));
-                original.put("holdSeconds",Integer.parseInt(inputs[3].getText().toString()));
-                original.put("textColor",inputs[4].getText().toString().trim());
-                original.put("animationSpeed",Double.parseDouble(inputs[5].getText().toString()));
-                habitat.configure(PresentationSettings.save(this,original.toString()));dialog.dismiss();
-            }catch(Exception e){inputs[0].setError(e.getMessage());}}));dialog.show();
+                original.put("tag",tag.getText().toString());original.put("textColor",color.getText().toString().trim());original.put("size",Double.parseDouble(size.getText().toString()));
+                habitat.configure(PresentationSettings.save(this,original.toString()));dialog.dismiss();if(settingsDrawer!=null)settingsDrawer.refresh();
+            }catch(Exception e){size.setError(e.getMessage());}}));dialog.show();
         }catch(Exception e){petError(e);}
     }
     private String presentationExport;
@@ -710,17 +851,11 @@ public final class MainActivity extends Activity {
         }catch(Exception error){main.post(()->{if(!isFinishing())petError(error);});}});
     }
     private void showAppearance() {
-        if(petStore==null) { petError(new IllegalStateException("Appearance storage unavailable")); return; }
-        if(petBusy) { android.widget.Toast.makeText(this,"正在校验角色资源",android.widget.Toast.LENGTH_SHORT).show(); return; }
-        new AlertDialog.Builder(this).setTitle("角色形象")
-            .setMessage("当前："+(activePet==null?"银狼（默认）":activePet.name)+"\n支持 Codex v2 桌宠 ZIP（pet.json + 精灵图）。")
-            .setPositiveButton("导入 ZIP",(d,w)-> {
-                android.content.Intent intent=new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
-                intent.addCategory(android.content.Intent.CATEGORY_OPENABLE); intent.setType("application/zip");
-                intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES,new String[]{"application/zip","application/x-zip-compressed","application/octet-stream"});
-                documentPending=true;startActivityForResult(intent,42);
-            }).setNeutralButton("使用内置形象",(d,w)->activatePet(null))
-            .setNegativeButton("返回",null).show();
+        if(petBusy)return;
+        android.content.Intent intent=new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);intent.setType("application/zip");
+        intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES,new String[]{"application/zip","application/x-zip-compressed","application/octet-stream"});
+        documentPending=true;startActivityForResult(intent,42);
     }
     @Override protected void onActivityResult(int request,int result,android.content.Intent data) {
         super.onActivityResult(request,result,data);
@@ -804,7 +939,7 @@ public final class MainActivity extends Activity {
                                 petBusy=false;
                                 if(isDestroyed()){if(pack!=null)pack.sprite.bitmap.recycle();return;}
                                 deviceBridge.finishProfile(candidate.voice);activeProfile=candidate;displayPet(pack);
-                                voiceStatus.setText("已启用配置："+candidate.name);
+                                voiceStatus.setText("已启用配置："+candidate.name);if(settingsDrawer!=null)settingsDrawer.refresh();
                             });
                         }catch(Exception e){main.post(()->{petBusy=false;deviceBridge.finishProfile(null);if(pack!=null)pack.sprite.bitmap.recycle();if(!isDestroyed())petError(e);});}
                     });
@@ -812,38 +947,26 @@ public final class MainActivity extends Activity {
             }catch(Exception e){final PetStore.Pack failed=loaded;main.post(()->{petBusy=false;if(failed!=null)failed.sprite.bitmap.recycle();if(!isDestroyed())petError(e);});}
         });
     }
-    private void showProfiles() {
-        if(petBusy||profileStore==null) {android.widget.Toast.makeText(this,"配置正在准备中",0).show();return;}
-        petBusy=true;
-        petIo.execute(()-> {
-            try {
-                java.util.LinkedHashMap<String,AssistantProfile> saved=profileStore.list();
-                java.util.LinkedHashMap<String,String> looks=petStore.appearances();
-                main.post(()-> {
-                    petBusy=false;if(isDestroyed())return;
-                    String[] labels=new String[saved.size()+3];labels[0]="新建组合配置";labels[1]="试听当前声音";labels[2]="导入组合配置";
-                    java.util.List<AssistantProfile> values=new java.util.ArrayList<>(saved.values());
-                    for(int i=0;i<values.size();i++)labels[i+3]=values.get(i).name+" · "+values.get(i).voice.language+" / "+values.get(i).voice.rate+"x";
-                    new AlertDialog.Builder(this).setTitle("组合配置 · "+(activeProfile==null?"默认":activeProfile.name))
-                        .setItems(labels,(d,w)-> {
-                            if(w==0) editProfile(looks);
-                            else if(w==1) {try {deviceBridge.speakReply("profile-preview-"+java.util.UUID.randomUUID(),"这是当前语音配置的试听。Hello, this is your voice profile.");}catch(Exception e){petError(e);}}
-                            else if(w==2) {
-                                android.content.Intent intent=new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
-                                intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);intent.setType("application/json");
-                                intent.putExtra(android.content.Intent.EXTRA_MIME_TYPES,new String[]{"application/json","text/plain","application/octet-stream"});
-                                documentPending=true;startActivityForResult(intent,45);
-                            }
-                            else {
-                                AssistantProfile selected=values.get(w-3);
-                                new AlertDialog.Builder(this).setTitle("切换组合配置？")
-                                    .setMessage(selected.name+"\n语音引擎："+selected.voice.engine+"\n语言："+selected.voice.language+"\n语速："+selected.voice.rate+" · 音高："+selected.voice.pitch)
-                                    .setNegativeButton("返回",null).setPositiveButton("启用配置",(dialog,which)->activateProfile(selected,null)).show();
-                            }
-                        }).setNegativeButton("返回",null).show();
-                });
-            }catch(Exception e){main.post(()->{petBusy=false;if(!isDestroyed())petError(e);});}
+    private void showProfiles(){
+        if(settingsDrawer==null||petBusy||profileStore==null)return;
+        settingsDrawer.go(this::settingsProfiles);
+    }
+    private void settingsProfiles(){
+        SettingsDrawer d=settingsDrawer;d.title("预设");
+        d.row("保存当前搭配","保存当前形象与声音",()->{
+            EditText name=new EditText(this);name.setText("我的配置");
+            AlertDialog dialog=new AlertDialog.Builder(this).setTitle("保存预设").setView(name).setNegativeButton("取消",null).setPositiveButton("保存",null).create();dialog.show();
+            dialog.getButton(-1).setOnClickListener(v->{try{AssistantProfile candidate=new AssistantProfile(name.getText().toString().trim(),activePet==null?"":activePet.key,deviceBridge.voiceProfile());dialog.dismiss();activateProfile(candidate,null);}catch(Exception e){name.setError(e.getMessage());}});
         });
+        d.row("导入预设","引用已安装的形象与声音",()->{
+            android.content.Intent intent=new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);intent.setType("application/json");documentPending=true;startActivityForResult(intent,45);
+        });
+        petIo.execute(()->{try{java.util.LinkedHashMap<String,AssistantProfile> saved=profileStore.list();String active=petStore.activeProfile();main.post(()->{
+            if(settingsDrawer!=d||!d.isPage("预设"))return;
+            java.util.List<String> keys=new java.util.ArrayList<>(saved.keySet());String[] names=new String[keys.size()];for(int i=0;i<names.length;i++)names[i]=saved.get(keys.get(i)).name;
+            int selected=keys.indexOf(active);d.choice("已保存预设",selected<0?"尚无已选预设":names[selected],names,selected,i->activateProfile(saved.get(keys.get(i)),null));
+            d.row("管理预设与资源","删除未使用的项目",this::showLibrary);
+        });}catch(Exception e){main.post(()->petError(e));}});
     }
     private void importProfile(android.net.Uri uri) {
         if(petBusy||profileStore==null||petStore==null)return;petBusy=true;
@@ -911,34 +1034,6 @@ public final class MainActivity extends Activity {
                 .setTitle("资源未删除").setMessage(e.getMessage()).setPositiveButton("返回",null).show();});}
         });
     }
-    private android.widget.Spinner choices(LinearLayout form,String title,String[] values,int selected) {
-        label(form,title,14);android.widget.Spinner spinner=new android.widget.Spinner(this);
-        android.widget.ArrayAdapter<String> adapter=new android.widget.ArrayAdapter<>(this,android.R.layout.simple_spinner_item,values);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);spinner.setAdapter(adapter);spinner.setSelection(selected);form.addView(spinner);return spinner;
-    }
-    private void editProfile(java.util.LinkedHashMap<String,String> looks) {
-        try {
-            AssistantProfile.Voice current=deviceBridge.voiceProfile();
-            LinearLayout form=column();EditText name=new EditText(this);name.setHint("配置名称");name.setText("我的配置");form.addView(name);
-            java.util.List<String> keys=new java.util.ArrayList<>(looks.keySet());
-            android.widget.Spinner appearance=choices(form,"外观",looks.values().toArray(new String[0]),Math.max(0,keys.indexOf(activePet==null?"":activePet.key)));
-            String[] engines=deviceBridge.characterConfigured()?new String[]{deviceBridge.systemVoiceEngine(),CharacterSpeech.ENGINE}:new String[]{deviceBridge.systemVoiceEngine()};
-            android.widget.Spinner engine=choices(form,"朗读声音",deviceBridge.characterConfigured()?new String[]{"系统声音","银狼 · 本地合成"}:new String[]{"系统声音"},CharacterSpeech.ENGINE.equals(current.engine)?1:0);
-            android.widget.Spinner language=choices(form,"识别与朗读语言",new String[]{"zh-CN","en-US"},current.language.equals("en-US")?1:0);
-            android.widget.Spinner rate=choices(form,"语速",new String[]{"0.75","1.0","1.25"},current.rate<1?0:current.rate>1?2:1);
-            android.widget.Spinner pitch=choices(form,"音高",new String[]{"0.85","1.0","1.15"},current.pitch<1?0:current.pitch>1?2:1);
-            label(form,"当前引擎："+current.engine+"\n自动发送授权保持原设置。",12);
-            ScrollView scroll=new ScrollView(this);scroll.addView(form);
-            AlertDialog dialog=new AlertDialog.Builder(this).setTitle("新建组合配置").setView(scroll).setNegativeButton("取消",null).setPositiveButton("保存并启用",null).create();
-            dialog.setOnShowListener(unused->dialog.getButton(-1).setOnClickListener(v->{
-                try {
-                    AssistantProfile candidate=new AssistantProfile(name.getText().toString().trim(),keys.get(appearance.getSelectedItemPosition()),
-                        new AssistantProfile.Voice(engines[engine.getSelectedItemPosition()],language.getSelectedItem().toString(),Float.parseFloat(rate.getSelectedItem().toString()),Float.parseFloat(pitch.getSelectedItem().toString())));
-                    dialog.dismiss();activateProfile(candidate,null);
-                }catch(Exception e){name.setError(e.getMessage());}
-            }));dialog.show();
-        }catch(Exception e){petError(e);}
-    }
     private void displayPet(PetStore.Pack pack) {
         PetStore.Pack previous=activePet; activePet=pack; habitat.setPet(pack==null?defaultPet:pack.sprite);
         if(previous!=null&&previous!=pack) previous.sprite.bitmap.recycle();
@@ -954,7 +1049,7 @@ public final class MainActivity extends Activity {
             android.widget.Toast.makeText(this,"正在听你说话，触摸未发送",android.widget.Toast.LENGTH_SHORT).show();return;
         }
         boolean busy=controller.running;
-        if(controller.send("[角色触摸] 用户"+action+"。")){
+        if(sendInteractive("[角色触摸] 用户"+action+"。",true,false)){
             voiceStatus.setText(busy?"触摸消息已排队，当前任务继续":"触摸消息已发送");
         }else{
             android.widget.Toast.makeText(this,"触摸未发送：请等待连接或处理待确认消息",android.widget.Toast.LENGTH_SHORT).show();
@@ -1003,9 +1098,9 @@ public final class MainActivity extends Activity {
             try{habitat.configure(PresentationSettings.parse(presentation));renderedPresentation=presentation;habitatSnapshot="";}
             catch(Exception error){voiceStatus.setText("展示配置加载失败："+error.getMessage());return;}
         }
-        boolean listening=voiceInput.active(), speaking=deviceBridge.isSpeaking();
+        boolean listening=voiceInput.active()||(WakeVoiceService.homeAllowed&&"listening".equals(WakeVoiceService.phase())), speaking=deviceBridge.isSpeaking();
         String spoken=deviceBridge.spokenText();
-        String feedback=voiceStatus.getText().toString();
+        String feedback=WakeVoiceService.homeAllowed&&!manualCapture?WakeVoiceService.status():voiceStatus.getText().toString();
         if(!controller.pendingId.isEmpty()) feedback="消息状态："+controller.pendingState+" · 详情见文字记录";
         else if(!controller.notice.isEmpty()) feedback=controller.notice;
         if(!deviceBridge.speechNotice().isEmpty())feedback=deviceBridge.speechNotice();
@@ -1104,6 +1199,7 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(state);
     }
     @Override protected void onDestroy() {
+        resumed=false;if(voiceConfirmation!=null)voiceConfirmation.dismiss();if(settingsDrawer!=null)settingsDrawer.dismiss();WakeVoiceService.homeResult=null;WakeVoiceService.homeAllowed=false;
         if(voiceInput!=null)voiceInput.stop();
         voiceRequest="";
         if (decisionDialog != null) decisionDialog.dismiss();

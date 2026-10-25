@@ -1,11 +1,13 @@
 # Development Baseline
 
-Current handoff: **usable baseline with the user-requested character voice integration**.
+Current handoff: **M8 local and remote speech providers delivered**.
+See [M8 scope](m8-voice-providers.md), [device evidence](../tests/m8-evidence.md)
+and [provider setup](../integrations/voice/providers.md).
 See [project status](project-status.md), [English introduction](../README.md),
 [Chinese introduction](../README.zh-CN.md) and [data boundaries](data-and-publication.md).
-UI polish and further validation remain future work, not a new scheduled milestone.
+The approved [settings drawer and interaction redesign](design/settings-drawer.md) is implemented in 0.7.49. Further visual polish and validation remain future work.
 
-Current backend/client (2026-10-25): DSH `0.2.1-rc.3` and Android `0.7.48-character-voice`.
+Current backend/client (2026-10-25): DSH `0.2.1-rc.3` and Android `0.8.0`.
 The user resumed character work after this baseline:
 [Silver Wolf persona revision 2 and character voice investigation](silver-wolf-persona.md).
 The accepted voice is now integrated through [phone-local character speech](character-voice.md).

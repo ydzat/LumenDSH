@@ -95,6 +95,11 @@ final class HabitatView extends LinearLayout {
             new android.app.AlertDialog.Builder(context).setTitle("展示配置加载失败").setMessage(e.getMessage()).setPositiveButton("返回",null).show();
         }
     }
+    float zoom(){return scene.zoom;}
+    void setZoom(float value){
+        scene.zoom=Math.max(0,Math.min(1,value));
+        getContext().getSharedPreferences("appearance",0).edit().putFloat("zoom",scene.zoom).apply();scene.invalidate();
+    }
     void configure(PresentationSettings settings) {
         presentation=settings;if(scene.pet!=null)scene.pet.playbackSpeed=settings.animationSpeed;name.setText(settings.name);scene.setContentDescription(settings.name+"，单击触摸，双指缩放");
         bubble.colors(settings.backgroundColor,settings.textColor);scene.invalidate();
@@ -252,7 +257,7 @@ final class HabitatView extends LinearLayout {
                     revealNarration();invalidate();return true;
                 }
                 @Override public void onScaleEnd(android.view.ScaleGestureDetector detector){
-                    getContext().getSharedPreferences("appearance",0).edit().putFloat("zoom",zoom).apply();
+                    HabitatView.this.setZoom(zoom);
                 }
             });
             scaling.setQuickScaleEnabled(false);scaling.setStylusScaleEnabled(false);

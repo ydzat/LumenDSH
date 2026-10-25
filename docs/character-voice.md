@@ -1,5 +1,11 @@
 # Local character speech
 
+The current default backend is the user-accepted pretrained hoyoTTS Silver Wolf
+voice. It uses the same Android engine ID and pairing, with no APK change.
+See [runtime and reproduction](../integrations/voice/hoyotts.md) and
+[complete-pipeline phone evidence](../tests/hoyotts-evidence.md). The original
+GPT-SoVITS assets below remain available only for explicit rollback.
+
 Android `0.7.48-character-voice` integrates the user-approved Silver Wolf voice.
 The character model runs independently in Termux. The APK keeps the existing
 microphone, audio-focus, operation-journal and reply-correlation ownership.
@@ -99,3 +105,42 @@ An eight-second inspected demonstration is saved locally at
 `artifacts/demos/20261025-192924-character-voice-masked-59e7efb9.mp4`.
 It records the real phone during playback, without audio; the existing message
 history region is masked. It is not an acoustic recording or a wake-word test.
+## Accepted lighter voice deployment (2026-10-25)
+
+The user accepted the pretrained hoyoTTS Silver Wolf sample (speaker 221) as
+lower quality than the current GPT-SoVITS voice but within the acceptable range.
+Local fine-tuning is deferred. The complete phone pipeline is now deployed through
+the existing service and pairing.
+
+The model source is [Genius-Society/hoyoTTS](https://huggingface.co/Genius-Society/hoyoTTS),
+revision `69fe1ac0ba1f1caf7522369ba5d002b493331b6f`; inference source is its Space
+revision `ad1ac8242554a2f203ca67622f90b109f75b3b35`. Source/model hashes and exact
+experimental dependencies are retained in ignored `.local/hoyotts/`. The model
+card declares CC-BY-NC-ND-4.0; downloaded and converted weights remain local.
+
+The upstream synthesis method exports to a 169,802,803-byte ONNX graph. Three
+real Mandarin segments of different lengths passed deterministic export parity
+with both stochastic noise scales set to zero; maximum waveform absolute error
+was below 0.000030. Normal synthesis retains the accepted sample's noise settings.
+The existing quantized Chinese RoBERTa is reused, retaining its special-token
+features for this model. This changes no learned weights.
+
+An isolated Android 10 probe on YAL-L21 completed with the existing ONNX Runtime
+1.27.0 and two CPU inference threads: 8.673 seconds of output audio in 15.211
+seconds wall time. Sampled peak RSS was 289,951,744 bytes (about 277 MiB); the
+process reported VmHWM of 283,324 KiB. This probe used desktop-prepared text
+features and measures waveform synthesis only. It does not establish end-to-end
+phone latency or total pipeline memory. The WAV passed finite/nonzero checks.
+
+Evidence and local audio: `artifacts/voice-comparison-character/` and
+`.local/hoyotts/phone-receipt.json`. The subsequent full-pipeline, long-reply,
+cancellation and installed-app checks passed; see [updated evidence](../tests/hoyotts-evidence.md).
+Only the voice service was switched; DSH remains unchanged.
+
+## M8 provider selection (0.8.0)
+
+The earlier default-only integration is superseded by [local/remote providers](../integrations/voice/providers.md).
+System speech, local hoyoTTS and local GPT-SoVITS remain explicit choices. The
+installed selection now uses the HTTPS CPUFast Silver Wolf voice, with Firefly and
+Robin available from the same model. Existing phone preparation and memory limits
+still apply when selecting a local engine. See [M8 evidence](../tests/m8-evidence.md).

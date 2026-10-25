@@ -1,5 +1,24 @@
 # M3 Voice Preview
 
+## Current interaction policy (0.7.49)
+
+The [settings drawer](design/settings-drawer.md) supersedes the early preview defaults
+below. Home recognition automatically sends by default and never overwrites the chat
+draft. Chat recognition has its own auto-send preference. Reply modes are independent:
+voice plus text, text only, or follow the input medium. Explicit DSH speech-tool
+operations remain explicit device actions; ordinary reply policy does not revoke them.
+Input recognition language no longer changes together with output voice language.
+
+Foreground keyword mode is optional and uses the same owner-gated wake service as
+background wake. Drawer/dialog/transcript interactions suspend foreground keyword
+capture; the microphone button can interrupt keyword-triggered instruction capture.
+Background wake and the overlay retain their existing independent consent settings.
+See [current evidence](../tests/settings-evidence.md) for UI, real submission and
+acoustic verification boundaries.
+
+## Historical preview investigation
+
+
 Status: foreground implementation built and installed; the user confirmed two
 successful spoken requests and audible replies (V01, tap-per-request policy).
 This preview is not the completed M3 voice lifecycle.

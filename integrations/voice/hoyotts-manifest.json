@@ -1,0 +1,180 @@
+{
+  "modelRepository": "https://huggingface.co/Genius-Society/hoyoTTS",
+  "modelRevision": "69fe1ac0ba1f1caf7522369ba5d002b493331b6f",
+  "modelLicense": "CC-BY-NC-ND-4.0; local use only, no bundled weights",
+  "speakerId": 221,
+  "sourceRevision": "ad1ac8242554a2f203ca67622f90b109f75b3b35",
+  "downloadedFiles": [
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/README.md",
+      "path": "source\\README.md",
+      "sha256": "9e828ae15de39e675bb59d6d76d5ca9035e1c0a2246a7218d644c980631e77d4",
+      "bytes": 226
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/app.py",
+      "path": "source\\app.py",
+      "sha256": "6edc1282697992638262955b1c6b7c9c116a3a930b68cbfa21ac88a5f25ff8da",
+      "bytes": 11401
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/attentions.py",
+      "path": "source\\attentions.py",
+      "sha256": "d946105d9bb1ce7c0ae5ad8755bb074f0f659eacac8d289d93160369d2fbbead",
+      "bytes": 16366
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/commons.py",
+      "path": "source\\commons.py",
+      "sha256": "b60f41e57c203be383710a057aa30843fb1282bb82696304ad806f21a1e86a4e",
+      "bytes": 4969
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/models.py",
+      "path": "source\\models.py",
+      "sha256": "1ed0648a85670610d5c4fa70eac59caee2e33b0f41ffe8360fb9990eac6def93",
+      "bytes": 32243
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/modules.py",
+      "path": "source\\modules.py",
+      "sha256": "a1a97a86181e715f7b671e2da4278d25c71f649850cfd40a7b4990024862a167",
+      "bytes": 18924
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/monotonic_align/__init__.py",
+      "path": "source\\monotonic_align\\__init__.py",
+      "sha256": "8182fc7bc572d2facd1d772edd2068402c4569a5fe00a68edb1dc9ea22a2922e",
+      "bytes": 545
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/monotonic_align/core.py",
+      "path": "source\\monotonic_align\\core.py",
+      "sha256": "9d1599bc2456c346eeda3d78b32e6a2fdbfb04e307da4c5b2b47d630cc7afda6",
+      "bytes": 978
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/requirements.txt",
+      "path": "source\\requirements.txt",
+      "sha256": "d5f5f7b62f592e6ab0154d7b634f5f9559efae63879f7d3c5ddd5cd0f3cdc384",
+      "bytes": 133
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/text/__init__.py",
+      "path": "source\\text\\__init__.py",
+      "sha256": "dc5b0a98365d48b23372e7c411f34befc5d87c59bb7f3d99c23d2708fa6bb643",
+      "bytes": 939
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/text/chinese.py",
+      "path": "source\\text\\chinese.py",
+      "sha256": "fdb1d07c42229464401fe5d82c8686fbe6563b19a44c7891e502afadcd07076b",
+      "bytes": 5837
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/text/chinese_bert.py",
+      "path": "source\\text\\chinese_bert.py",
+      "sha256": "ec7cdd06f0c0ef9eeee6e5d1bc52a2d7398a7bbc0635acfbed6d1be681d8f6e1",
+      "bytes": 2442
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/text/cleaner.py",
+      "path": "source\\text\\cleaner.py",
+      "sha256": "f6b8fc5332e6c4f0bba46df2d2e0d63891ed220120ef7ec3fb72d6d22b73039a",
+      "bytes": 843
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/text/english_bert_mock.py",
+      "path": "source\\text\\english_bert_mock.py",
+      "sha256": "19d754d0dfe08ca44c64a7e0a5864b5c1e7c197cea25b030b8308a00d045d444",
+      "bytes": 100
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/text/opencpop-strict.txt",
+      "path": "source\\text\\opencpop-strict.txt",
+      "sha256": "d66bbb1380a8ebf17d7ace5bf4b459f3728a469eea2aaeae2aeb3969b88223ff",
+      "bytes": 4084
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/text/symbols.py",
+      "path": "source\\text\\symbols.py",
+      "sha256": "f10ead706cba2a34ac866812e0113c35c0ac52773bd18377a235a1d65600b1b4",
+      "bytes": 1704
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/text/tone_sandhi.py",
+      "path": "source\\text\\tone_sandhi.py",
+      "sha256": "681ed59910a952e257f94538a72851e16c372444b326c94be6e799992c2aa7cf",
+      "bytes": 18336
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/transforms.py",
+      "path": "source\\transforms.py",
+      "sha256": "dff9a1d58053f62fe457462e19edad0e70a403ca85f8c35f316c8b0dd64ba567",
+      "bytes": 7295
+    },
+    {
+      "url": "https://huggingface.co/spaces/Genius-Society/hoyoTTS/resolve/ad1ac8242554a2f203ca67622f90b109f75b3b35/utils.py",
+      "path": "source\\utils.py",
+      "sha256": "9ff7636df12e4edd50826623649408b6158210e1400d303c3e18dd32f6784de2",
+      "bytes": 13028
+    },
+    {
+      "url": "https://huggingface.co/Genius-Society/hoyoTTS/resolve/69fe1ac0ba1f1caf7522369ba5d002b493331b6f/config.json",
+      "path": "model\\config.json",
+      "sha256": "8da6b9a4de002ce25f9046930b2168d0d8f8e5d575c2afbba57cd219d53e2928",
+      "bytes": 7502
+    },
+    {
+      "url": "https://huggingface.co/Genius-Society/hoyoTTS/resolve/69fe1ac0ba1f1caf7522369ba5d002b493331b6f/README.md",
+      "path": "model\\README.md",
+      "sha256": "57c198c5cb01161145eb255b6a1d18cc8f3a46e1dd0062bf3de317def731e2d9",
+      "bytes": 1329
+    },
+    {
+      "url": "https://huggingface.co/Genius-Society/hoyoTTS/resolve/69fe1ac0ba1f1caf7522369ba5d002b493331b6f/G_78000.pth",
+      "path": "model\\G_78000.pth",
+      "sha256": "8f19916bea3890c53cc1a6cf346c67ee76da68cf4871eb3ec5ca8afc4df137fc",
+      "bytes": 621696821
+    }
+  ],
+  "frontendDependencies": [
+    {
+      "file": "cn2an-0.5.24-py3-none-any.whl",
+      "sha256": "3d57d862a56133070ba6a737b8095bfc94716b41b7684e7a98d2d5b049495db7"
+    },
+    {
+      "file": "proces-0.1.7-py3-none-any.whl",
+      "sha256": "308325bbc96877263f06e57e5e9c760c4b42cc722887ad60be6b18fc37d68762"
+    },
+    {
+      "file": "pypinyin-0.55.0-py2.py3-none-any.whl",
+      "sha256": "d53b1e8ad2cdb815fb2cb604ed3123372f5a28c6f447571244aca36fc62a286f"
+    },
+    {
+      "file": "setuptools-78.1.0-py3-none-any.whl",
+      "sha256": "3e386e96793c8702ae83d17b853fb93d3e09ef82ec62722e61da5cd22376dcd8"
+    },
+    {
+      "file": "jieba-0.42.1-py3-none-any.whl",
+      "sha256": "a8d747a2893d15b998935075c30b65dbdf92716bfe45146765acd6f9a024a211"
+    }
+  ],
+  "runtimeModels": [
+    {
+      "file": "hoyotts.onnx",
+      "bytes": 169802803,
+      "sha256": "499d9b37a09c2e5ed5ca89ddd5ff971d98f3b7b6d71dc85bc44cb1ef202b866b"
+    },
+    {
+      "file": "bert-full.onnx",
+      "bytes": 401805292,
+      "sha256": "5a9843a0eada1810ad2f6d6ba7a0bb89785ca016f3e6ccdf7a86200bd37bbe64"
+    },
+    {
+      "file": "tokenizer.json",
+      "bytes": 438070,
+      "sha256": "fe125d3e93df2eb60a1fa59f676bf84da61deafaae2a53cb42ef95b039d6e5be"
+    }
+  ]
+}

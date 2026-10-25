@@ -1,0 +1,19 @@
+[Unit]
+Description=LumenDSH CPUFast speech provider
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/lumendsh-tts-test/cpufast
+Environment=LUMENDSH_VOICE_CONFIG=/opt/lumendsh-voice/provider.json
+Environment=OMP_NUM_THREADS=4
+Environment=MKL_NUM_THREADS=4
+ExecStart=/opt/lumendsh-tts-test/cpufast/.venv/bin/uvicorn remote_provider:app --app-dir /opt/lumendsh-voice --host 127.0.0.1 --port 19880 --no-access-log
+Restart=on-failure
+RestartSec=5
+MemoryMax=6G
+CPUQuota=400%
+Nice=10
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

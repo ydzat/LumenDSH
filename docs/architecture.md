@@ -1,6 +1,6 @@
 # Architecture Baseline
 
-Current checkpoint: Android 0.7.48 with DSH 0.2.1-rc.3 and separately deployed
+Current checkpoint: Android 0.8.0 with DSH 0.2.1-rc.3 and separately deployed
 phone-local character speech. See [current status](project-status.md). The dated baseline below
 describes responsibility boundaries and does not supersede later evidence.
 
@@ -168,3 +168,13 @@ it does not duplicate the database. Original persona lives in workspace instruct
 The existing local scheduler submits bounded reflection to that same session; there
 is no independent idle-review agent. Actual Mnemon events drive habitat indicators.
 See [M7 deployment and limits](m7-companion-integration.md).
+
+## M8 speech provider boundary
+
+DeviceSpeech remains the sole playback/audio-focus owner. VoiceProviders resolves
+immutable profile selection IDs into local/system or HTTPS provider/model/voice
+configuration. Credentials stay in Keystore-encrypted app storage. CharacterSpeech
+prepares bounded sentence segments and MediaPlayer plays them; stop invalidates
+all queued audio and optionally cancels server synthesis. The independent remote
+CPUFast service receives only reading text. Remote speech does not enable remote
+DSH or move sessions/memory away from Termux. See [protocol and deployment](../integrations/voice/providers.md).

@@ -200,3 +200,14 @@ Keep inference on the phone. Reuse Mnemon vector/keyword/graph retrieval, backfi
 existing records, and fail explicitly when semantic embedding fails. A small pinned
 upstream patch adds query instructions and prevents silent fallback; it does not
 replace Mnemon's retrieval engine. M7 stays open until its full requirements close.
+
+## M8 local and remote speech (2026-10-25)
+
+The user accepted CPUFast voice quality and authorized M8 implementation and
+deployment. Reuse that pinned inference project; no additional candidate comparison
+is needed. Preserve system speech and both existing local engines, while separating
+provider, model and voice selection. Use OpenAI-compatible models/audio-speech
+routes plus optional voice discovery and cancellation extensions. No automatic
+fallback or uncertain-request replay. Remote credentials are device-owned, encrypted
+and excluded from character exports. CPU throughput and phone RAM remain measured
+constraints, not hidden by provider substitution.

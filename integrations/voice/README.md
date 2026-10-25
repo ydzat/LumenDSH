@@ -1,5 +1,9 @@
 # Prepared character voice experiment
 
+Current default: the accepted [hoyoTTS backend](hoyotts.md) is deployed through
+the same authenticated service. The GPT-SoVITS preparation and evidence below
+remain the reference for the original voice and explicit rollback.
+
 Status: the user accepted the voice; bounded native synthesis and Android 0.7.48
 playback integration are verified. The deployed profile uses local Silver Wolf
 speech; system TTS remains an explicit profile option. See
@@ -146,3 +150,10 @@ Real phone samples: `artifacts/voice-preview/silver-wolf-phone.wav` and
 `artifacts/voice-preview/silver-wolf-phone-second.wav` (32 kHz PCM16 conversions).
 The native-stage WAVs are not recordings of speaker playback. The later app
 integration and its demonstration are documented in the linked integration notes.
+
+## M8 current entry point
+
+Use [provider configuration and deployment](providers.md) for Android 0.8.0.
+The service supports per-request local engine selection and the app can use a
+separate HTTPS speech server. The historical default above describes the prior
+phone-local installation; the current phone selects remote Silver Wolf.

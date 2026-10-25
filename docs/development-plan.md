@@ -1,7 +1,13 @@
 # Development Plan
 
+Post-baseline approved work: 0.7.49 implements the [settings drawer and interaction
+policy](design/settings-drawer.md). It does not reopen M0–M7 or imply new acoustic
+acceptance. See [current status](project-status.md) for the installed version.
+
+
 2026-10-25 handoff: development stops at the usable 0.7.46 baseline by user decision.
-UI/interaction polish and additional quality work remain possible; no M8 is scheduled.
+The user subsequently authorized [M8: local and remote voice providers](m8-voice-providers.md).
+M8 is delivered with the resource limits recorded in its closure evidence.
 See [current status](project-status.md). Historical milestone closure means delivery
 of its recorded scope, not completion of every aspect of the product.
 
@@ -232,3 +238,13 @@ consistency or previously waived acoustic/lifecycle tests. The measured long-inp
 suite and native source timeout are recorded in the evidence. Autonomous activity
 remains disabled until configured through the installed controls. No remote access,
 social posting, custom voice cloning or publication is included.
+
+## M8 closure (2026-10-25)
+
+Android 0.8.0 and the independent CPUFast provider implement the local/remote
+speech milestone. [S01-S08 evidence](../tests/m8-evidence.md) records actual
+catalogs, playback, foreground/background reply ownership, cancellation and errors.
+System TTS and local hoyoTTS played successfully. Local GPT-SoVITS selection and
+memory rejection were verified; its playback did not pass under current available
+RAM. CPU server throughput can cause gaps between long-reply segments. These
+resource limits remain explicit. No further milestone is scheduled.
