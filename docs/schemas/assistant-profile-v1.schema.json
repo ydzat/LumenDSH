@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "displayName",
+    "components"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "assistant-profile"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "appearance",
+        "voice"
+      ],
+      "properties": {
+        "appearance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version"
+          ],
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^(builtin-v1|[0-9a-f]{64})$"
+            }
+          }
+        },
+        "voice": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "config"
+          ],
+          "properties": {
+            "version": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "config": {
+              "$ref": "voice-profile-v1.schema.json"
+            }
+          }
+        }
+      }
+    }
+  }
+}

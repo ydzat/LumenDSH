@@ -1,0 +1,9 @@
+{
+  "name": "sliver-wolf-companion",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "main": "host.mjs",
+  "exports": {".": "./host.mjs", "./documents": "./documents.mjs"},
+  "dsh": {"bundle": {"patch": "./cordis.patch.yml"}}
+}

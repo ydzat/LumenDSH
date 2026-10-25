@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "engine",
+    "language",
+    "rate",
+    "pitch"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "voice-profile"
+    },
+    "engine": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.]{1,180}$"
+    },
+    "language": {
+      "enum": [
+        "zh-CN",
+        "en-US"
+      ]
+    },
+    "rate": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 1.5
+    },
+    "pitch": {
+      "type": "number",
+      "minimum": 0.75,
+      "maximum": 1.25
+    }
+  }
+}

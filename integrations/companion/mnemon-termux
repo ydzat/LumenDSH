@@ -1,0 +1,11 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+root="$HOME/sliver-wolf-companion"
+bash "$root/bin/start-embedding.sh"
+export MNEMON_EMBED_ENDPOINT=http://127.0.0.1:3083/v1
+export MNEMON_EMBED_PROTOCOL=openai
+export MNEMON_EMBED_MODEL=sw-qwen3-embedding-0.6b-q8
+export MNEMON_REQUIRE_SEMANTIC=1
+export MNEMON_QUERY_INSTRUCTION='Given a question about the user, retrieve relevant personal preferences, facts and shared experiences.'
+unset LD_PRELOAD
+exec /system/bin/sh -c 'exec "$@"' mnemon "$root/bin/mnemon-semantic" "$@"

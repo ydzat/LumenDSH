@@ -1,0 +1,7 @@
+- insert:
+    - id: sliver-wolf-companion
+      name: sliver-wolf-companion
+    - id: sliver-wolf-semantic-documents
+      name: sliver-wolf-companion/documents
+- id: mnemon-source-documents
+  disabled: true

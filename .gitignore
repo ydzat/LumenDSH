@@ -1,0 +1,84 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.pfx
+local.properties
+
+# Build outputs and downloaded dependencies
+.gradle/
+**/build/
+**/out/
+node_modules/
+.venv/
+__pycache__/
+*.apk
+*.aab
+*.apks
+*.dex
+*.class
+*.jar
+*.aar
+*.so
+*.o
+*.pyc
+
+# Local toolchains and private test artifacts
+.local/
+artifacts/
+artifacts-build-*/
+apps/android/assets/default-pet/
+recordings/
+*.log
+# Raw and edited demo videos stay local; README links to the published video.
+*.mp4
+*.mkv
+*.webm
+*.mov
+*.avi
+/screenshots/
+/device-dumps/
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+apps/android/assets/wake/
+
+# Personal/runtime data is not project source or a reusable default profile.
+/private/
+/personal/
+/runtime-data/
+/backups/
+/signing/
+/.dsh/
+/.mnemon/
+/.ssh/
+/.credentials/
+/secrets/
+/sessions/
+/conversations/
+/memories/
+/voiceprints/
+/sliver-wolf-companion/
+connection-*.json
+*.key
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.hprof
+*.onnx
+*.gguf
+*.safetensors
+# Keep reviewed schemas, synthetic fixtures, licensed notices, and generic profiles tracked.

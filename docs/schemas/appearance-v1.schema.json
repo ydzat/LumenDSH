@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.sliverwolf.invalid/schemas/appearance-v1",
+  "title": "Sliver Wolf normalized Codex v2 appearance record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "id",
+    "version",
+    "displayName",
+    "author",
+    "license",
+    "source",
+    "archiveSha256",
+    "requires",
+    "entry",
+    "files"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "appearance"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "source": {
+      "const": "codex-pet-v2 / user-selected archive"
+    },
+    "archiveSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "renderer"
+      ],
+      "properties": {
+        "renderer": {
+          "const": "codex-pet-v2"
+        }
+      }
+    },
+    "entry": {
+      "enum": [
+        "atlas.png",
+        "atlas.webp"
+      ]
+    },
+    "files": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "size",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(pet\\.json|atlas\\.(png|webp)|notice-[0-9]+\\.txt)$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16777216
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

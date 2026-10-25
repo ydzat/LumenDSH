@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="local.sliverwolf.assistant.tests" android:versionCode="1" android:versionName="1">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="29" />
+    <application android:label="Sliver Wolf Device Checks" android:allowBackup="false">
+        <activity android:name=".OverlaySurface" android:exported="true" android:theme="@android:style/Theme.Material.NoActionBar" />
+        <provider android:name=".ShareFixtureProvider" android:authorities="local.sliverwolf.assistant.tests.share" android:exported="false" android:grantUriPermissions="true" />
+    </application>
+    <instrumentation android:name=".TextInput" android:targetPackage="local.sliverwolf.assistant.tests" android:label="Explicit ADB text input" />
+    <instrumentation android:name=".WakeChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Installed wake engine checks" />
+    <instrumentation android:name=".SpeakWakeFixture" android:targetPackage="local.sliverwolf.assistant.tests" android:label="Controlled acoustic wake diagnostic" />
+    <instrumentation android:name=".OwnerChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Isolated owner model and storage checks" />
+    <instrumentation android:name=".OverlayChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Read-only overlay geometry" />
+    <instrumentation android:name=".HabitatInteractionChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Installed habitat gesture checks" />
+    <instrumentation android:name=".ReleaseChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Isolated content release checks" />
+    <instrumentation android:name=".ReleaseCrash" android:targetPackage="local.sliverwolf.assistant" android:label="Explicit release process death check" />
+</manifest>

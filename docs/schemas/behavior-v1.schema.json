@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sliver Wolf local behavior policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "agentName", "style", "sessionId", "enabled", "paused", "windows", "skipChance", "minGapMin", "idleMinutes", "activities", "budget"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "agentName": {"type": "string", "minLength": 1, "maxLength": 40},
+    "style": {"type": "string", "maxLength": 2000},
+    "sessionId": {"type": "string", "pattern": "^(|session-[a-zA-Z0-9-]{1,100})$"},
+    "enabled": {"type": "boolean"},
+    "paused": {"type": "boolean"},
+    "windows": {"type": "array", "minItems": 1, "maxItems": 8, "items": {
+      "type": "object", "additionalProperties": false, "required": ["start", "end", "wakes"],
+      "properties": {
+        "start": {"type": "string", "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$|^24:00$"},
+        "end": {"type": "string", "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$|^24:00$"},
+        "wakes": {"type": "integer", "minimum": 0, "maximum": 12}
+      }
+    }},
+    "skipChance": {"type": "number", "minimum": 0, "maximum": 1},
+    "minGapMin": {"type": "integer", "minimum": 1, "maximum": 10080},
+    "idleMinutes": {"type": "integer", "minimum": 1, "maximum": 1440},
+    "activities": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true,
+      "items": {"enum": ["consolidate", "reflect"]}},
+    "budget": {"type": "object", "additionalProperties": false,
+      "required": ["dailyRuns", "steps", "toolCalls", "writes", "outputTokens", "seconds"],
+      "properties": {
+        "dailyRuns": {"type": "integer", "minimum": 1, "maximum": 12},
+        "steps": {"type": "integer", "minimum": 1, "maximum": 32},
+        "toolCalls": {"type": "integer", "minimum": 1, "maximum": 64},
+        "writes": {"type": "integer", "minimum": 0, "maximum": 10},
+        "outputTokens": {"type": "integer", "minimum": 256, "maximum": 16384},
+        "seconds": {"type": "integer", "minimum": 10, "maximum": 600}
+      }
+    }
+  },
+  "allOf": [{"if": {"properties": {"enabled": {"const": true}}},
+    "then": {"properties": {"sessionId": {"minLength": 9}}}}]
+}

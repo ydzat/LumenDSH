@@ -1,0 +1,10 @@
+CAM++ Chinese speaker verification model
+Publisher: iic / 3D-Speaker / ModelScope
+Model card: https://modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common
+The original model card declares Apache License 2.0.
+ONNX conversion distributed by k2-fsa/sherpa-onnx, speaker-recongition-models release.
+File: 3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx
+SHA-256: f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1faedccd21fd11
+The full Apache-2.0 license is included in SHERPA_LICENSE.txt.
+Silero VAD v5.1: MIT, see SILERO_LICENSE.txt.
+These models are separate from character artwork and voice synthesis assets.
