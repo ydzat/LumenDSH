@@ -34,7 +34,7 @@ if [ ! -f "$SIGNING_DIR/developer.p12" ]; then
 fi
 test -f "$SIGNING_DIR/password"
 build_dir="$(mktemp -d "$source_root/artifacts-build-XXXXXXXX")"
-find "$source_root/apps/android" -type f \( -name '*.java' -o -name '*.xml' -o -name '*.txt' \) -print0 \
+find "$source_root/apps/android" -type f \( -name '*.java' -o -name '*.xml' -o -name '*.txt' -o -name '*.png' \) -print0 \
     | sort -z | xargs -0 sha256sum > "$build_dir/source-sha256.txt"
 sha256sum "$source_root/apps/android/assets/default-pet/"* "$source_root/apps/android/assets/wake/"* >> "$build_dir/source-sha256.txt"
 sha256sum "$ANDROID_JAR" "${dependencies[@]}" "$DEPS_DIR/wake-1.13.8/jni/arm64-v8a/"*.so > "$build_dir/dependencies-sha256.txt"

@@ -1,8 +1,10 @@
 # LumenDSH
 
+<img src="docs/branding/lumendsh-logo.png" alt="LumenDSH 标志" width="128" />
+
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-![Version](https://img.shields.io/badge/version-0.7.46-9274e8)
+![Version](https://img.shields.io/badge/version-0.7.47-9274e8)
 ![Android](https://img.shields.io/badge/Android-10%2B-3ddc84)
 ![Status](https://img.shields.io/badge/status-experimental-orange)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)

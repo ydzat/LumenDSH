@@ -1,6 +1,6 @@
 # Project status and handoff
 
-Date: 2026-10-25. Baseline: Android 0.7.46-model-config, independent DSH
+Date: 2026-10-25. Baseline: Android 0.7.47-branding, independent DSH
 0.2.1-rc.3 and companion integration 0.2.1.
 
 The user considers the foundation usable and has stopped feature development for
@@ -26,10 +26,10 @@ Repository and application name: **LumenDSH**. It succeeds the author's earlier
 character, using fan art based on Silver Wolf from *Honkai: Star Rail*, sourced from [awesome-codex-pet](https://github.com/legeling/awesome-codex-pet/tree/main/pets/silver-wolf--lingxiaotian).
 Local directory `sliver-wolf` and Android package `local.sliverwolf.assistant` remain
 for compatibility. Existing user-selected Agent names are not overwritten.
-The source application label and generic notification/settings titles now use
-LumenDSH; the installed 0.7.46 APK has not been rebuilt for this documentation handoff.
-[Logo concepts](design/logo-concepts/README.md) await selection; installed resources
-are unchanged.
+The application label and generic notification/settings titles use LumenDSH.
+Version 0.7.47-branding is built and installed with the selected geometric L icon.
+The selected [brand logo](branding/lumendsh-logo.png) is the geometric L concept.
+The original selected PNG is used as the launcher resource; see [branding evidence](branding/README.md).
 
 The user authorized initial source publication after the documentation and privacy
 review. The reviewed snapshot is committed on top of the remote's existing MIT

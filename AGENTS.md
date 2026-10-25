@@ -21,7 +21,7 @@
 
 ## Working practices
 
-- The user authorized publishing a reviewed clean source snapshot to `git@github.com:ydzat/LumenDSH.git` on 2026-10-25, based on the remote's existing MIT-license commit. Keep the original development history private; do not merge or push it into the public branch. This authorization covers the initial source commit and normal push, not APK uploads, force-pushes or future releases. Keep personal data and generated artifacts excluded.
+- The user authorized publishing a reviewed clean source snapshot to `git@github.com:ydzat/LumenDSH.git` on 2026-10-25, based on the remote's existing MIT-license commit. Keep the original development history private; do not merge or push it into the public branch. The user also authorized the 0.7.47 branding update, phone installation, README logo and source push. APK uploads, force-pushes and unrelated future releases still require authorization. Keep personal data and generated artifacts excluded.
 - For phone debugging, read `docs/wireless-debugging.md`. Use explicit network device selection; do not assume USB is connected or that the last recorded IP is current.
 
 - Read `docs/README.md`, `docs/architecture.md`, and `docs/decisions.md` before non-trivial changes. Read the affected contract under `docs/contracts/` before implementation.

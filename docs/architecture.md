@@ -1,6 +1,6 @@
 # Architecture Baseline
 
-Current checkpoint: usable Android 0.7.46 with DSH 0.2.1-rc.3; feature development
+Current checkpoint: usable Android 0.7.47 with DSH 0.2.1-rc.3; feature development
 is paused. See [current status](project-status.md). The dated baseline below
 describes responsibility boundaries and does not supersede later evidence.
 
