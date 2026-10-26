@@ -145,3 +145,13 @@ on the web plugin's local model.
 | `dsh-schedule-panel` (GitHub) | Installed and its `schedule` tool worked (add/list), but its client panel fails to mount on 0.2.1-rc.3 (`Remote 挂载失败: typert …`) and renders broken, so it was removed. Scheduling stays on the official 自动化任务 page. |
 | `dsh-mobile-drawer` | Rejected: requires Node >= 26.3.1; the device runs 24.22. |
 | Official settings / plugins page | Used as-is; no custom settings screens are built. |
+
+
+## Startup nudge validation (2026-10-26)
+
+First attempt never fired: the handler read `state.policy.sessionId`, but the
+selected conversation lives in the companion `PolicyStore` (`policy.sessionId`),
+so the lookup was always empty and the flag stayed behind. Fixed in d496539,
+with a second path: `restart-host.sh` now posts the nudge itself and clears the
+flag when the host path did not consume it. A deliberate restart was validated:
+the flag disappeared and the continuation prompt arrived without a user message.
