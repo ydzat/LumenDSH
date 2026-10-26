@@ -131,8 +131,13 @@ setInterval(async () => {
   if (stopping || healthBusy || !child) return;
   if (Date.now() - childStartedAt < flags.startupGraceMs) return;
   // Deliberate maintenance (host activation) holds restarts so the watchdog does
-  // not race the installer for the slot port.
-  if (existsSync(holdFile)) return;
+  // not race the installer for the slot port. A hold left behind by a dead
+  // installer must not disable supervision: only a live holder counts.
+  if (existsSync(holdFile)) {
+    let holder = 0;
+    try { holder = Number(readFileSync(holdFile, 'utf8').trim()); } catch { holder = 0; }
+    if (holder > 0) { try { process.kill(holder, 0); return; } catch { /* stale hold */ } }
+  }
   healthBusy = true;
   const healthy = await probe();
   healthBusy = false;
