@@ -1,0 +1,3 @@
+<resources>
+    <string name="accessibility_description">LumenDSH 屏幕操控：允许助手读取界面文字并执行点击、滚动与输入，用于在无人值守时完成安装、更新等操作。</string>
+</resources>

@@ -173,6 +173,15 @@ final class DeviceBridge extends WebSocketServer {
             .put(object("name", "assistant_stop_speaking", "description", "Stop current explicit playback; optional operationId restricts the target. Does not require a model response or microphone access.", "inputSchema", object("type", "object", "properties", object("operationKey", key, "operationId", object("type", "string", "maxLength", 80)), "required", new JSONArray().put("operationKey"), "additionalProperties", false)));
     }
     private JSONObject call(String name, JSONObject args) throws Exception {
+        if(name.startsWith("assistant_screen_")){
+            if("assistant_screen_status".equals(name))return object("enabled",ScreenControlService.enabled());
+            if("assistant_screen_dump".equals(name))return ScreenControlService.dump(120);
+            if("assistant_screen_click".equals(name)){arguments(args,"text");return ScreenControlService.clickText(args.getString("text"));}
+            if("assistant_screen_tap".equals(name)){arguments(args,"x","y");return ScreenControlService.tap((float)args.getDouble("x"),(float)args.getDouble("y"));}
+            if("assistant_screen_type".equals(name)){arguments(args,"text");return ScreenControlService.type(args.getString("text"));}
+            if("assistant_screen_global".equals(name)){arguments(args,"action");return ScreenControlService.global(args.getString("action"));}
+            throw new IllegalArgumentException("Unknown screen tool");
+        }
         if("assistant_native_status".equals(name)){arguments(args);return new NativeReleases(context).status();}
         if("assistant_stage_apk".equals(name)){arguments(args,"operationKey","receipt");return new NativeReleases(context).stage(inbox.verified(args.getString("operationKey")),args.getJSONObject("receipt"));}
         if("assistant_install_apk".equals(name)){arguments(args);return new NativeReleases(context).install(visible&&!speech.isSpeaking()&&!microphoneActive.getAsBoolean()&&!WakeVoiceService.microphoneBusy()&&!releases.unsettled());}
