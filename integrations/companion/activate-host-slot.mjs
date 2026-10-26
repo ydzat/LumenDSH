@@ -5,6 +5,7 @@
 // On any failure the profile is restored and the relay is pointed back.
 import {copyFile, mkdir, readFile, rename, unlink, writeFile} from 'node:fs/promises';
 import {existsSync, readFileSync} from 'node:fs';
+import http from 'node:http';
 import {execFileSync} from 'node:child_process';
 import {createHash, randomUUID} from 'node:crypto';
 import path from 'node:path';
