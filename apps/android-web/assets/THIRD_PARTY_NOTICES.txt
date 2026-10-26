@@ -1,0 +1,157 @@
+Java-WebSocket 1.6.0
+Source: https://github.com/TooTallNate/Java-WebSocket/tree/v1.6.0
+Artifact: org.java-websocket:Java-WebSocket:1.6.0
+Copyright (c) 2010-2020 Nathan Rajlich
+License: MIT. No local modifications.
+
+SLF4J API 2.0.13
+Source: https://github.com/qos-ch/slf4j/tree/v_2.0.13
+Artifact: org.slf4j:slf4j-api:2.0.13
+Copyright (c) 2004-2022 QOS.ch Sarl (Switzerland). All rights reserved.
+License: MIT. No local modifications.
+
+The following MIT terms apply to both components:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+dsh-pet animation contract
+Source: https://github.com/ysyyhhh/dsh-pet/blob/a17346b9c41efb4220f387216008928bba652e0e/src/renderer/codex-pet/PetContract.ts
+Local changes: animation timings ported to Java; semantic mapping and Android renderer are project code. No upstream character artwork imported.
+
+MIT License
+
+Copyright (c) 2026 sereinmono and dsh-pet contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Bundled Silver Wolf artwork
+
+Default appearance: Silver Wolf, credited to legeling by the upstream submission.
+Source: https://github.com/legeling/awesome-codex-pet/tree/db2f6306ce78f6559ab27155d7bfaf00bf43809d/pets/silver-wolf--lingxiaotian
+Revision: db2f6306ce78f6559ab27155d7bfaf00bf43809d.
+Artwork license: CC BY-NC 4.0, as declared in submission.json.
+License: https://creativecommons.org/licenses/by-nc/4.0/
+This is fan art based on Silver Wolf from Honkai: Star Rail.
+The artwork uses its declared CC BY-NC 4.0 license; project code uses MIT.
+Local changes: none to artwork or upstream metadata; runtime maps activity rows to
+client states. No voice assets are included.
+prepare-default-pet.sh pins all three files by SHA-256, downloads them outside Git,
+and verifies them before packaging. Original pet.json and submission.json ship in
+APK assets alongside this notice. The sheet is lossless WebP, 1536x1872 (v1's nine
+activity rows), rendered by the existing activity renderer. External ZIP import
+remains the documented v2-only subset; this bundled v1 asset does not broaden it.
+The empty appearance key and builtin-v1 profile reference remain compatible, now
+resolving to Silver Wolf. Imported selections and voice settings are preserved.
+
+Android character interaction adapted from deepseek-harness-android
+Revision a5af7b105b7fdb006e3fc3be2a2179d83907c2cb
+OverlayService.java: startPetIdle, petTapBounce, petLongPressPulse.
+Local changes: Canvas transforms, hit-tested character interactions, existing voice action, attention and reduced-motion integration.
+
+MIT License
+
+Copyright (c) 2026 zhou-gu24
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ReplyCard.java also adapts the above project's collapseCard/expandCard,
+MaxHeightScrollView, isCardAtBottom/renderCardText/updateCard routines.
+Local changes: Activity-owned layout, full text preservation, stable reply identity,
+attention pinning and actual session-event updates. Same MIT notice above applies.
+
+HabitatState adapts whale-shota/lib/client.js completion-hold transition policy
+at the same pinned Android-reference revision (MIT, 2026 zhou-gu24).
+Local changes: actual session events, no initial-history celebration, separate
+offline state and native attention precedence. PresentationSettings adapts the
+loadPetConfig field selection and bounded settings approach; preset cycling adapts
+nextPetLine. Native settings storage and UI are project-specific.
+
+NotificationArchive.java is adapted from the pinned Android reference's
+NotificationArchive.java (MIT, copyright 2026 zhou-gu24). Local changes add the
+original session reference and explicit read/prune errors. CompletionService adapts
+turn-notify policy (20s minimum, 60s cooldown, foreground suppression) and Android
+foreground notification setup. It uses a read-only rc.7 subscription rather than
+installing the backend plugin or reading credentials. Same MIT notice above applies.
+
+ShareInbox.java directly adapts the reference class at
+a5af7b105b7fdb006e3fc3be2a2179d83907c2cb (MIT, copyright 2026 zhou-gu24).
+Local changes remove external-storage copies, use durable private files instead
+of cache, and connect intake to native review and explicit draft controls.
+URI copies retain upstream 16 MiB/file, 32 MiB/batch, 16-file and 8-batch limits.
+No automatic prompt submission or backend attachment transfer is included yet.
+
+ScheduledTaskStore.java directly adapts the pinned Android reference at
+a5af7b105b7fdb006e3fc3be2a2179d83907c2cb (MIT, 2026 zhou-gu24).
+ScheduleAlarms adapts unique PendingIntent identity and cancellation. Local changes:
+existing-session metadata, pause/resume, retained consumed one-shot records, bounded
+input, explicit Android 10 exact-alarm failures and no legacy alarm migration.
+Receiver/service ownership follows the reference scheduling subsystem, but the
+executor uses only the inspected rc.7 session.list/session.prompt API. Bundled-engine
+startup, private paths, root/Shizuku and credential discovery are excluded.
+
+CompanionOverlayService adapts OverlayService window flags, foreground visibility,
+drag tilt, snapToEdge/applyDockPos and notification recall policies at
+a5af7b105b7fdb006e3fc3be2a2179d83907c2cb (MIT, 2026 zhou-gu24).
+Local changes use the current Codex v2 renderer, existing rc.7 session observer,
+full-window bounds and hidden/locked/screen-off cleanup. The overlay has no manual
+voice controls; notification actions handle recall, hide and disable. Automatic
+wake remains pending. Source license notice above applies.
+
+ShareInbox transfer extensions retain the same upstream bounded chunk reader.
+Local additions: explicit session-bound release, SHA-256 receipts, 32 KiB chunks
+and a reserved submission identity. Termux receive-share.mjs reuses this project's
+authenticated artifact-transfer pattern; no additional dependency is introduced.
+
+Lucide menu, mic, square, expand, arrow-up and chevron-down icons, version 0.468.0.
+Copyright (c) Cole Bemis 2013-2022 (Feather portions) and Lucide Contributors 2022.
+Source: https://github.com/lucide-icons/lucide/blob/0.468.0/icons/menu.svg
+Converted SVG lines to VectorDrawable and adapted color. See LUCIDE_LICENSE.txt.

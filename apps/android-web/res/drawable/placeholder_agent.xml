@@ -1,0 +1,24 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="64dp" android:height="82dp" android:viewportWidth="64" android:viewportHeight="82">
+<!-- Original project-owned prototype artwork; not an imported character pack. -->
+<path android:fillColor="#34324e" android:pathData="M17 8h30v5h5v25h-5v8H17v-8h-5V18h5z" />
+<path android:fillColor="#b5b7d1" android:pathData="M21 5h22v4h6v8h4v17h-7V20h-5v-5H24v7h-6v13h-6V18h5v-8h4z" />
+<path android:fillColor="#e0dfed" android:pathData="M21 9h20v4H25v6h-6v10h-4V18h6z" />
+<path android:fillColor="#d8b9c4" android:pathData="M22 20h22v18h-5v5H27v-5h-5z" />
+<path android:fillColor="#cbc9e1" android:pathData="M19 15h25v9h-5v-5h-5v9h-5v-6h-5v8h-5z" />
+<path android:fillColor="#aaa6c8" android:pathData="M44 16h6v23h-5v9h-5v-6h3z" />
+<path android:fillColor="#292339" android:pathData="M24 29h6v4h-6zm12 0h6v4h-6z" />
+<path android:fillColor="#adf2e4" android:pathData="M26 29h3v3h-3zm11 0h3v3h-3z" />
+<path android:fillColor="#a67ca1" android:pathData="M31 37h5v2h-5z" />
+<path android:fillColor="#222a42" android:pathData="M20 11h26v7H20z" />
+<path android:fillColor="#78c9d7" android:pathData="M22 12h8v4h-8zm13 0h8v4h-8z" />
+<path android:fillColor="#d9f9ed" android:pathData="M23 12h5v1h-5zm13 0h5v1h-5z" />
+<path android:fillColor="#242b43" android:pathData="M23 43h18v5h6v17H18V48h5z" />
+<path android:fillColor="#72729e" android:pathData="M22 44h6v15H17v-8h5zm16 0h5v7h5v9H37z" />
+<path android:fillColor="#a4e2d8" android:pathData="M28 46h10v4H28z" />
+<path android:fillColor="#b09cee" android:pathData="M31 51h5v11h-5z" />
+<path android:fillColor="#d8b9c4" android:pathData="M13 54h6v9h-6zm33 0h6v9h-6z" />
+<path android:fillColor="#31364e" android:pathData="M20 63h12v11H20zm15 0h10v11H35z" />
+<path android:fillColor="#151d2e" android:pathData="M18 73h14v6H16v-4h2zm17 0h12v2h3v4H35z" />
+<path android:fillColor="#8dc9ca" android:pathData="M17 77h14v2H17zm19 0h13v2H36z" />
+<path android:fillColor="#b6a4ff" android:pathData="M44 45h4v6h-4z" />
+</vector>

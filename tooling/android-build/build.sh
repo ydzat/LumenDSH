@@ -2,6 +2,8 @@
 set -euo pipefail
 umask 077
 source_root="$(cd "$(dirname "$0")/../.." && pwd)"
+: "${APP_SOURCE:=apps/android}"
+app_dir="$source_root/$APP_SOURCE"
 : "${ANDROID_JAR:?Set ANDROID_JAR to the verified Android 29 platform jar}"
 : "${SIGNING_DIR:?Set SIGNING_DIR to a private persistent directory outside the source tree}"
 : "${DEPS_DIR:?Set DEPS_DIR to the pinned dependency jar directory}"
@@ -34,15 +36,15 @@ if [ ! -f "$SIGNING_DIR/developer.p12" ]; then
 fi
 test -f "$SIGNING_DIR/password"
 build_dir="$(mktemp -d "$source_root/artifacts-build-XXXXXXXX")"
-find "$source_root/apps/android" -type f \( -name '*.java' -o -name '*.xml' -o -name '*.txt' -o -name '*.png' \) -print0 \
+find "$app_dir" -type f \( -name '*.java' -o -name '*.xml' -o -name '*.txt' -o -name '*.png' \) -print0 \
     | sort -z | xargs -0 sha256sum > "$build_dir/source-sha256.txt"
-sha256sum "$source_root/apps/android/assets/default-pet/"* "$source_root/apps/android/assets/wake/"* >> "$build_dir/source-sha256.txt"
+sha256sum "$app_dir/assets/default-pet/"* "$app_dir/assets/wake/"* >> "$build_dir/source-sha256.txt"
 sha256sum "$ANDROID_JAR" "${dependencies[@]}" "$DEPS_DIR/wake-1.13.8/jni/arm64-v8a/"*.so > "$build_dir/dependencies-sha256.txt"
 mkdir -p "$build_dir/classes" "$build_dir/generated" "$build_dir/dex"
-aapt package -f -M "$source_root/apps/android/AndroidManifest.xml" \
-    -S "$source_root/apps/android/res" -A "$source_root/apps/android/assets" -I "$ANDROID_JAR" \
+aapt package -f -M "$app_dir/AndroidManifest.xml" \
+    -S "$app_dir/res" -A "$app_dir/assets" -I "$ANDROID_JAR" \
     -J "$build_dir/generated" -F "$build_dir/unsigned.apk"
-find "$source_root/apps/android/src" "$build_dir/generated" -name '*.java' > "$build_dir/sources.txt"
+find "$app_dir/src" "$build_dir/generated" -name '*.java' > "$build_dir/sources.txt"
 javac --release 8 -classpath "$ANDROID_JAR:$dependency_classpath" \
     -d "$build_dir/classes" @"$build_dir/sources.txt"
 jar cf "$build_dir/classes.jar" -C "$build_dir/classes" .
