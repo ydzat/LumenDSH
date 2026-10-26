@@ -78,3 +78,36 @@ evidence. Individual 0.10.x releases carry their own evidence.
 
 _To be filled from the user's requirements. Each entry gets: goal, scope,
 verification, evidence path._
+
+
+## Progress (2026-10-26)
+
+### Delivered
+
+- **Embedded official UI**: `WebChatActivity` hosts the DSH Web UI at
+  `http://127.0.0.1:3080` with the entrance cookie fetched through Termux; a
+  stale cookie is cleared on 401, external links leave the app, and a floating
+  home button returns to the native surface. A 1dp headless WebView keeps the
+  tide plugin loaded so the home can show the period without opening chat.
+- **Home peak/valley display**: the native habitat draws 「梁文峰 / 梁文谷 ·
+  countdown」 from the tide plugin's own client state (`__liangwenTide.state()`),
+  with a fallback that evaluates the plugin's `/liangwen-tide/policy` windows.
+  Verified on device: 「梁文谷 · 7:04:53」.
+- **Period-driven scheduling**: the client posts the plugin phase to
+  `/sliver-wolf/companion/period`; a fresh peak report suppresses `developDue`,
+  so heavy development only runs in valley (peak keeps light activities).
+- **Device operation without the user**: an ADB control plane is available over
+  the USB tether (`phone.sh`: screencap, input tap/swipe/text/key, am start,
+  `pm install`), exposed to the agent as `phone_*` tools. Verified: screenshots
+  read back, taps change the UI, and app installs complete with no system dialog.
+- **Accessibility fallback**: `ScreenControlService` (node tree, click by text,
+  tap, type, global actions) and `ScreenCaptureService` (MediaProjection PNG)
+  cover the untethered case; both are opt-in.
+
+### Still open
+
+- Native bridges inside the WebView surface: voice input, share handoff,
+  notifications, pet overlay controls.
+- Settings and schedule panels as DSH client plugins instead of native screens.
+- The old `local.sliverwolf.assistant` client remains installed; retire it after
+  the new client reaches parity.
