@@ -111,3 +111,14 @@ verification, evidence path._
 - Settings and schedule panels as DSH client plugins instead of native screens.
 - The old `local.sliverwolf.assistant` client remains installed; retire it after
   the new client reaches parity.
+
+
+## Self-continuation after restarts (2026-10-26)
+
+A slot restart drops the running turn, and the DSH goal is disarmed afterwards,
+so nothing used to resume. `~/agent-workspace/nudge.mjs` queues a continuation
+prompt into the current conversation through `session/prompt`
+(`args.request.{sessionId, requestId, mode:'queue', content}`), and
+`~/agent-workspace/restart-host.sh` wraps "hold watchdog → restart slot → nudge".
+Every deliberate restart should go through that wrapper so development continues
+without a user message.
