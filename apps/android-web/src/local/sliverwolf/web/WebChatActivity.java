@@ -30,6 +30,10 @@ public final class WebChatActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = ConnectionBootstrap.session(this);
+        if (checkSelfPermission("com.termux.permission.RUN_COMMAND") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{"com.termux.permission.RUN_COMMAND"}, 42);
+        }
+
         FrameLayout root = new FrameLayout(this);
         web = new WebView(this);
         status = new TextView(this);
@@ -84,12 +88,21 @@ public final class WebChatActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         web.setLayoutParams(params);
         if (state != null) web.restoreState(state);
-        if (prefs.getString("backendCookie", "").isEmpty()) {
-            showStatus("正在从 Termux 获取 DSH 连接…");
-            ConnectionBootstrap.run(this);
-        } else {
-            load();
-        }
+        if (prefs.getString("backendCookie", "").isEmpty()) beginBootstrap(); else load();
+    }
+
+    private void beginBootstrap() {
+        showStatus("正在从 Termux 获取 DSH 连接…");
+        ConnectionBootstrap.run(this);
+        final android.os.Handler handler = new android.os.Handler(getMainLooper());
+        final long deadline = System.currentTimeMillis() + 20000;
+        handler.post(new Runnable() {
+            @Override public void run() {
+                if (!prefs.getString("backendCookie", "").isEmpty()) { load(); return; }
+                if (System.currentTimeMillis() > deadline) { showFallback("未能从 Termux 取得 DSH 连接"); return; }
+                handler.postDelayed(this, 500);
+            }
+        });
     }
 
     private void showStatus(String text) {
@@ -114,6 +127,13 @@ public final class WebChatActivity extends Activity {
             CookieManager.getInstance().flush();
             web.loadUrl(origin + "/");
         });
+    }
+
+    @Override public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(code, permissions, results);
+        if (code == 42 && results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            beginBootstrap();
+        }
     }
 
     @Override protected void onResume() { super.onResume(); registerReceiver(ready, new IntentFilter(ConnectionBootstrap.ACTION_READY)); }

@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="local.sliverwolf.web" android:versionCode="58" android:versionName="0.10.2-dev">
+    package="local.sliverwolf.web" android:versionCode="60" android:versionName="0.10.4-dev">
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="29" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.termux.permission.RUN_COMMAND" />

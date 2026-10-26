@@ -128,6 +128,15 @@ public final class MainActivity extends Activity {
         root.setVisibility(android.view.View.GONE);
         setContentView(pages);
         try { PeriodWatcher.start(this, pages, getSharedPreferences("session", MODE_PRIVATE)); } catch (Throwable ignored) { }
+        if (checkSelfPermission("com.termux.permission.RUN_COMMAND") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{"com.termux.permission.RUN_COMMAND"}, 42);
+        }
+        getSharedPreferences("session", MODE_PRIVATE).registerOnSharedPreferenceChangeListener((prefs, key) -> {
+            if ("backendCookie".equals(key) && !prefs.getString(key, "").isEmpty()) {
+                try { controller.connect(); } catch (Throwable ignored) { }
+                try { PeriodWatcher.start(this, pages, prefs); } catch (Throwable ignored) { }
+            }
+        });
         getWindow().setStatusBarColor(0xff0c1420); getWindow().setNavigationBarColor(0xff0c1420);
         controller = new SessionController(getSharedPreferences("session", MODE_PRIVATE), this::scheduleRender);
         controller.connect();
@@ -1226,6 +1235,13 @@ public final class MainActivity extends Activity {
         state.putBoolean("transcriptVisible",transcriptPage.getVisibility()==android.view.View.VISIBLE);
         super.onSaveInstanceState(state);
     }
+    @Override public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(code, permissions, results);
+        if (code == 42 && results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            ConnectionBootstrap.run(this);
+        }
+    }
+
     @Override protected void onDestroy() {
         try { PeriodWatcher.stop(); } catch (Throwable ignored) { }
         resumed=false;if(voiceConfirmation!=null)voiceConfirmation.dismiss();if(settingsDrawer!=null)settingsDrawer.dismiss();WakeVoiceService.homeResult=null;WakeVoiceService.homeAllowed=false;
