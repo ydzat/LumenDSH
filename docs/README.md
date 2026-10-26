@@ -1,6 +1,6 @@
 # Development Baseline
 
-Current handoff: **M8 local and remote speech providers delivered**.
+Current handoff: **M9 self-iteration infrastructure delivered** (supervisor, relay + A/B slots, boot persistence, situation-driven development loop). See [M9 design and closure](m9-self-iteration.md) and the [self-development loop](self-iteration.md).
 Connection diagnostics and App-driven DSH startup: [0.8.1 guide](connection-diagnostics.md).
 See [M8 scope](m8-voice-providers.md), [device evidence](../tests/m8-evidence.md)
 and [provider setup](../integrations/voice/providers.md).
@@ -8,7 +8,7 @@ See [project status](project-status.md), [English introduction](../README.md),
 [Chinese introduction](../README.zh-CN.md) and [data boundaries](data-and-publication.md).
 The approved [settings drawer and interaction redesign](design/settings-drawer.md) is implemented in 0.7.49. Further visual polish and validation remain future work.
 
-Current backend/client (2026-10-25): DSH `0.2.1-rc.3` and Android `0.8.2`.
+Current backend/client (2026-10-26): DSH `0.2.1-rc.3` and Android `0.8.3-dev` (55).
 The user resumed character work after this baseline:
 [Silver Wolf persona revision 2 and character voice investigation](silver-wolf-persona.md).
 The accepted voice is now integrated through [phone-local character speech](character-voice.md).
