@@ -74,6 +74,12 @@ public final class WebChatActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         web.addJavascriptInterface(new PeriodBridge(this), "SliverWolfNative");
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onConsoleMessage(ConsoleMessage message) {
+                CrashLog.mark(WebChatActivity.this, "console:" + message.message() + " @" + message.lineNumber());
+                return true;
+            }
+        });
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
 
@@ -86,17 +92,20 @@ public final class WebChatActivity extends Activity {
                 return true;
             }
             @Override public void onPageFinished(WebView view, String url) {
+                CrashLog.mark(WebChatActivity.this, "page:" + url);
+                view.evaluateJavascript("document.title+'|'+location.href+'|'+(document.body?document.body.innerText.slice(0,160):'nobody')", value -> CrashLog.mark(WebChatActivity.this, "dom:" + value));
                 view.evaluateJavascript("(function(){function t(){try{var s=window.__liangwenTide&&window.__liangwenTide.state&&window.__liangwenTide.state();if(s&&s.phase)SliverWolfNative.report(JSON.stringify({phase:s.phase,flipAt:s.flipAt||0}));}catch(e){}}t();setInterval(t,10000);})()", null);
             }
-            @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) showFallback("无法连接 DSH 入口：" + error.getDescription());
-            }
             @Override public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
+                CrashLog.mark(WebChatActivity.this, "http:" + response.getStatusCode() + " " + request.getUrl());
                 if (request.isForMainFrame() && response.getStatusCode() == 401) {
                     prefs.edit().remove("backendCookie").commit();
                     showFallback("认证失效，重新获取连接…");
                     ConnectionBootstrap.run(WebChatActivity.this);
                 }
+            }
+            @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (request.isForMainFrame()) showFallback("无法连接 DSH 入口：" + error.getDescription());
             }
         });
 
@@ -138,6 +147,8 @@ public final class WebChatActivity extends Activity {
         web.setVisibility(android.view.View.VISIBLE);
         CookieManager.getInstance().setCookie(origin, cookie, value -> {
             CrashLog.mark(this, "webchat:cookie");
+            String current = CookieManager.getInstance().getCookie(origin);
+            CrashLog.mark(this, "cookie:" + (current == null ? "null" : "len=" + current.length()));
             CookieManager.getInstance().flush();
             web.loadUrl(origin + "/");
         });
