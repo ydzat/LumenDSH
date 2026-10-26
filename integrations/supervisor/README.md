@@ -29,3 +29,24 @@ node tests/supervise-check.mjs
 
 The test uses mock children on a scratch port and a temporary state directory;
 it never restarts the live DSH launcher.
+
+## Slots (M9.2)
+
+`slots.mjs` starts an independent `dsh web` instance over a shared `DSH_HOME`
+and mints a cookie whose authority is the stable entrance port, so the client's
+existing cookie stays valid across a switch.
+
+```bash
+node integrations/supervisor/slots.mjs start --name B --port 3082 \
+  --runtime "$RUNTIME" --home "$HOME/.dsh" --workspace "$HOME/agent-workspace" \
+  --stable-port 3080 --state-dir "$HOME/.local/state/sliver-wolf-slots"
+node integrations/supervisor/slots.mjs switch --name B \
+  --state-dir "$HOME/.local/state/sliver-wolf-slots" \
+  --relay-dir "$HOME/.local/state/sliver-wolf-supervisor"
+node integrations/supervisor/slots.mjs stop --name B \
+  --state-dir "$HOME/.local/state/sliver-wolf-slots"
+```
+
+Verified behaviour: the cookie authority follows the request `Host` header, and
+instances sharing a `DSH_HOME` share the cookie signing key — a live client
+cookie from the stable port was accepted by the slot with a `Host` override.
