@@ -66,12 +66,33 @@ async function entranceReady(port, timeoutMs = 30000) {
   }
   return 0;
 }
+// Slot listeners authenticate against the authority in the Host header. The
+// client's cookie was minted for the stable entrance, so direct slot queries must
+// present that same Host or they get "unauthorized".
+function request(port, {method = 'GET', pathName = '/', body = null, cookieValue = null, timeout = 5000} = {}) {
+  return new Promise((resolve, reject) => {
+    const payload = body === null ? null : JSON.stringify(body);
+    const request = http.request({host: '127.0.0.1', port, path: pathName, method,
+      headers: {Host: '127.0.0.1:' + flags.port, ...(cookieValue ? {Cookie: cookieValue} : {}),
+        ...(payload ? {'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload)} : {})},
+      timeout}, (response) => {
+      let text = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { text += chunk; });
+      response.on('end', () => resolve({status: response.statusCode ?? 0, text}));
+    });
+    request.on('timeout', () => { request.destroy(new Error('timeout')); });
+    request.on('error', reject);
+    if (payload) request.write(payload);
+    request.end();
+  });
+}
 async function post(port, method) {
-  const response = await fetch(`http://127.0.0.1:${port}/api/${method}`, {method: 'POST',
-    headers: {Cookie: await cookie(), 'Content-Type': 'application/json'},
-    body: JSON.stringify({type: 'client-request', rpcId: randomUUID(), method, payload: {args: {_request: {}}}}),
-    signal: AbortSignal.timeout(5000)});
-  return response.json();
+  const response = await request(port, {method: 'POST', pathName: `/api/${method}`,
+    cookieValue: await cookie(), body: {type: 'client-request', rpcId: randomUUID(), method,
+      payload: {args: {_request: {}}}}, timeout: 5000});
+  if (response.status !== 200) throw new Error(`session/list ${response.status}: ${response.text.slice(0, 80)}`);
+  return JSON.parse(response.text);
 }
 async function sessionIds(port) {
   const body = await post(port, 'session/list');
@@ -79,8 +100,8 @@ async function sessionIds(port) {
   return body.result.value.items.map((item) => item.sessionId).sort();
 }
 async function companionStatus(port) {
-  const response = await fetch(`http://127.0.0.1:${port}/sliver-wolf/companion/status`,
-    {headers: {Cookie: await cookie()}, signal: AbortSignal.timeout(4000)});
+  const response = await request(port, {pathName: '/sliver-wolf/companion/status',
+    cookieValue: await cookie(), timeout: 4000});
   return response.status;
 }
 function readJson(file) {
