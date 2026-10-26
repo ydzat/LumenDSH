@@ -13,13 +13,14 @@ const home = process.env.HOME;
 const root = path.join(home, 'sliver-wolf-companion');
 const source = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
-const flags = {slotName: 'A', stateDir: path.join(home, '.local/state/sliver-wolf-slots'), port: 3080};
+const flags = {slotName: 'A', slotPort: 3082, stateDir: path.join(home, '.local/state/sliver-wolf-slots'), port: 3080};
 for (let index = 0; index < argv.length; index++) {
   const value = argv[index];
   const next = () => { if (index + 1 >= argv.length) throw new Error('Missing value for ' + value); return argv[++index]; };
   if (value === '--slot-name') flags.slotName = next();
   else if (value === '--state-dir') flags.stateDir = path.resolve(next());
   else if (value === '--port') flags.port = Number(next());
+  else if (value === '--slot-port') flags.slotPort = Number(next());
   else throw new Error('Unknown option: ' + value);
 }
 const slots = path.join(path.resolve(source, '../..'), 'integrations/supervisor/slots.mjs');
@@ -69,8 +70,8 @@ for (const file of retained) await copyFile(path.join(profile, file), path.join(
 let stopped = false;
 try {
   // The slot must be down before the profile is rewritten.
-  execFileSync(process.execPath, [slots, 'stop', '--name', flags.slotName, '--state-dir', flags.stateDir],
-    {stdio: 'inherit'});
+  execFileSync(process.execPath, [slots, 'stop', '--name', flags.slotName, '--port', String(flags.slotPort),
+    '--state-dir', flags.stateDir], {stdio: 'inherit'});
   stopped = true;
 
   execFileSync('dsh', ['plugin', '--profile', 'web', 'add', 'link:' + candidate, '--ignore-scripts'],
@@ -109,7 +110,7 @@ try {
   for (const file of retained) await copyFile(path.join(backup, file), path.join(profile, file));
   if (stopped) {
     try {
-      execFileSync(process.execPath, [slots, 'start', '--name', flags.slotName, '--port', '3082',
+      execFileSync(process.execPath, [slots, 'start', '--name', flags.slotName, '--port', String(flags.slotPort),
         '--runtime', '/data/data/com.termux/files/home/sliver-wolf-dsh-upgrade/0.2.1-rc.3/runtime',
         '--home', path.join(home, '.dsh'), '--workspace', path.join(home, 'agent-workspace'),
         '--stable-port', '3080', '--state-dir', flags.stateDir], {stdio: 'inherit'});

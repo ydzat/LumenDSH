@@ -3,7 +3,7 @@
 // a shared DSH_HOME and mints an entrance-authority cookie for it, so the relay
 // can switch the client between slots without re-pairing.
 import {spawn} from 'node:child_process';
-import {appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync} from 'node:fs';
+import {appendFileSync, closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync} from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -48,6 +48,16 @@ function writeState(value) {
 function alive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try { process.kill(pid, 0); return true; } catch { return false; }
+}
+function findListener(port) {
+  if (!Number.isInteger(port) || port <= 0) return 0;
+  for (const entry of readdirSync('/proc')) {
+    if (!/^\d+$/.test(entry)) continue;
+    let command = '';
+    try { command = readFileSync('/proc/' + entry + '/cmdline', 'utf8').replaceAll('\0', ' '); } catch { continue; }
+    if (command.includes('bin.js web') && command.includes('--port ' + port)) return Number(entry);
+  }
+  return 0;
 }
 function exchangeToken(port, stablePort, token) {
   return new Promise((resolve, reject) => {
@@ -114,7 +124,20 @@ async function start() {
 
 async function stop() {
   const state = readState();
-  if (!state) throw new Error('Slot ' + flags.name + ' has no state');
+  if (!state) {
+    // An adopted orphan has no state file. Find the listener by its command line
+    // so a host upgrade can still stop it cleanly.
+    const pid = findListener(flags.port);
+    if (pid > 0) {
+      process.kill(pid, 'SIGTERM');
+      const deadline = Date.now() + 10000;
+      while (alive(pid) && Date.now() < deadline) await sleep(200);
+      if (alive(pid)) process.kill(pid, 'SIGKILL');
+      process.stdout.write(JSON.stringify({name: flags.name, stopped: true, adopted: true, pid}) + '\n');
+      return;
+    }
+    throw new Error('Slot ' + flags.name + ' has no state');
+  }
   if (alive(state.pid)) {
     process.kill(state.pid, 'SIGTERM');
     const deadline = Date.now() + 10000;
