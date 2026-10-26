@@ -11,6 +11,13 @@ bash "$source_root/tooling/android-build/prepare-deps.sh"
 bash "$source_root/tooling/android-build/prepare-default-pet.sh"
 bash "$source_root/tooling/android-build/prepare-wake.sh"
 bash "$source_root/tooling/android-build/prepare-owner-backends.sh"
+# Prepared model assets live in apps/android; a forked app shares them.
+if [ "$app_dir" != "$source_root/apps/android" ]; then
+    mkdir -p "$app_dir/assets"
+    for asset in default-pet wake; do
+        [ -e "$app_dir/assets/$asset" ] || cp -a "$source_root/apps/android/assets/$asset" "$app_dir/assets/"
+    done
+fi
 dependencies=("$DEPS_DIR/Java-WebSocket-1.6.0.jar" "$DEPS_DIR/slf4j-api-2.0.13.jar" "$DEPS_DIR/wake-1.13.8/java.jar" "$DEPS_DIR/liblinear-2.44.jar" "$DEPS_DIR/libsvm-3.35.jar")
 dependency_classpath="${dependencies[0]}:${dependencies[1]}:${dependencies[2]}:${dependencies[3]}:${dependencies[4]}"
 for tool in aapt javac jar d8 apksigner keytool; do command -v "$tool" >/dev/null; done
