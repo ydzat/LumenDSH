@@ -24,7 +24,9 @@ for (let index = 0; index < argv.length; index++) {
 }
 const slots = path.join(path.resolve(source, '../..'), 'integrations/supervisor/slots.mjs');
 const files = ['package.json', 'cordis.patch.yml', 'host.mjs', 'policy.mjs', 'model-config.mjs',
-  'documents.mjs', 'document-index-worker.mjs', 'upstream/night-plan.mjs', 'upstream/NOTICE.md',
+  'documents.mjs', 'document-index-worker.mjs', 'situation.mjs', 'self-notes.mjs',
+  'experience.mjs', 'candidates.mjs', 'growth.mjs', 'self-doc.mjs', 'extend-self.mjs',
+  'upstream/night-plan.mjs', 'upstream/NOTICE.md',
   'upstream/LICENSE-dsh-bili-whale', 'upstream/LICENSE-dsh-mnemon'];
 const hash = createHash('sha256');
 for (const file of files) { hash.update(file); hash.update(await readFile(path.join(source, file))); }
