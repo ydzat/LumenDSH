@@ -27,7 +27,10 @@ loop) and supervises the launcher process:
 - after a failure threshold the child is terminated and restarted with capped
   exponential backoff;
 - restart and health counters are persisted to an atomic status file;
-- SIGINT/SIGTERM stop the child and release the lock.
+- SIGINT/SIGTERM stop the child and release the lock;
+- a startup grace (`--startup-grace-ms`) skips probes while a fresh slot boots;
+- `stack.mjs` ties slot + relay together so the watchdog restarts the whole
+  entrance when either side fails (verified by `tests/stack-check.mjs`).
 
 Acceptance: `tests/supervise-check.mjs` proves crash-restart, crash-while-idle
 restart, unhealthy-child restart and lock behaviour with a mock child. The live

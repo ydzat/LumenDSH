@@ -81,3 +81,22 @@ setsid nohup node integrations/supervisor/migrate.mjs \
   --relay-dir "$HOME/.local/state/sliver-wolf-supervisor" \
   >> "$HOME/.local/state/sliver-wolf-slots/migrate.log" 2>&1
 ```
+
+## Stack supervision
+
+`stack.mjs` ensures the slot is running, writes the relay's `active.json`, then
+runs the relay in the foreground. Wrap it with the watchdog so either the relay
+or the slot failing restarts the whole entrance:
+
+```bash
+node integrations/supervisor/supervise.mjs --port 3080 \
+  --interval-ms 5000 --timeout-ms 3000 --fail-threshold 3 --startup-grace-ms 25000 \
+  --state-dir "$HOME/.local/state/sliver-wolf-stack" -- \
+  node integrations/supervisor/stack.mjs --port 3080 --slot-name A --slot-port 3082 \
+  --runtime "$RUNTIME" --home "$HOME/.dsh" --workspace "$HOME/agent-workspace" \
+  --state-dir "$HOME/.local/state/sliver-wolf-slots" \
+  --relay-dir "$HOME/.local/state/sliver-wolf-supervisor"
+```
+
+`--startup-grace-ms` skips health probes while a fresh slot boots; without it the
+watchdog would kill the stack mid-start.

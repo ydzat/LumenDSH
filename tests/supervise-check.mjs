@@ -36,6 +36,7 @@ function spawnSupervisor(port, directory, mode) {
     '--backoff-ms', '150',
     '--max-backoff-ms', '400',
     '--max-restarts', '5',
+    '--startup-grace-ms', '500',
     '--state-dir', directory,
     '--', process.execPath, mockChild, mode, String(port)],
     {stdio: ['ignore', 'ignore', 'pipe']});

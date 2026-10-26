@@ -79,7 +79,7 @@ async function start() {
   if (readState() && alive(readState().pid)) throw new Error('Slot ' + flags.name + ' is already running');
   const logFile = path.join(flags.stateDir, flags.name + '.log');
   const bin = path.join(flags.runtime, 'node_modules/@deepseek-ai/dsh/lib/bin.js');
-  const logFd = openSync(logFile, 'a', 0o600);
+  const logFd = openSync(logFile, 'w', 0o600);
   const child = spawn(process.execPath, ['--expose-internals', bin, 'web', '--host', '127.0.0.1',
     '--port', String(flags.port), '--no-open'], {cwd: flags.workspace, detached: true,
     env: {...process.env, DSH_HOME: flags.home, DSH_TELEMETRY_DISABLED: '1'},

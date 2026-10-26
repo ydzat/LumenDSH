@@ -15,7 +15,8 @@ function usage() {
 
 const argv = process.argv.slice(2);
 const flags = {intervalMs: 5000, timeoutMs: 3000, failThreshold: 3, maxRestarts: Infinity,
-  backoffMs: 1000, maxBackoffMs: 30000, stateDir: path.join(os.homedir(), '.local/state/sliver-wolf-supervisor')};
+  backoffMs: 1000, maxBackoffMs: 30000, startupGraceMs: 25000,
+  stateDir: path.join(os.homedir(), '.local/state/sliver-wolf-supervisor')};
 let command = [];
 let afterSeparator = false;
 for (let index = 0; index < argv.length; index++) {
@@ -31,6 +32,7 @@ for (let index = 0; index < argv.length; index++) {
     case '--max-restarts': flags.maxRestarts = Number(next()); break;
     case '--backoff-ms': flags.backoffMs = Number(next()); break;
     case '--max-backoff-ms': flags.maxBackoffMs = Number(next()); break;
+    case '--startup-grace-ms': flags.startupGraceMs = Number(next()); break;
     case '--state-dir': flags.stateDir = path.resolve(next()); break;
     case '--help': usage(); process.exit(0); break;
     default: throw new Error('Unknown option: ' + value);
@@ -79,7 +81,7 @@ function saveState(extra = {}) {
   renameSync(temp, statusFile);
 }
 
-let child = null, stopping = false, killing = false, backoff = flags.backoffMs;
+let child = null, stopping = false, killing = false, backoff = flags.backoffMs, childStartedAt = 0;
 
 function cleanupAndExit() {
   try { unlinkSync(lockFile); } catch { /* already gone */ }
@@ -91,6 +93,7 @@ function startChild() {
   if (stopping) return;
   saveState({state: 'starting'});
   log(`starting: ${command.join(' ')}`);
+  childStartedAt = Date.now();
   child = spawn(command[0], command.slice(1), {stdio: 'inherit', env: process.env});
   saveState({childPid: child.pid ?? null, state: 'running'});
   child.on('exit', (code, signal) => {
@@ -125,6 +128,7 @@ function probe() {
 let healthBusy = false;
 setInterval(async () => {
   if (stopping || healthBusy || !child) return;
+  if (Date.now() - childStartedAt < flags.startupGraceMs) return;
   healthBusy = true;
   const healthy = await probe();
   healthBusy = false;
