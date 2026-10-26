@@ -2,7 +2,7 @@
 // M9.1 watchdog. Runs outside DSH (Termux tmux/boot loop) and supervises one
 // launcher process. It never touches DSH sessions or credentials itself.
 import {spawn} from 'node:child_process';
-import {appendFileSync, closeSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync} from 'node:fs';
+import {appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync} from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -46,6 +46,7 @@ mkdirSync(stateDir, {recursive: true, mode: 0o700});
 const lockFile = path.join(stateDir, 'supervisor.pid');
 const statusFile = path.join(stateDir, 'status.json');
 const logFile = path.join(stateDir, 'supervisor.log');
+const holdFile = path.join(stateDir, 'hold');
 
 function log(line) {
   const text = `${new Date().toISOString()} ${line}\n`;
@@ -129,6 +130,9 @@ let healthBusy = false;
 setInterval(async () => {
   if (stopping || healthBusy || !child) return;
   if (Date.now() - childStartedAt < flags.startupGraceMs) return;
+  // Deliberate maintenance (host activation) holds restarts so the watchdog does
+  // not race the installer for the slot port.
+  if (existsSync(holdFile)) return;
   healthBusy = true;
   const healthy = await probe();
   healthBusy = false;

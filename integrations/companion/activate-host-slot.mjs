@@ -2,7 +2,7 @@
 // Slot-aware companion host activation. Installs an immutable host revision,
 // stops the slot, and lets the watchdog restart the stack so the new host loads
 // under the relay architecture. Restores the profile and the slot on failure.
-import {copyFile, mkdir, readFile, writeFile} from 'node:fs/promises';
+import {copyFile, mkdir, readFile, unlink, writeFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {createHash, randomUUID} from 'node:crypto';
 import path from 'node:path';
@@ -13,7 +13,8 @@ const home = process.env.HOME;
 const root = path.join(home, 'sliver-wolf-companion');
 const source = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
-const flags = {slotName: 'A', slotPort: 3082, stateDir: path.join(home, '.local/state/sliver-wolf-slots'), port: 3080};
+const flags = {slotName: 'A', slotPort: 3082, stateDir: path.join(home, '.local/state/sliver-wolf-slots'), port: 3080,
+  supervisorState: path.join(home, '.local/state/sliver-wolf-stack')};
 for (let index = 0; index < argv.length; index++) {
   const value = argv[index];
   const next = () => { if (index + 1 >= argv.length) throw new Error('Missing value for ' + value); return argv[++index]; };
@@ -21,6 +22,7 @@ for (let index = 0; index < argv.length; index++) {
   else if (value === '--state-dir') flags.stateDir = path.resolve(next());
   else if (value === '--port') flags.port = Number(next());
   else if (value === '--slot-port') flags.slotPort = Number(next());
+  else if (value === '--supervisor-state') flags.supervisorState = path.resolve(next());
   else throw new Error('Unknown option: ' + value);
 }
 const slots = path.join(path.resolve(source, '../..'), 'integrations/supervisor/slots.mjs');
@@ -67,6 +69,15 @@ await mkdir(backup, {mode: 0o700});
 const retained = ['package.json', 'cordis.patch.yml', 'pnpm-lock.yaml'];
 for (const file of retained) await copyFile(path.join(profile, file), path.join(backup, file));
 
+const holdFile = path.join(flags.supervisorState, 'hold');
+await mkdir(flags.supervisorState, {recursive: true, mode: 0o700});
+await writeFile(holdFile, String(process.pid), {mode: 0o600});
+const startSlot = () => execFileSync(process.execPath, [slots, 'start', '--name', flags.slotName,
+  '--port', String(flags.slotPort), '--runtime',
+  '/data/data/com.termux/files/home/sliver-wolf-dsh-upgrade/0.2.1-rc.3/runtime',
+  '--home', path.join(home, '.dsh'), '--workspace', path.join(home, 'agent-workspace'),
+  '--stable-port', String(flags.port), '--state-dir', flags.stateDir], {stdio: 'inherit'});
+
 let stopped = false;
 try {
   // The slot must be down before the profile is rewritten.
@@ -83,8 +94,8 @@ try {
   await writeFile(patchFile, patch.replace('- id: mnemon-source-documents\n  name: dsh-mnemon-source-documents',
     '- id: mnemon-source-documents\n  disabled: true\n  name: dsh-mnemon-source-documents'), {mode: 0o600});
 
-  // The watchdog notices the dead slot and restarts the stack, which starts a
-  // fresh slot over the updated profile.
+  // Start the slot ourselves while the watchdog is held, then release the hold.
+  startSlot();
   let ready = 0;
   for (let attempt = 0; attempt < 150; attempt++) {
     ready = await entranceReady();
@@ -109,12 +120,9 @@ try {
 } catch (error) {
   for (const file of retained) await copyFile(path.join(backup, file), path.join(profile, file));
   if (stopped) {
-    try {
-      execFileSync(process.execPath, [slots, 'start', '--name', flags.slotName, '--port', String(flags.slotPort),
-        '--runtime', '/data/data/com.termux/files/home/sliver-wolf-dsh-upgrade/0.2.1-rc.3/runtime',
-        '--home', path.join(home, '.dsh'), '--workspace', path.join(home, 'agent-workspace'),
-        '--stable-port', '3080', '--state-dir', flags.stateDir], {stdio: 'inherit'});
-    } catch { /* the watchdog may restart the stack anyway */ }
+    try { startSlot(); } catch { /* the watchdog may restart the stack anyway */ }
   }
   throw error;
+} finally {
+  await unlink(holdFile).catch(() => {});
 }
