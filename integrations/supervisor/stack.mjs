@@ -9,7 +9,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const argv = process.argv.slice(2);
-const flags = {slotName: 'A'};
+const flags = {slotName: 'A', slotPorts: null};
 for (let index = 0; index < argv.length; index++) {
   const value = argv[index];
   const next = () => { if (index + 1 >= argv.length) throw new Error('Missing value for ' + value); return argv[++index]; };
@@ -17,6 +17,7 @@ for (let index = 0; index < argv.length; index++) {
     case '--port': flags.port = Number(next()); break;
     case '--slot-name': flags.slotName = next(); break;
     case '--slot-port': flags.slotPort = Number(next()); break;
+    case '--slot-ports': flags.slotPorts = next(); break;
     case '--runtime': flags.runtime = path.resolve(next()); break;
     case '--home': flags.home = path.resolve(next()); break;
     case '--workspace': flags.workspace = path.resolve(next()); break;
@@ -34,11 +35,17 @@ for (const required of ['port', 'slotPort', 'runtime', 'home', 'workspace', 'sta
   if (!flags[required]) throw new Error('--' + required.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()) + ' is required');
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const defaultPorts = {A: flags.slotPort ?? 3082, B: 3083};
+const slotPorts = {...defaultPorts};
+if (flags.slotPorts) for (const entry of flags.slotPorts.split(',')) {
+  const [name, port] = entry.split('=');
+  if (name && Number.isInteger(Number(port))) slotPorts[name.trim()] = Number(port);
+}
 const slots = path.join(repo, 'integrations/supervisor/slots.mjs');
 const relayScript = path.join(repo, 'integrations/supervisor/relay.mjs');
 
-function slotState() {
-  try { return JSON.parse(readFileSync(path.join(flags.stateDir, flags.slotName + '.json'), 'utf8')); }
+function slotState(name) {
+  try { return JSON.parse(readFileSync(path.join(flags.stateDir, name + '.json'), 'utf8')); }
   catch { return null; }
 }
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
@@ -51,16 +58,30 @@ function answers(port) {
   });
 }
 
-let slot = slotState();
+// Follow the slot the relay is currently serving, not a hardcoded A. Otherwise a
+// watchdog restart after an A→B switch would silently drag the client back to A.
+mkdirSync(flags.relayDir, {recursive: true, mode: 0o700});
+const activeFile = path.join(flags.relayDir, 'active.json');
+let activeName = flags.slotName;
+let activePort = flags.slotPort;
+try {
+  const previous = JSON.parse(readFileSync(activeFile, 'utf8'));
+  if (previous?.slot && (slotPorts[previous.slot] !== undefined || Number.isFinite(previous.port))) {
+    activeName = previous.slot;
+    activePort = Number(previous.port) || slotPorts[previous.slot] || activePort;
+  }
+} catch { /* first start */ }
+let slot = slotState(activeName);
+if (slot) activePort = Number(slot.port) || activePort;
 if (!slot || !alive(slot.pid)) {
   // An orphaned DSH listener may already own the slot port (for example after an
   // interrupted activation). Adopt it instead of failing the whole stack in a
   // restart loop; the relay still owns the stable entrance.
-  if (await answers(flags.slotPort)) {
-    process.stderr.write('stack: adopting existing listener on ' + flags.slotPort + '\n');
+  if (await answers(activePort)) {
+    process.stderr.write('stack: adopting existing listener on ' + activePort + '\n');
   } else {
-    const started = spawnSync(process.execPath, [slots, 'start', '--name', flags.slotName,
-      '--port', String(flags.slotPort), '--runtime', flags.runtime, '--home', flags.home,
+    const started = spawnSync(process.execPath, [slots, 'start', '--name', activeName,
+      '--port', String(activePort), '--runtime', flags.runtime, '--home', flags.home,
       '--workspace', flags.workspace, '--stable-port', String(flags.port),
       '--state-dir', flags.stateDir], {encoding: 'utf8', timeout: 60000});
     if (started.status !== 0) {
@@ -70,13 +91,9 @@ if (!slot || !alive(slot.pid)) {
   }
 }
 
-// The relay follows active.json; the stack owns that target even when it was
-// first written by a migration.
-mkdirSync(flags.relayDir, {recursive: true, mode: 0o700});
-const activeFile = path.join(flags.relayDir, 'active.json');
 const temp = activeFile + '.tmp';
-writeFileSync(temp, JSON.stringify({host: '127.0.0.1', port: flags.slotPort,
-  generation: Date.now(), slot: flags.slotName}, null, 2) + '\n', {mode: 0o600});
+writeFileSync(temp, JSON.stringify({host: '127.0.0.1', port: activePort,
+  generation: Date.now(), slot: activeName}, null, 2) + '\n', {mode: 0o600});
 renameSync(temp, activeFile);
 
 const relay = spawn(process.execPath, [relayScript, '--port', String(flags.port), '--state-dir', flags.relayDir],
