@@ -4,6 +4,7 @@
 // port, so either the relay or the slot failing leads to a full stack restart.
 import {spawn, spawnSync} from 'node:child_process';
 import {mkdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -41,16 +42,31 @@ function slotState() {
   catch { return null; }
 }
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
+function answers(port) {
+  return new Promise((resolve) => {
+    const request = http.get({host: '127.0.0.1', port, path: '/', timeout: 1500},
+      (response) => { response.resume(); resolve(true); });
+    request.on('error', () => resolve(false));
+    request.on('timeout', () => { request.destroy(); resolve(false); });
+  });
+}
 
 let slot = slotState();
 if (!slot || !alive(slot.pid)) {
-  const started = spawnSync(process.execPath, [slots, 'start', '--name', flags.slotName,
-    '--port', String(flags.slotPort), '--runtime', flags.runtime, '--home', flags.home,
-    '--workspace', flags.workspace, '--stable-port', String(flags.port),
-    '--state-dir', flags.stateDir], {encoding: 'utf8', timeout: 60000});
-  if (started.status !== 0) {
-    process.stderr.write('stack: slot start failed\n' + (started.stderr || started.stdout));
-    process.exit(1);
+  // An orphaned DSH listener may already own the slot port (for example after an
+  // interrupted activation). Adopt it instead of failing the whole stack in a
+  // restart loop; the relay still owns the stable entrance.
+  if (await answers(flags.slotPort)) {
+    process.stderr.write('stack: adopting existing listener on ' + flags.slotPort + '\n');
+  } else {
+    const started = spawnSync(process.execPath, [slots, 'start', '--name', flags.slotName,
+      '--port', String(flags.slotPort), '--runtime', flags.runtime, '--home', flags.home,
+      '--workspace', flags.workspace, '--stable-port', String(flags.port),
+      '--state-dir', flags.stateDir], {encoding: 'utf8', timeout: 60000});
+    if (started.status !== 0) {
+      process.stderr.write('stack: slot start failed\n' + (started.stderr || started.stdout));
+      process.exit(1);
+    }
   }
 }
 
