@@ -10,12 +10,13 @@ import path from 'node:path';
 
 const argv = process.argv.slice(2);
 const command = argv[0];
-const flags = {stateDir: path.join(os.homedir(), '.local/state/sliver-wolf-slots')};
+const flags = {host: '127.0.0.1', stateDir: path.join(os.homedir(), '.local/state/sliver-wolf-slots')};
 for (let index = 1; index < argv.length; index++) {
   const value = argv[index];
   const next = () => { if (index + 1 >= argv.length) throw new Error('Missing value for ' + value); return argv[++index]; };
   switch (value) {
     case '--name': flags.name = next(); break;
+    case '--host': flags.host = next(); break;
     case '--port': flags.port = Number(next()); break;
     case '--runtime': flags.runtime = path.resolve(next()); break;
     case '--home': flags.home = path.resolve(next()); break;
@@ -59,9 +60,9 @@ function findListener(port) {
   }
   return 0;
 }
-function exchangeToken(port, stablePort, token) {
+function exchangeToken(host, port, stablePort, token) {
   return new Promise((resolve, reject) => {
-    const request = http.request({host: '127.0.0.1', port, path: '/?token=' + encodeURIComponent(token),
+    const request = http.request({host, port, path: '/?token=' + encodeURIComponent(token),
       headers: {host: '127.0.0.1:' + stablePort}, timeout: 5000}, (response) => {
       const cookie = response.headers['set-cookie']?.[0]?.split(';')[0] ?? null;
       response.resume();
@@ -72,9 +73,9 @@ function exchangeToken(port, stablePort, token) {
     request.end();
   });
 }
-function cookieWorks(port, stablePort, cookie) {
+function cookieWorks(host, port, stablePort, cookie) {
   return new Promise((resolve) => {
-    const request = http.get({host: '127.0.0.1', port, path: '/',
+    const request = http.get({host, port, path: '/',
       headers: {host: '127.0.0.1:' + stablePort, cookie}, timeout: 5000},
       (response) => { response.resume(); resolve(response.statusCode === 200); });
     request.on('error', () => resolve(false));
@@ -90,7 +91,7 @@ async function start() {
   const logFile = path.join(flags.stateDir, flags.name + '.log');
   const bin = path.join(flags.runtime, 'node_modules/@deepseek-ai/dsh/lib/bin.js');
   const logFd = openSync(logFile, 'w', 0o600);
-  const child = spawn(process.execPath, ['--expose-internals', bin, 'web', '--host', '127.0.0.1',
+  const child = spawn(process.execPath, ['--expose-internals', bin, 'web', '--host', flags.host,
     '--port', String(flags.port), '--no-open'], {cwd: flags.workspace, detached: true,
     env: {...process.env, DSH_HOME: flags.home, DSH_TELEMETRY_DISABLED: '1'},
     stdio: ['ignore', logFd, logFd]});
@@ -106,18 +107,18 @@ async function start() {
     await sleep(150);
     let log = '';
     try { log = readFileSync(logFile, 'utf8'); } catch { /* not written yet */ }
-    const match = log.match(/dsh web: http:\/\/127\.0\.0\.1:\d+\/\?token=([A-Za-z0-9_-]+)/);
+    const match = log.match(/dsh web: http:\/\/[^\s/]+:\d+\/\?token=([A-Za-z0-9_-]+)/);
     if (match) { token = match[1]; break; }
     try { process.kill(child.pid, 0); } catch { failStart('slot exited during startup'); }
   }
   if (!token) failStart('slot did not print a token URL');
-  const cookie = await exchangeToken(flags.port, flags.stablePort, token).catch((error) => failStart(error.message));
+  const cookie = await exchangeToken(flags.host, flags.port, flags.stablePort, token).catch((error) => failStart(error.message));
   if (!cookie) failStart('token exchange returned no cookie');
-  if (!(await cookieWorks(flags.port, flags.stablePort, cookie)))
+  if (!(await cookieWorks(flags.host, flags.port, flags.stablePort, cookie)))
     failStart('slot did not authenticate with the entrance-authority cookie');
-  writeState({name: flags.name, port: flags.port, stablePort: flags.stablePort, pid: child.pid,
+  writeState({name: flags.name, host: flags.host, port: flags.port, stablePort: flags.stablePort, pid: child.pid,
     startedAt: new Date().toISOString(), log: logFile, healthy: true});
-  process.stdout.write(JSON.stringify({name: flags.name, port: flags.port, pid: child.pid,
+  process.stdout.write(JSON.stringify({name: flags.name, host: flags.host, port: flags.port, pid: child.pid,
     stablePort: flags.stablePort, healthy: true}) + '\n');
   process.exit(0);
 }

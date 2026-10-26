@@ -160,3 +160,14 @@ target; the receipt records `rolled-back` with the error. Receipts are written t
 Remaining limitation: the relay closes existing connections when `active.json`
 changes, so a switch still produces one short reconnect; the previous slot stays
 warm so rollback is another switch, not a restart.
+
+
+## Single client entrance (2026-10-26)
+
+Slots now bind to the internal loopback host `127.0.0.2`; only the relay listens on
+`127.0.0.1:3080`, which is the sole client entrance. Direct access to a slot port
+is therefore impossible from the addresses clients use, which removes the
+`session/writer-held` conflict caused by one client writing through a slot while
+another wrote through the relay. `slots.mjs` takes `--host`, the stack starts
+slots with `--slot-host` (default `127.0.0.2`), and `active.json` carries the host
+the relay must dial. The Android client refuses to pair any port other than 3080.

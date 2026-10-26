@@ -142,7 +142,7 @@ final class DeviceBridge extends WebSocketServer {
         arguments(args, "protocol", "port", "cookie");
         if (!"0.2.1-rc.3".equals(args.getString("protocol"))) throw new IllegalArgumentException("Unsupported backend protocol");
         int port = args.getInt("port");
-        if (port != 3080 && port != 3082) throw new IllegalArgumentException("Unsupported loopback port");
+        if (port != 3080) throw new IllegalArgumentException("Only the relay entrance (3080) may be paired");
         String cookie = args.getString("cookie");
         if (cookie.length() < 16 || cookie.length() > 4096 || !cookie.matches("[A-Za-z0-9_=-]+=[A-Za-z0-9_.=-]+")) throw new IllegalArgumentException("Invalid backend credential");
         SharedPreferences session = context.getSharedPreferences("session", 0);

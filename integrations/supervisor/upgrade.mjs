@@ -45,7 +45,8 @@ function alive(pid) {
 function pointRelay(name, slot) {
   const activeFile = path.join(flags.relayDir, 'active.json');
   const temp = activeFile + '.tmp';
-  writeFileSync(temp, JSON.stringify({host: '127.0.0.1', port: slot.port, generation: Date.now(), slot: name}, null, 2) + '\n', {mode: 0o600});
+  writeFileSync(temp, JSON.stringify({host: slot.host ?? '127.0.0.1', port: slot.port,
+    generation: Date.now(), slot: name}, null, 2) + '\n', {mode: 0o600});
   renameSync(temp, activeFile);
 }
 function writeReceipt(value) {

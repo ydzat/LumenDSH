@@ -9,13 +9,14 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const argv = process.argv.slice(2);
-const flags = {slotName: 'A', slotPorts: null};
+const flags = {slotName: 'A', slotPorts: null, slotHost: '127.0.0.2'};
 for (let index = 0; index < argv.length; index++) {
   const value = argv[index];
   const next = () => { if (index + 1 >= argv.length) throw new Error('Missing value for ' + value); return argv[++index]; };
   switch (value) {
     case '--port': flags.port = Number(next()); break;
     case '--slot-name': flags.slotName = next(); break;
+    case '--slot-host': flags.slotHost = next(); break;
     case '--slot-port': flags.slotPort = Number(next()); break;
     case '--slot-ports': flags.slotPorts = next(); break;
     case '--runtime': flags.runtime = path.resolve(next()); break;
@@ -49,9 +50,9 @@ function slotState(name) {
   catch { return null; }
 }
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
-function answers(port) {
+function answers(host, port) {
   return new Promise((resolve) => {
-    const request = http.get({host: '127.0.0.1', port, path: '/', timeout: 1500},
+    const request = http.get({host, port, path: '/', timeout: 1500},
       (response) => { response.resume(); resolve(true); });
     request.on('error', () => resolve(false));
     request.on('timeout', () => { request.destroy(); resolve(false); });
@@ -73,15 +74,16 @@ try {
 } catch { /* first start */ }
 let slot = slotState(activeName);
 if (slot) activePort = Number(slot.port) || activePort;
+const activeHost = slot?.host ?? flags.slotHost;
 if (!slot || !alive(slot.pid)) {
   // An orphaned DSH listener may already own the slot port (for example after an
   // interrupted activation). Adopt it instead of failing the whole stack in a
   // restart loop; the relay still owns the stable entrance.
-  if (await answers(activePort)) {
-    process.stderr.write('stack: adopting existing listener on ' + activePort + '\n');
+  if (await answers(activeHost, activePort)) {
+    process.stderr.write('stack: adopting existing listener on ' + activeHost + ':' + activePort + '\n');
   } else {
     const started = spawnSync(process.execPath, [slots, 'start', '--name', activeName,
-      '--port', String(activePort), '--runtime', flags.runtime, '--home', flags.home,
+      '--host', activeHost, '--port', String(activePort), '--runtime', flags.runtime, '--home', flags.home,
       '--workspace', flags.workspace, '--stable-port', String(flags.port),
       '--state-dir', flags.stateDir], {encoding: 'utf8', timeout: 60000});
     if (started.status !== 0) {
@@ -92,7 +94,7 @@ if (!slot || !alive(slot.pid)) {
 }
 
 const temp = activeFile + '.tmp';
-writeFileSync(temp, JSON.stringify({host: '127.0.0.1', port: activePort,
+writeFileSync(temp, JSON.stringify({host: activeHost, port: activePort,
   generation: Date.now(), slot: activeName}, null, 2) + '\n', {mode: 0o600});
 renameSync(temp, activeFile);
 

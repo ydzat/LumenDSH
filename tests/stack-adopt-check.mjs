@@ -21,7 +21,7 @@ const mock = http.createServer((request, response) => { response.writeHead(200);
 await new Promise((resolve) => mock.listen(slotPort, '127.0.0.1', resolve));
 
 const child = spawn(process.execPath, [stack, '--port', String(entrance), '--slot-name', 'S',
-  '--slot-port', String(slotPort), '--runtime', '/nonexistent', '--home', '/nonexistent',
+  '--slot-host', '127.0.0.1', '--slot-port', String(slotPort), '--runtime', '/nonexistent', '--home', '/nonexistent',
   '--workspace', repo, '--state-dir', stateDir, '--relay-dir', relayDir],
   {stdio: ['ignore', 'ignore', 'pipe']});
 let stderr = '';

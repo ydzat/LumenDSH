@@ -56,11 +56,11 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const defaultPort = (name) => (name === 'B' ? 3083 : 3082);
 
 async function cookie() { return JSON.parse(await readFile(connectionFile, 'utf8')).cookie; }
-async function entranceReady(port, timeoutMs = 30000) {
+async function entranceReady(host, port, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/`, {signal: AbortSignal.timeout(2000)});
+      const response = await fetch(`http://${host}:${port}/`, {signal: AbortSignal.timeout(2000)});
       if (response.status === 200 || response.status === 401) return response.status;
     } catch { /* not ready yet */ }
     await sleep(1000);
@@ -70,10 +70,10 @@ async function entranceReady(port, timeoutMs = 30000) {
 // Slot listeners authenticate against the authority in the Host header. The
 // client's cookie was minted for the stable entrance, so direct slot queries must
 // present that same Host or they get "unauthorized".
-function request(port, {method = 'GET', pathName = '/', body = null, cookieValue = null, timeout = 5000} = {}) {
+function request(host, port, {method = 'GET', pathName = '/', body = null, cookieValue = null, timeout = 5000} = {}) {
   return new Promise((resolve, reject) => {
     const payload = body === null ? null : JSON.stringify(body);
-    const request = http.request({host: '127.0.0.1', port, path: pathName, method,
+    const request = http.request({host, port, path: pathName, method,
       headers: {Host: '127.0.0.1:' + flags.port, ...(cookieValue ? {Cookie: cookieValue} : {}),
         ...(payload ? {'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload)} : {})},
       timeout}, (response) => {
@@ -88,20 +88,20 @@ function request(port, {method = 'GET', pathName = '/', body = null, cookieValue
     request.end();
   });
 }
-async function post(port, method) {
-  const response = await request(port, {method: 'POST', pathName: `/api/${method}`,
+async function post(host, port, method) {
+  const response = await request(host, port, {method: 'POST', pathName: `/api/${method}`,
     cookieValue: await cookie(), body: {type: 'client-request', rpcId: randomUUID(), method,
       payload: {args: {_request: {}}}}, timeout: 5000});
   if (response.status !== 200) throw new Error(`session/list ${response.status}: ${response.text.slice(0, 80)}`);
   return JSON.parse(response.text);
 }
-async function sessionIds(port) {
-  const body = await post(port, 'session/list');
+async function sessionIds(host, port) {
+  const body = await post(host, port, 'session/list');
   assert(body.result.ok, 'session/list failed on ' + port);
   return body.result.value.items.map((item) => item.sessionId).sort();
 }
-async function companionStatus(port) {
-  const response = await request(port, {pathName: '/sliver-wolf/companion/status',
+async function companionStatus(host, port) {
+  const response = await request(host, port, {pathName: '/sliver-wolf/companion/status',
     cookieValue: await cookie(), timeout: 4000});
   return response.status;
 }
@@ -110,14 +110,14 @@ function readJson(file) {
 }
 function readSlotState(name) { return readJson(path.join(flags.stateDir, name + '.json')); }
 function readActive() { return readJson(path.join(flags.relayDir, 'active.json')); }
-async function pointRelay(name, port) {
+async function pointRelay(name, host, port) {
   await mkdir(flags.relayDir, {recursive: true, mode: 0o700});
   const file = path.join(flags.relayDir, 'active.json');
-  await writeFile(file + '.tmp', JSON.stringify({host: '127.0.0.1', port, generation: Date.now(), slot: name}, null, 2) + '\n', {mode: 0o600});
+  await writeFile(file + '.tmp', JSON.stringify({host, port, generation: Date.now(), slot: name}, null, 2) + '\n', {mode: 0o600});
   await rename(file + '.tmp', file);
 }
-function startSlot(name, port) {
-  execFileSync(process.execPath, [slots, 'start', '--name', name, '--port', String(port),
+function startSlot(name, host, port) {
+  execFileSync(process.execPath, [slots, 'start', '--name', name, '--host', host, '--port', String(port),
     '--runtime', '/data/data/com.termux/files/home/sliver-wolf-dsh-upgrade/0.2.1-rc.3/runtime',
     '--home', path.join(home, '.dsh'), '--workspace', path.join(home, 'agent-workspace'),
     '--stable-port', String(flags.port), '--state-dir', flags.stateDir], {stdio: 'inherit'});
@@ -129,14 +129,17 @@ function stopSlot(name, port) {
 
 const active = readActive();
 const currentName = flags.slotName ?? active?.slot ?? 'A';
-const currentPort = flags.slotPort ?? (readSlotState(currentName)?.port ?? active?.port ?? defaultPort(currentName));
+const currentState = readSlotState(currentName);
+const currentPort = flags.slotPort ?? (currentState?.port ?? active?.port ?? defaultPort(currentName));
+const currentHost = currentState?.host ?? active?.host ?? '127.0.0.2';
 const targetName = flags.target ?? (currentName === 'A' ? 'B' : 'A');
 const targetPort = flags.targetPort ?? (readSlotState(targetName)?.port ?? defaultPort(targetName));
+const targetHost = readSlotState(targetName)?.host ?? '127.0.0.2';
 assert.notEqual(targetName, currentName, 'Target slot must differ from the live slot');
-const currentStatus = await entranceReady(currentPort, 10000);
+const currentStatus = await entranceReady(currentHost, currentPort, 10000);
 assert(currentStatus === 200 || currentStatus === 401, 'Live slot ' + currentName + ' is not serving on ' + currentPort);
 
-const before = await sessionIds(currentPort);
+const before = await sessionIds(currentHost, currentPort);
 assert(before.length > 0, 'No sessions to preserve');
 const profile = path.join(home, '.dsh/profiles/web');
 const backup = path.join(root, 'host-slot-backup-' + Date.now());
@@ -154,17 +157,17 @@ const receipt = {schemaVersion: 1, revision, from: currentName, to: targetName,
   fromPort: currentPort, toPort: targetPort, startedAt, soakMs: flags.soakMs, status: 'starting'};
 
 async function verifyTarget() {
-  const status = await entranceReady(targetPort, 30000);
-  assert(status === 200 || status === 401, 'Target slot did not answer on ' + targetPort);
-  assert.equal(await companionStatus(targetPort), 200, 'Companion status missing on the target slot');
-  assert.deepEqual(await sessionIds(targetPort), before, 'Session set changed on the target slot');
+  const status = await entranceReady(targetHost, targetPort, 30000);
+  assert(status === 200 || status === 401, 'Target slot did not answer on ' + targetHost + ':' + targetPort);
+  assert.equal(await companionStatus(targetHost, targetPort), 200, 'Companion status missing on the target slot');
+  assert.deepEqual(await sessionIds(targetHost, targetPort), before, 'Session set changed on the target slot');
   assert(existsSync(path.join(root, 'behavior', 'self-doc.md')), 'Self document was not generated');
 }
 async function verifyLive() {
-  const status = await entranceReady(flags.port, 30000);
+  const status = await entranceReady('127.0.0.1', flags.port, 30000);
   assert(status === 200 || status === 401, 'Stable entrance did not answer');
-  assert.equal(await companionStatus(flags.port), 200, 'Companion status missing through the relay');
-  assert.deepEqual(await sessionIds(flags.port), before, 'Session set changed through the relay');
+  assert.equal(await companionStatus('127.0.0.1', flags.port), 200, 'Companion status missing through the relay');
+  assert.deepEqual(await sessionIds('127.0.0.1', flags.port), before, 'Session set changed through the relay');
 }
 
 try {
@@ -184,17 +187,17 @@ try {
       '- id: mnemon-source-documents\n  disabled: true\n  name: dsh-mnemon-source-documents'), {mode: 0o600});
   }
   try { stopSlot(targetName, targetPort); } catch { /* target was not running */ }
-  startSlot(targetName, targetPort);
+  startSlot(targetName, targetHost, targetPort);
   targetStarted = true;
   await verifyTarget();
-  await pointRelay(targetName, targetPort);
+  await pointRelay(targetName, targetHost, targetPort);
   switched = true;
   await verifyLive();
   receipt.verified = {target: true, relay: true, sessions: before.length};
   const soakEnd = Date.now() + flags.soakMs;
   while (Date.now() < soakEnd) {
     await sleep(Math.min(2000, Math.max(0, soakEnd - Date.now())));
-    const status = await companionStatus(flags.port);
+    const status = await companionStatus('127.0.0.1', flags.port);
     if (status !== 200) throw new Error('Companion status degraded during soak: ' + status);
   }
   receipt.status = 'active';
@@ -215,7 +218,7 @@ try {
   console.log('HOST_REVISION', revision);
 } catch (error) {
   for (const file of retained) await copyFile(path.join(backup, file), path.join(profile, file));
-  if (switched) { try { await pointRelay(currentName, currentPort); } catch { /* keep original error */ } }
+  if (switched) { try { await pointRelay(currentName, currentHost, currentPort); } catch { /* keep original error */ } }
   if (targetStarted) { try { stopSlot(targetName, targetPort); } catch { /* keep original error */ } }
   receipt.status = 'rolled-back';
   receipt.error = String(error.message);
