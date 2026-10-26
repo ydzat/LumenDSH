@@ -467,7 +467,7 @@ public final class MainActivity extends Activity {
     }
     private void settingsSessions(){
         SettingsDrawer d=settingsDrawer;d.title("会话");
-        d.row("官方界面","DSH WebUI · 插件与对话",()->{d.dismiss();startActivity(new android.content.Intent(this,WebChatActivity.class));});
+        d.row("官方界面","DSH WebUI · 插件与对话",()->{d.dismiss();CrashLog.mark(this,"open-webchat");startActivity(new android.content.Intent(this,WebChatActivity.class));});
         d.row("展开当前对话","文字输入、复制、审批与任务控制",()->{d.dismiss();showTranscript(true);});
         JSONArray items=controller.sessions;String[] labels=new String[items.length()];int selected=-1;
         for(int i=0;i<items.length();i++){String id=items.optJSONObject(i).optString("sessionId");labels[i]="会话 · "+id.substring(Math.max(0,id.length()-12));if(id.equals(controller.selected))selected=i;}

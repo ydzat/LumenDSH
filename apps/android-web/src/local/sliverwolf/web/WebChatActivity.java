@@ -30,7 +30,9 @@ public final class WebChatActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         CrashLog.install(this);
+        CrashLog.mark(this, "webchat:create");
         try { build(state); } catch (Throwable error) {
+            CrashLog.mark(this, "webchat:build-error " + error);
             TextView view = new TextView(this);
             view.setTextSize(11);
             view.setTextColor(Color.WHITE);
@@ -41,6 +43,7 @@ public final class WebChatActivity extends Activity {
     }
 
     private void build(Bundle state) {
+        CrashLog.mark(this, "webchat:build");
         prefs = ConnectionBootstrap.session(this);
         if (checkSelfPermission("com.termux.permission.RUN_COMMAND") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"com.termux.permission.RUN_COMMAND"}, 42);
@@ -59,6 +62,7 @@ public final class WebChatActivity extends Activity {
         root.addView(status, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        CrashLog.mark(this, "webchat:view");
 
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -136,6 +140,7 @@ public final class WebChatActivity extends Activity {
         status.setVisibility(android.view.View.GONE);
         web.setVisibility(android.view.View.VISIBLE);
         CookieManager.getInstance().setCookie(origin, cookie, value -> {
+            CrashLog.mark(this, "webchat:cookie");
             CookieManager.getInstance().flush();
             web.loadUrl(origin + "/");
         });

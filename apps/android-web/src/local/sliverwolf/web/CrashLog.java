@@ -20,12 +20,20 @@ final class CrashLog {
         });
     }
 
+    static void mark(Context context, String message) {
+        new Thread(() -> { try { postText(context, message); } catch (Throwable ignored) { } }, "app-mark").start();
+    }
+
     private static void post(Context context, Throwable error) {
+        postText(context, "CRASH " + Log.getStackTraceString(error));
+    }
+
+    private static void postText(Context context, String message) {
         SharedPreferences session = context.getSharedPreferences("session", 0);
         String cookie = session.getString("backendCookie", "");
         int port = session.getInt("backendPort", 3080);
         if (cookie.isEmpty()) return;
-        String body = "{\"message\":" + JSONObject.quote("CRASH " + Log.getStackTraceString(error)) + "}";
+        String body = "{\"message\":" + JSONObject.quote(message) + "}";
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL("http://127.0.0.1:" + port + "/sliver-wolf/companion/log").openConnection();
