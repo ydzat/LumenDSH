@@ -467,6 +467,7 @@ public final class MainActivity extends Activity {
     }
     private void settingsSessions(){
         SettingsDrawer d=settingsDrawer;d.title("会话");
+        d.row("屏幕读取权限","允许助手截屏识别界面",()->{d.dismiss();try{android.media.projection.MediaProjectionManager manager=(android.media.projection.MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);startActivityForResult(manager.createScreenCaptureIntent(),77);}catch(Throwable ignored){}});
         d.row("官方界面","DSH WebUI · 插件与对话",()->{d.dismiss();CrashLog.mark(this,"open-webchat");startActivity(new android.content.Intent(this,WebChatActivity.class));});
         d.row("展开当前对话","文字输入、复制、审批与任务控制",()->{d.dismiss();showTranscript(true);});
         JSONArray items=controller.sessions;String[] labels=new String[items.length()];int selected=-1;
@@ -899,6 +900,9 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,android.content.Intent data) {
         super.onActivityResult(request,result,data);
+        if (request == 77 && result == RESULT_OK && data != null) {
+            try { ScreenCaptureService.start(this, data); } catch (Throwable ignored) { }
+        }
         if(request==42||request==43||request==44||request==45)documentPending=false;
         if(request==45&&result==RESULT_OK&&data!=null&&data.getData()!=null)importProfile(data.getData());
         if(request==42&&result==RESULT_OK&&data!=null&&data.getData()!=null) loadPet(data.getData(),true);

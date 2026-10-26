@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="local.sliverwolf.web" android:versionCode="66" android:versionName="0.10.10-dev">
+    package="local.sliverwolf.web" android:versionCode="67" android:versionName="0.10.11-dev">
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="29" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
@@ -14,6 +14,8 @@
         android:theme="@android:style/Theme.Material.NoActionBar">
         <receiver android:name=".BackendControl" android:exported="false" />
         <receiver android:name=".ConnectionBootstrap" android:exported="false" />
+        <service android:name=".ScreenCaptureService" android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
         <service android:name=".ScreenControlService" android:exported="false"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>

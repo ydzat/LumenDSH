@@ -74,6 +74,7 @@ final class DeviceBridge extends WebSocketServer {
             if (!preferences.edit().putString("token", stored).commit()) throw new IllegalStateException("Cannot save pairing credential");
         }
         token = stored;
+        publishToken();
         operations = new DeviceOperations(preferences);
         try { operations.recover(); inbox = new ArtifactInbox(this.context, operations); releases=new ContentReleases(this.context);releases.recover(); }
         catch (Exception error) { throw new IllegalStateException("Device operation recovery failed", error); }
@@ -83,6 +84,47 @@ final class DeviceBridge extends WebSocketServer {
         setConnectionLostTimeout(20);
         main.post(identitySync);
     }
+    private void publishToken() {
+        try {
+            if (context.checkSelfPermission("com.termux.permission.RUN_COMMAND") != android.content.pm.PackageManager.PERMISSION_GRANTED) return;
+            String script = "mkdir -p \"$HOME/agent-workspace\" && printf %s '" + token
+                + "' > \"$HOME/agent-workspace/device-token-web\" && printf %s '" + PORT
+                + "' > \"$HOME/agent-workspace/device-port-web\"";
+            android.content.Intent intent = new android.content.Intent("com.termux.RUN_COMMAND")
+                .setClassName("com.termux", "com.termux.app.RunCommandService")
+                .putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash")
+                .putExtra("com.termux.RUN_COMMAND_ARGUMENTS", new String[]{"/data/data/com.termux/files/home/agent-env.sh", "bash", "-c", script})
+                .putExtra("com.termux.RUN_COMMAND_WORKDIR", "/data/data/com.termux/files/home")
+                .putExtra("com.termux.RUN_COMMAND_BACKGROUND", true);
+            context.startService(intent);
+        } catch (Exception ignored) { }
+    }
+
+    private JSONObject postScreen(byte[] png) throws Exception {
+        android.content.SharedPreferences session = context.getSharedPreferences("session", 0);
+        String cookie = session.getString("backendCookie", "");
+        int port = session.getInt("backendPort", 3080);
+        if (cookie.isEmpty()) return object("ok", false, "error", "未连接 DSH");
+        java.net.HttpURLConnection connection = (java.net.HttpURLConnection) new java.net.URL(
+            "http://127.0.0.1:" + port + "/sliver-wolf/companion/screen").openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Cookie", cookie);
+        connection.setRequestProperty("Content-Type", "image/png");
+        connection.setConnectTimeout(5000); connection.setReadTimeout(15000);
+        connection.setDoOutput(true);
+        try (java.io.OutputStream out = connection.getOutputStream()) { out.write(png); }
+        int status = connection.getResponseCode();
+        java.io.InputStream input = status == 200 ? connection.getInputStream() : connection.getErrorStream();
+        StringBuilder text = new StringBuilder();
+        if (input != null) try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(input, "UTF-8"))) {
+            String line; while ((line = reader.readLine()) != null) text.append(line);
+        }
+        connection.disconnect();
+        JSONObject reply = new JSONObject(text.length() == 0 ? "{}" : text.toString());
+        reply.put("ok", status == 200 && reply.optBoolean("ok", true));
+        return reply;
+    }
+
     String pairingToken() { return token; }
     String connectionSummary(){
         long at=preferences.getLong("lastToolAt",0);
@@ -174,7 +216,12 @@ final class DeviceBridge extends WebSocketServer {
     }
     private JSONObject call(String name, JSONObject args) throws Exception {
         if(name.startsWith("assistant_screen_")){
-            if("assistant_screen_status".equals(name))return object("enabled",ScreenControlService.enabled());
+            if("assistant_screen_capture".equals(name)){
+            byte[] png=ScreenCaptureService.capture();
+            if(png==null)return object("ok",false,"error","需要先在 app 内开启屏幕读取权限");
+            return postScreen(png);
+        }
+        if("assistant_screen_status".equals(name))return object("enabled",ScreenControlService.enabled());
             if("assistant_screen_dump".equals(name))return ScreenControlService.dump(120);
             if("assistant_screen_click".equals(name)){arguments(args,"text");return ScreenControlService.clickText(args.getString("text"));}
             if("assistant_screen_tap".equals(name)){arguments(args,"x","y");return ScreenControlService.tap((float)args.getDouble("x"),(float)args.getDouble("y"));}

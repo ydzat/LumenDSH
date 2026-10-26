@@ -415,6 +415,13 @@ export function apply(ctx, config = {}) {
       }
       if (req.method === 'GET' && route === '/sliver-wolf/companion/status') return reply(200, snapshot());
       if (req.method === 'GET' && route === '/sliver-wolf/companion/period') return reply(200, state.period ?? {phase: null});
+      if (req.method === 'POST' && route === '/sliver-wolf/companion/screen') {
+        const chunks = []; let bytes = 0;
+        for await (const chunk of req) { bytes += chunk.length; if (bytes > 8 * 1024 * 1024) return reply(413, {error: 'Screen capture too large'}); chunks.push(chunk); }
+        const file = path.join(root, 'screen.png');
+        writeFileSync(file, Buffer.concat(chunks), {mode: 0o600});
+        return reply(200, {ok: true, path: file, bytes});
+      }
       if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection','/sliver-wolf/companion/period','/sliver-wolf/companion/log'].includes(route)) return reply(404, {error:'Unknown operation'});
       const chunks = []; let bytes = 0;
       for await (const chunk of req) { bytes += chunk.length; if (bytes > 16384) return reply(413, {error:'Policy too large'}); chunks.push(chunk); }
