@@ -20,7 +20,7 @@ const flags = {slotName: null, slotPort: null, target: null, targetPort: null,
   stateDir: path.join(home, '.local/state/sliver-wolf-slots'),
   relayDir: path.join(home, '.local/state/sliver-wolf-supervisor'),
   supervisorState: path.join(home, '.local/state/sliver-wolf-stack'),
-  port: 3080, soakMs: 60000, stopSource: false};
+  port: 3080, soakMs: 60000, stopSource: true};
 for (let index = 0; index < argv.length; index++) {
   const value = argv[index];
   const next = () => { if (index + 1 >= argv.length) throw new Error('Missing value for ' + value); return argv[++index]; };
@@ -34,6 +34,7 @@ for (let index = 0; index < argv.length; index++) {
   else if (value === '--port') flags.port = Number(next());
   else if (value === '--soak-ms') flags.soakMs = Number(next());
   else if (value === '--stop-source') flags.stopSource = true;
+  else if (value === '--keep-source') flags.stopSource = false;
   else throw new Error('Unknown option: ' + value);
 }
 const slots = path.join(path.resolve(source, '../..'), 'integrations/supervisor/slots.mjs');

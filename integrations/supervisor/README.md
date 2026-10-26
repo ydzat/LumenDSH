@@ -126,8 +126,10 @@ A→B switch a watchdog restart keeps B instead of rewriting the relay back to A
 - `integrations/companion/activate-host-slot.mjs` upgrades the host through the
   **other slot**: it installs the revision, starts the target slot, verifies
   entrance, companion status, identical sessions and the generated self document,
-  switches the relay, soaks, and keeps the previous slot as the rollback point
-  (`--stop-source` opts into stopping it). The watchdog is held (a hold file with
+  switches the relay, soaks, and then **stops the previous slot by default**: a
+  stale client still attached to the old slot would otherwise write to the same
+  session while the new slot holds it (`session/writer-held`). Use
+  `--keep-source` only when a hot rollback point is required for the soak. The watchdog is held (a hold file with
   the installer pid) so it cannot race the installer for the slot port. A failed
   activation restores the profile, switches the relay back and stops the target;
   receipts go to `host-activation-slot.json` and `slots/receipts/`.
