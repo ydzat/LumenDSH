@@ -55,6 +55,7 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         CrashLog.install(this);
+        handleVoice(getIntent(), 0);
         if (getIntent() != null && android.content.Intent.ACTION_SEND.equals(getIntent().getAction())) {
             String shared = getIntent().getStringExtra(android.content.Intent.EXTRA_TEXT);
             if (shared != null && !shared.isEmpty()) {
@@ -669,7 +670,15 @@ public final class MainActivity extends Activity {
         d.row("更新与恢复","查看本地候选版本和安装状态",this::showLocalUpdate);
         controller.diagnose();
     }
-    @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);openNotification(intent);receiveShare(intent);forwardShareToWeb(intent);}
+    @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);openNotification(intent);receiveShare(intent);forwardShareToWeb(intent);handleVoice(intent,0);}
+    private void handleVoice(android.content.Intent intent, int attempt) {
+        if (intent == null || !"local.sliverwolf.voice".equals(intent.getAction())) return;
+        String text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT);
+        if (text == null || text.trim().isEmpty()) return;
+        if (controller != null && controller.send(text.trim())) return;
+        if (attempt < 12) new android.os.Handler(getMainLooper()).postDelayed(() -> handleVoice(intent, attempt + 1), 1500);
+    }
+
     private void forwardShareToWeb(android.content.Intent intent) {
         if (intent == null || !android.content.Intent.ACTION_SEND.equals(intent.getAction())) return;
         String text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT);

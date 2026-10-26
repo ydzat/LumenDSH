@@ -199,7 +199,7 @@ public final class WebChatActivity extends Activity {
                 recognizer.setRecognitionListener(new RecognitionListener() {
                     @Override public void onResults(android.os.Bundle results) {
                         ArrayList<String> values = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                        if (values != null && !values.isEmpty()) injectText(values.get(0));
+                        if (values != null && !values.isEmpty()) forwardVoice(values.get(0));
                     }
                     @Override public void onError(int error) { }
                     @Override public void onReadyForSpeech(android.os.Bundle params) { }
@@ -216,6 +216,14 @@ public final class WebChatActivity extends Activity {
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN");
             recognizer.startListening(intent);
         } catch (Throwable ignored) { }
+    }
+
+    private void forwardVoice(String text) {
+        if (text == null || text.trim().isEmpty()) return;
+        startActivity(new android.content.Intent(this, MainActivity.class)
+            .setAction("local.sliverwolf.voice")
+            .putExtra(android.content.Intent.EXTRA_TEXT, text.trim()));
+        finish();
     }
 
     private void injectText(String text) {
