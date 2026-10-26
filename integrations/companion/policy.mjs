@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdirSync, readFileSync, writeFileSync, renameSync, existsSync} from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {windowsOf} from './upstream/night-plan.mjs';
+import {windowsOf, occurrences, historyOf} from './upstream/night-plan.mjs';
 
 export const DEFAULT_POLICY = Object.freeze({schemaVersion: 1, agentName: '银狼',
   style: 'Warm, concise, curious and candid. Distinguish facts from attributed impressions.',
@@ -136,6 +136,30 @@ export class TurnBudget {
     if (publication && this.writes >= this.limits.writes) return 'Autonomous publication budget exhausted.';
     this.tools++; if (publication) this.writes++;
   }
+}
+
+// At-most-once recovery: an interrupted run is never replayed, but the next
+// wake is brought forward so a fresh turn can inspect actual state and continue.
+export function recoveryTarget(policy, state, now = Date.now()) {
+  const interrupted = Array.isArray(state?.runs) &&
+    state.runs.some(run => run.status === 'interrupted-unreplayed');
+  if (!interrupted || !policy.enabled || policy.paused || !policy.sessionId) return null;
+  const current = occurrences(policy, now).find(w => w.startsAt <= now && now < w.endsAt);
+  if (current) return {atMs: now + 60000, windowKey: current.key, window: current.label};
+  const next = occurrences(policy, now).sort((a, b) => a.startsAt - b.startsAt)[0];
+  return next ? {atMs: next.startsAt + 60000, windowKey: next.key, window: next.label} : null;
+}
+
+export function recoveryPlan(policy, state, now = Date.now()) {
+  const current = occurrences(policy, now).find(w => w.startsAt <= now && now < w.endsAt);
+  if (!current) return null;
+  const at = new Date(now);
+  return {...historyOf(state, now), schema: 2, action: 'wake', fired: false, woke: false,
+    atMs: now - 1, at: at.getHours() * 60 + at.getMinutes(),
+    atText: `${new Date(now).toISOString().slice(0, 10)} ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
+    window: current.label, windowKey: current.key, startsAt: current.startsAt,
+    endsAt: current.endsAt, withinWindow: current.label + ' 恢复执行',
+    recovery: true, createdAt: new Date(now).toISOString()};
 }
 
 export function activityPrompt(activity, record) {

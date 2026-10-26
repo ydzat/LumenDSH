@@ -100,3 +100,29 @@ test('develop turns get a practical budget floor without changing memory budgets
   assert.equal(kept.steps, 30);
   assert.equal(kept.seconds, 900);
 });
+test('recovery wake brings the next turn forward without replaying the interrupted one', async () => {
+  const {recoveryTarget, recoveryPlan} = await import('../integrations/companion/policy.mjs');
+  const policy = {...DEFAULT_POLICY, enabled:true, sessionId:'session-test',
+    windows:[{start:'09:00',end:'22:00',wakes:2}]};
+  const interrupted = {runs:[{status:'interrupted-unreplayed'}], usedCount:{}};
+  const inside = new Date(2026,9,26,10,0).getTime();
+  const target = recoveryTarget(policy, interrupted, inside);
+  assert.ok(target, 'inside a window a recovery target must exist');
+  assert.equal(target.atMs, inside + 60000);
+  assert.equal(recoveryTarget(policy, {runs:[{status:'completed'}]}, inside), null);
+  assert.equal(recoveryTarget({...policy, enabled:false}, interrupted, inside), null);
+  assert.equal(recoveryTarget({...policy, paused:true}, interrupted, inside), null);
+
+  const outside = new Date(2026,9,26,3,0).getTime();
+  const deferred = recoveryTarget(policy, interrupted, outside);
+  assert.ok(deferred.atMs > outside);
+  assert.equal(deferred.atMs, new Date(2026,9,26,9,0).getTime() + 60000);
+
+  const key = target.windowKey;
+  const plan = recoveryPlan(policy, {usedCount:{[key]:1}}, inside);
+  assert.ok(plan, 'inside a window a recovery plan must exist');
+  assert.equal(plan.action, 'wake');
+  assert.equal(plan.recovery, true);
+  assert.ok(plan.atMs <= inside);
+  assert.equal(plan.usedCount[key], 1, 'history must be preserved');
+});

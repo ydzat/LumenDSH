@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {readdirSync} from 'node:fs';
-import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity} from './policy.mjs';
+import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan} from './policy.mjs';
 import {makePlan, completePlan, dayOf} from './upstream/night-plan.mjs';
 import {modelSnapshot, outputBudget, restoreOutput, selectModel} from './model-config.mjs';
 
@@ -28,6 +28,11 @@ export function apply(ctx, config = {}) {
     run.status = 'interrupted-unreplayed'; run.endedAt = new Date().toISOString();
   }
   save();
+  // A run interrupted by a restart is never replayed (at-most-once side effects).
+  // Instead, plan a fresh recovery wake so the next turn can inspect the actual
+  // repository state and continue the work.
+  const recovery = recoveryTarget(policy, state);
+  if (recovery) { state.recovery = recovery; save(); }
 
   function settle(status) {
     if (!active) return;
@@ -139,6 +144,19 @@ export function apply(ctx, config = {}) {
     try {
       const now = Date.now(), today = dayOf(now);
       if ((state.daily[today] ?? 0) >= policy.budget.dailyRuns) return;
+      if (state.recovery) {
+        if (now < state.recovery.atMs) return;
+        const plan = recoveryPlan(policy, state, now);
+        if (!plan) {
+          const moved = recoveryTarget({...policy, enabled: true}, state, now);
+          if (moved) { state.recovery = moved; } else { delete state.recovery; }
+          save();
+          return;
+        }
+        state.plan = plan;
+        delete state.recovery;
+        save();
+      }
       const previous = state.plan;
       state.plan = makePlan(policy, previous, now);
       if (state.plan !== previous) {
