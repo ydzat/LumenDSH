@@ -1,6 +1,6 @@
 # Development Baseline
 
-Current handoff: **M9 self-iteration infrastructure delivered** (supervisor, relay + A/B slots, boot persistence, situation-driven development loop). See [M9 design and closure](m9-self-iteration.md) and the [self-development loop](self-iteration.md).
+Current handoff: **M10 autonomous iterative development (0.10.x) active**. M9 delivered the supervisor, relay + A/B slots, boot persistence and the situation-driven loop; M10 starts with the user's requirements. See [M10 scope](m10-autonomous-development.md), [M9 design and closure](m9-self-iteration.md) and the [self-development loop](self-iteration.md).
 Connection diagnostics and App-driven DSH startup: [0.8.1 guide](connection-diagnostics.md).
 See [M8 scope](m8-voice-providers.md), [device evidence](../tests/m8-evidence.md)
 and [provider setup](../integrations/voice/providers.md).
