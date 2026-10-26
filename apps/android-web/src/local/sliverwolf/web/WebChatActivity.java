@@ -29,6 +29,17 @@ public final class WebChatActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        try { build(state); } catch (Throwable error) {
+            TextView view = new TextView(this);
+            view.setTextSize(11);
+            view.setTextColor(Color.WHITE);
+            view.setBackgroundColor(Color.rgb(30, 10, 10));
+            view.setText("官方界面启动失败：\n" + android.util.Log.getStackTraceString(error));
+            setContentView(view);
+        }
+    }
+
+    private void build(Bundle state) {
         prefs = ConnectionBootstrap.session(this);
         if (checkSelfPermission("com.termux.permission.RUN_COMMAND") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"com.termux.permission.RUN_COMMAND"}, 42);
