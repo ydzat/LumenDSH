@@ -155,3 +155,30 @@ so the lookup was always empty and the flag stayed behind. Fixed in d496539,
 with a second path: `restart-host.sh` now posts the nudge itself and clears the
 flag when the host path did not consume it. A deliberate restart was validated:
 the flag disappeared and the continuation prompt arrived without a user message.
+
+
+## Day wrap-up 2026-10-26
+
+Delivered and verified on device:
+
+- Official DSH Web UI embedded in the Web client (`local.sliverwolf.web`,
+  0.10.17 / 73) with cookie handoff, reconnect, crash capture and a home surface.
+- Home shows the tide plugin's exact 「梁文峰 / 梁文谷」 phase and countdown.
+- Peak/valley gating in the companion policy (`developDue` suppressed at peak).
+- ADB control plane over the USB tether, exposed as `phone_*` tools; silent APK
+  installs verified. Accessibility + MediaProjection kept as fallback.
+- Remote CPUFast TTS reconnected to the new client (`gpt-sovits-v2pro`,
+  `silver-wolf`) and verified end-to-end (`assistant_speak` → succeeded).
+- Community plugins evaluated: official experimental voice input (local model
+  unavailable on android-arm64 → native SpeechRecognizer fallback),
+  `dsh-schedule-panel` (tool works, panel incompatible → removed), official
+  settings/automation pages used instead of custom screens.
+- Automatic continuation after deliberate restarts: flag + host consumption,
+  with an external nudge fallback; validated.
+- Tests: 30 passing, 0 failing (companion policy, self-iteration, situation,
+  self-notes, develop-situation).
+
+Current autonomous state at wrap-up: policy `paused=true`, `enabled=true`,
+period `valley`. No background jobs or pending nudge flags. The old
+`local.sliverwolf.assistant` client is uninstalled; the device bridge points at
+the new client on port 3084.
