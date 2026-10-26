@@ -48,6 +48,9 @@ public final class WebChatActivity extends Activity {
     }
 
     private void build(Bundle state) {
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 44);
+        }
         android.content.Intent startIntent = getIntent();
         if (startIntent != null && android.content.Intent.ACTION_SEND.equals(startIntent.getAction())) {
             String text = startIntent.getStringExtra(android.content.Intent.EXTRA_TEXT);
@@ -112,6 +115,18 @@ public final class WebChatActivity extends Activity {
             @Override public boolean onConsoleMessage(ConsoleMessage message) {
                 CrashLog.mark(WebChatActivity.this, "console:" + message.message() + " @" + message.lineNumber());
                 return true;
+            }
+            @Override public void onPermissionRequest(final PermissionRequest request) {
+                boolean audio = false;
+                for (String resource : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) audio = true;
+                }
+                if (audio && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                } else {
+                    CrashLog.mark(WebChatActivity.this, "mic:denied");
+                    request.deny();
+                }
             }
         });
         CookieManager.getInstance().setAcceptCookie(true);
