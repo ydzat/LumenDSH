@@ -9,6 +9,13 @@ if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(id??'')||!Number.isSafeInteger(Numb
 const digest=file=>shaBuffer(fs.readFileSync(file));
 function files(dir){return fs.readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name,'en')).flatMap(e=>{const f=path.join(dir,e.name);if(e.isSymbolicLink())throw new Error('Symlink in candidate inputs');return e.isDirectory()?files(f):[f];});}
 function inputs(){return [...files(path.join(root,'apps/android')), ...files(path.join(root,'tooling/android-build')), ...files(path.join(root,'tooling/content-release'))].map(file=>({path:path.relative(root,file),sha256:digest(file)}));}
+// Prepare fetches first: build.sh runs the same idempotent prepare scripts, and a
+// virgin clone would otherwise download assets into apps/android *during* the build,
+// changing the input snapshot and failing the integrity check.
+for(const script of ['prepare-deps.sh','prepare-default-pet.sh','prepare-wake.sh','prepare-owner-backends.sh']){
+    const prepared=spawnSync('bash',[path.join(root,'tooling/android-build',script)],{cwd:root,stdio:'inherit'});
+    if(prepared.status!==0)throw new Error(`Preparation failed: ${script}`);
+}
 const before=inputs();
 const result=spawnSync('bash',[path.join(root,'tooling/android-build/build.sh')],{cwd:root,encoding:'utf8',maxBuffer:8*1024*1024});
 if(result.status!==0){process.stderr.write(result.stderr??'');throw new Error('Phone build failed');}
