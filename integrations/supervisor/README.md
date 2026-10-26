@@ -100,3 +100,15 @@ node integrations/supervisor/supervise.mjs --port 3080 \
 
 `--startup-grace-ms` skips health probes while a fresh slot boots; without it the
 watchdog would kill the stack mid-start.
+
+## Boot and host upgrades in the relay architecture
+
+- `boot-stack.sh` starts the supervised stack unless the entrance already
+  answers or a supervisor is alive. `agent-start` now prefers it and exits when
+  port 3080 already responds, so the client-driven startup no longer races the
+  relay for the port.
+- `~/.termux/boot/lumendsh-stack.sh` calls the same script from Termux:Boot.
+- `integrations/companion/activate-host-slot.mjs` installs a companion host
+  revision, stops the slot and lets the watchdog restart the stack; it restores
+  the profile and the slot on failure. `activate-host.mjs` remains for the old
+  direct-launcher layout.
