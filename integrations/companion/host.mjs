@@ -178,7 +178,7 @@ export function apply(ctx, config = {}) {
     let attempts = 0;
     const timer = setInterval(async () => {
       attempts += 1;
-      const sessionId = state.policy?.sessionId;
+      const sessionId = policy.sessionId;
       if (!sessionId) { if (attempts > 8) { clearInterval(timer); } return; }
       try {
         await ctx.sessionController.prompt({requestId: randomUUID(), sessionId, mode: 'queue',
