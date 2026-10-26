@@ -54,7 +54,15 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
-        CrashLog.install(this);interaction=new InteractionSettings(this);if(saved!=null){documentPending=saved.getBoolean("documentPending",false);presentationExport=saved.getString("presentationExport");}
+        CrashLog.install(this);
+        if (getIntent() != null && android.content.Intent.ACTION_SEND.equals(getIntent().getAction())) {
+            String shared = getIntent().getStringExtra(android.content.Intent.EXTRA_TEXT);
+            if (shared != null && !shared.isEmpty()) {
+                startActivity(new android.content.Intent(this, WebChatActivity.class)
+                    .setAction(android.content.Intent.ACTION_SEND).putExtra(android.content.Intent.EXTRA_TEXT, shared));
+                return;
+            }
+        }interaction=new InteractionSettings(this);if(saved!=null){documentPending=saved.getBoolean("documentPending",false);presentationExport=saved.getString("presentationExport");}
         try{new ContentReleases(this).recover();}catch(Exception error){throw new IllegalStateException("Content recovery failed",error);}
         LinearLayout root = column();
         transcriptPage = root; root.setBackgroundColor(0xff0c1420);

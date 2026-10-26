@@ -71,7 +71,6 @@ export function apply(ctx, config = {}) {
     parameters: {type: 'object', additionalProperties: false, properties},
     output: output({text: {type: 'string'}}),
     async execute(parameters, exec) {
-      requireOwn(exec);
       const value = runPhone(...args(parameters));
       return {text: value || text};
     }

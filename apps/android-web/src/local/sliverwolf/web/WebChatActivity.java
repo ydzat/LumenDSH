@@ -127,7 +127,7 @@ public final class WebChatActivity extends Activity {
             }
             @Override public void onPageFinished(WebView view, String url) {
                 CrashLog.mark(WebChatActivity.this, "page:" + url);
-                if (!pendingShare.isEmpty()) { injectText(pendingShare); pendingShare = ""; }
+                if (!pendingShare.isEmpty()) { final String share = pendingShare; pendingShare = ""; injectText(share); new android.os.Handler(getMainLooper()).postDelayed(() -> injectText(share), 2500); }
                 view.evaluateJavascript("document.title+'|'+location.href+'|'+(document.body?document.body.innerText.slice(0,160):'nobody')", value -> CrashLog.mark(WebChatActivity.this, "dom:" + value));
                 view.evaluateJavascript("(function(){function t(){try{var s=window.__liangwenTide&&window.__liangwenTide.state&&window.__liangwenTide.state();if(s&&s.phase)SliverWolfNative.report(JSON.stringify({phase:s.phase,flipAt:s.flipAt||0}));}catch(e){}}t();setInterval(t,10000);})()", null);
             }
@@ -207,11 +207,14 @@ public final class WebChatActivity extends Activity {
         if (text == null || text.isEmpty() || web == null) return;
         String quoted;
         try { quoted = JSONObject.quote(text); } catch (Exception error) { return; }
-        web.evaluateJavascript("(function(){var t=document.querySelector('textarea');" +
-            "if(!t){var e=document.querySelector('[contenteditable=true]');if(e){e.focus();e.textContent=" + quoted + ";e.dispatchEvent(new Event('input',{bubbles:true}));return;}" +
-            "return;}" +
-            "var s=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;" +
-            "s.call(t," + quoted + ");t.dispatchEvent(new Event('input',{bubbles:true}));t.focus();})()", null);
+        String script = "(function(){var text=" + quoted + ";var tries=0;function set(){tries++;" +
+            "var el=document.querySelector('textarea')||document.querySelector('[contenteditable=true]')||document.querySelector('[role=textbox]');" +
+            "if(!el){if(tries<40)setTimeout(set,500);return;}" +
+            "try{if(el.tagName==='TEXTAREA'){var s=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;s.call(el,text);}" +
+            "else{el.focus();el.textContent=text;}}" +
+            "el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));" +
+            "if(tries<40&&(!el.textContent||el.textContent.indexOf(text)<0))setTimeout(set,500);}set();})()";
+        web.evaluateJavascript(script, null);
     }
 
     private void load() {
