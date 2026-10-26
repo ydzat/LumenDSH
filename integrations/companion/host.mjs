@@ -2,6 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {readdirSync, renameSync, writeFileSync} from 'node:fs';
+import {spawn} from 'node:child_process';
 import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon, developDue, planFor} from './policy.mjs';
 import {buildSituation} from './situation.mjs';
 import {appendExperience, readExperiences, recentExperiences} from './experience.mjs';
@@ -141,6 +142,18 @@ export function apply(ctx, config = {}) {
   const startedAt=Date.now();
   const observed = new Set();
   const save = () => atomicJson(stateFile, state);
+  // Audible cue for the user: a finished human turn rings once; autonomous
+  // activity stays silent. Disable with SLIVER_WOLF_TURN_TONE=0.
+  const toneScript = path.join(os.homedir(), 'agent-workspace', 'tone.sh');
+  let lastToneAt = 0;
+  function playTone(kind) {
+    if (process.env.SLIVER_WOLF_TURN_TONE === '0') return;
+    const now = Date.now();
+    if (now - lastToneAt < 2000) return;
+    lastToneAt = now;
+    try { spawn('bash', [toneScript, kind], {detached: true, stdio: 'ignore'}).unref(); }
+    catch { /* the cue must never affect the turn */ }
+  }
   // Reservations are never replayed after a crash. The session log remains the
   // authority for any work accepted immediately before the process disappeared.
   for (const run of state.runs) if (['reserved', 'running'].includes(run.status)) {
@@ -204,6 +217,13 @@ export function apply(ctx, config = {}) {
           `This updates your display identity without replacing your existing history or instructions.\nInteraction preferences: ${policy.style}\n` +
           'Keep shared experiences, general knowledge and attributed observations distinguishable. Use actual Mnemon sources for recollection; never fabricate personal history.'},
           ...(selfDoc ? [{name: 'sliver-wolf-self-doc', text: selfDoc}] : [])]};
+      }));
+      disposers.push(agent.ctx.on('session/event', (session, event) => {
+        const id = session?.header?.id ?? session?.id;
+        if (id !== agent.id) return;
+        if (event?.type !== 'turn/end') return;
+        if (active) return; // an autonomous activity must not ring on every run
+        playTone('done');
       }));
       disposers.push(agent.ctx.on('agent/pre-step', async (payload, next) => {
         const decision = await next();
