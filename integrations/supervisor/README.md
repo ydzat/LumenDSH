@@ -50,3 +50,17 @@ node integrations/supervisor/slots.mjs stop --name B \
 Verified behaviour: the cookie authority follows the request `Host` header, and
 instances sharing a `DSH_HOME` share the cookie signing key — a live client
 cookie from the stable port was accepted by the slot with a `Host` override.
+
+## Upgrade orchestration (M9.3)
+
+`upgrade.mjs` switches `--from` to `--to`, observes the target and writes a
+durable receipt. With `--rollback-on-fail` it returns the relay to
+`--rollback-to` (defaults to the source slot), which is how the third slot acts
+as the last-known-good position.
+
+```bash
+node integrations/supervisor/upgrade.mjs --from A --to B \
+  --state-dir "$HOME/.local/state/sliver-wolf-slots" \
+  --relay-dir "$HOME/.local/state/sliver-wolf-supervisor" \
+  --observe-ms 3000 --rollback-on-fail --rollback-to C
+```

@@ -50,6 +50,12 @@ memory.
 Acceptance: a controlled cycle A→B→A with the same session visible afterwards,
 and a forced B failure that returns to A.
 
+Verified (2026-10-26): `tests/upgrade-check.mjs` runs two real slots over a
+copied `DSH_HOME` plus a relay and a third rollback slot: A→B switch with a
+durable receipt, B→A cycle, and a killed target whose relay returns to slot C.
+The live cutover from the direct 3080 launcher to the relay architecture is the
+remaining step.
+
 Verified so far (2026-10-26): the relay follows `active.json` and drops existing
 connections on a switch. A slot started over a copied `DSH_HOME` served a cookie
 whose authority follows the request `Host` header, and a live client cookie from
