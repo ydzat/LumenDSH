@@ -219,7 +219,7 @@ export function apply(ctx, config = {}) {
       const agent = result.agent;
       attach(agent);
       if (agent.status !== 'idle') return;
-      if (!state.lastActivity[agent.id]) { state.lastActivity[agent.id] = now; save(); return; }
+      if (!state.lastActivity[agent.id]) state.lastActivity[agent.id] = now;
       if (now - Math.max(startedAt, state.lastActivity[agent.id]) < decision.idleMinutes * 60000) return;
       if (disposed || policy.paused || !policy.enabled) return;
       const activity = 'develop';

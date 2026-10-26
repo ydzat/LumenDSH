@@ -89,16 +89,16 @@ test('develop turns get a practical budget floor without changing memory budgets
   const base = {...DEFAULT_POLICY.budget};
   assert.deepEqual(limitsForActivity(base, 'consolidate'), base);
   const develop = limitsForActivity(base, 'develop');
-  assert.equal(develop.steps, 24);
-  assert.equal(develop.toolCalls, 60);
-  assert.equal(develop.writes, 8);
-  assert.equal(develop.seconds, 600);
-  assert.equal(develop.outputTokens, 8192);
+  assert.equal(develop.steps, 1000);
+  assert.equal(develop.toolCalls, 5000);
+  assert.equal(develop.writes, 500);
+  assert.equal(develop.seconds, 36000);
+  assert.equal(develop.outputTokens, 65536);
   assert.equal(develop.dailyRuns, base.dailyRuns);
-  const larger = {...base, steps: 30, seconds: 900};
+  const larger = {...base, steps: 2000, seconds: 40000};
   const kept = limitsForActivity(larger, 'develop');
-  assert.equal(kept.steps, 30);
-  assert.equal(kept.seconds, 900);
+  assert.equal(kept.steps, 2000);
+  assert.equal(kept.seconds, 40000);
 });
 test('recovery wake brings the next turn forward without replaying the interrupted one', async () => {
   const {recoveryTarget, recoveryPlan} = await import('../integrations/companion/policy.mjs');
@@ -172,4 +172,13 @@ test('development activity has its own gap-based cadence', async () => {
   const capped = developDue(policy, {developDaily:{'2026-10-26':2}}, now);
   assert.equal(capped.due, false);
   assert.equal(capped.reason, 'daily');
+});
+test('develop cadence can be unlimited', async () => {
+  const {developDue, DEFAULT_POLICY, limitsForActivity} = await import('../integrations/companion/policy.mjs');
+  const policy = {...DEFAULT_POLICY, enabled:true, sessionId:'session-test',
+    develop:{gapMin:0, idleMinutes:0, dailyRuns:0}};
+  const now = new Date(2026,9,26,10,0).getTime();
+  assert.equal(developDue(policy, {lastDevelopAt: now - 1000, developDaily:{'2026-10-26':500}}, now).due, true);
+  const limits = limitsForActivity(DEFAULT_POLICY.budget, 'develop');
+  assert.ok(limits.steps >= 1000 && limits.toolCalls >= 5000 && limits.writes >= 500 && limits.seconds >= 36000);
 });

@@ -10,7 +10,7 @@ export const DEFAULT_POLICY = Object.freeze({schemaVersion: 1, agentName: 'é“¶ç‹
   windows: [{start: '09:00', end: '22:00', wakes: 2}], skipChance: 0.2,
   minGapMin: 180, idleMinutes: 20, activities: ['consolidate', 'reflect'],
   budget: {dailyRuns: 2, steps: 8, toolCalls: 16, writes: 3, outputTokens: 4096, seconds: 180},
-  develop: {gapMin: 5, idleMinutes: 1, dailyRuns: 12}});
+  develop: {gapMin: 0, idleMinutes: 0, dailyRuns: 0}});
 
 function keys(value, allowed) {
   assert(value && typeof value === 'object' && !Array.isArray(value), 'Expected object');
@@ -44,9 +44,9 @@ export function validatePolicy(input) {
     integer(input.budget[key], low, high, key);
   if (input.develop !== undefined) {
     keys(input.develop, ['gapMin','idleMinutes','dailyRuns']);
-    integer(input.develop.gapMin, 1, 1440, 'develop gap');
+    integer(input.develop.gapMin, 0, 1440, 'develop gap');
     integer(input.develop.idleMinutes, 0, 1440, 'develop idle');
-    integer(input.develop.dailyRuns, 1, 48, 'develop daily runs');
+    integer(input.develop.dailyRuns, 0, 10000, 'develop daily runs');
   }
   return structuredClone(input);
 }
@@ -102,11 +102,11 @@ export const DEVELOP_COMMAND = /^(?:git (?:status|diff|log|add|commit|push|switc
 export function limitsForActivity(limits, activity) {
   const result = {...limits};
   if (activity === 'develop') {
-    result.steps = Math.max(result.steps, 24);
-    result.toolCalls = Math.max(result.toolCalls, 60);
-    result.writes = Math.max(result.writes, 8);
-    result.seconds = Math.max(result.seconds, 600);
-    result.outputTokens = Math.max(result.outputTokens, 8192);
+    result.steps = Math.max(result.steps, 1000);
+    result.toolCalls = Math.max(result.toolCalls, 5000);
+    result.writes = Math.max(result.writes, 500);
+    result.seconds = Math.max(result.seconds, 36000);
+    result.outputTokens = Math.max(result.outputTokens, 65536);
   }
   return result;
 }
@@ -193,7 +193,7 @@ export function developDue(policy, state, now = Date.now()) {
   const config = {...DEFAULT_POLICY.develop, ...(policy.develop ?? {})};
   const today = dayOf(now);
   const used = state?.developDaily?.[today] ?? 0;
-  if (used >= config.dailyRuns) return {due: false, reason: 'daily'};
+  if (config.dailyRuns > 0 && used >= config.dailyRuns) return {due: false, reason: 'daily'};
   const last = Number.isFinite(state?.lastDevelopAt) ? state.lastDevelopAt : 0;
   const waitMs = last + config.gapMin * 60000 - now;
   if (waitMs > 0) return {due: false, waitMs, reason: 'gap'};
