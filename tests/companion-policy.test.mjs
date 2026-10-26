@@ -50,3 +50,37 @@ test('autonomous guards count attempted writes and reject unbounded dispatch', (
   assert(b.step()); assert(b.step()); assert(!b.step());
   assert.equal(b.steps,2,'Denied entry must not count as an executed model step');
 });
+test('develop is accepted in the activity list, up to three distinct entries', () => {
+  assert.equal(validatePolicy({...DEFAULT_POLICY, activities:['develop']}).activities.length, 1);
+  const three = {...DEFAULT_POLICY, activities:['consolidate','reflect','develop']};
+  assert.deepEqual(validatePolicy(three).activities, ['consolidate','reflect','develop']);
+  assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['develop','develop']}));
+  assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['develop','unknown']}));
+});
+test('develop activity admits bounded repository tools and refuses escalation', () => {
+  const limits = {...DEFAULT_POLICY.budget, steps: 8, writes: 2, toolCalls: 20};
+  const budget = new TurnBudget(limits, 'develop');
+  assert.equal(budget.tool('read', {file_path:'README.md'}), undefined);
+  assert.equal(budget.tool('glob', {pattern:'docs/*.md'}), undefined);
+  assert.equal(budget.tool('bash', {command:'git status --short'}), undefined);
+  assert.equal(budget.tool('bash', {command:'node tests/relay-check.mjs'}), undefined);
+  assert.equal(budget.tool('write', {file_path:'docs/x.md'}), undefined);
+  assert.equal(budget.tool('edit', {file_path:'docs/x.md'}), undefined);
+  assert.match(budget.tool('write', {file_path:'docs/y.md'}), /write budget/);
+  assert.match(budget.tool('bash', {command:'git push origin main'}), /never pushes main/);
+  assert.match(budget.tool('bash', {command:'git push --force origin agent/dev'}), /never force-pushes/);
+  assert.match(budget.tool('bash', {command:'curl https://example.com'}), /only allowlisted/);
+  assert.match(budget.tool('bash', {command:'sudo id'}), /only allowlisted/);
+  assert.match(budget.tool('bash', {command:'rm -rf /'}), /only allowlisted/);
+  assert.match(budget.tool('web_search'), /only repository/);
+  const publisher = new TurnBudget({...limits, writes:5}, 'develop');
+  assert.equal(publisher.tool('bash', {command:'git commit -m x'}), undefined);
+});
+test('develop prompt states the branch, red lines and evidence expectation', async () => {
+  const {activityPrompt} = await import('../integrations/companion/policy.mjs');
+  const text = activityPrompt('develop', {id:'r1', limits:{writes:2, toolCalls:16, steps:8}});
+  assert.match(text, /agent\/dev/);
+  assert.match(text, /Never push main/);
+  assert.match(text, /never restart DSH/);
+  assert.match(text, /evidence paths/);
+});

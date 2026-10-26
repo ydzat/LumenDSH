@@ -72,15 +72,28 @@ an idle slot, verify, switch, observe, and either keep or roll back. The
 orchestrator records a durable receipt (versions, hashes, switch times, head of
 the session log) so a crash mid-switch is recoverable on boot.
 
-## `develop` autonomous activity (separate gate)
+## `develop` autonomous activity (implemented, activation gated)
 
-The autonomous companion host currently admits only Mnemon maintenance. M9 adds
-a bounded `develop` activity with its own budget and an explicit tool surface:
-repository reads/writes, `git` restricted to `agent/dev`, build and test
-commands, and the supervisor's own control command. It must never push `main`,
-restart DSH outside the relay, install an APK without the user, or touch
-credentials. Activation of the expanded activity is an explicit user decision,
-not a side effect of M9 code landing.
+Implemented in `integrations/companion/policy.mjs` and `host.mjs`, with a third
+toggle in the client companion settings:
+
+- activity whitelist accepts `develop` next to `consolidate` and `reflect`;
+- `TurnBudget` gets an activity-scoped tool surface: repository reads
+  (`read/glob/grep`), writes (`write/edit`) and `bash` restricted to an
+  allowlisted command shape (git status/diff/log/add/commit/push/switch/checkout,
+  node/bash under tooling or tests, ls/cat/mkdir, bounded artifact removal);
+- explicit refusals: pushing `main`, force-push, network/upload/privilege
+  commands, any other tool;
+- writes and publications share the write budget, all tools share the tool-call
+  budget, and seconds/steps keep their existing caps;
+- `activityPrompt('develop')` states the branch, the red lines and the expected
+  evidence.
+
+Unit tests cover the whitelist, refusals, budget accounting and prompt content
+(`tests/companion-policy.test.mjs`). A client build with the third toggle
+compiles. Activating the expanded activity requires installing the new host
+version (and the rebuilt APK for the toggle) — an explicit user decision, not a
+side effect of the code landing.
 
 ## Boundaries
 
@@ -97,4 +110,4 @@ not a side effect of M9 code landing.
 | M9.1 watchdog | `tests/supervise-check.mjs` output, status file |
 | M9.2 A/B switch | controlled switch log, same-session check, forced rollback |
 | M9.3 rollback slot | upgrade receipt and cycle evidence |
-| develop activity | bounded run log, tool denials, build evidence |
+| develop activity | unit tests for guard/prompt; activation pending user decision |

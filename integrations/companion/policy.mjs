@@ -35,8 +35,9 @@ export function validatePolicy(input) {
   windowsOf(input);
   assert(Number.isFinite(input.skipChance) && input.skipChance >= 0 && input.skipChance <= 1, 'Invalid skip chance');
   integer(input.minGapMin, 1, 10080, 'minimum gap'); integer(input.idleMinutes, 1, 1440, 'idle minutes');
-  assert(Array.isArray(input.activities) && input.activities.length > 0 && input.activities.length <= 2 &&
-    new Set(input.activities).size === input.activities.length && input.activities.every(x => ['consolidate', 'reflect'].includes(x)), 'Invalid activities');
+  assert(Array.isArray(input.activities) && input.activities.length > 0 && input.activities.length <= 3 &&
+    new Set(input.activities).size === input.activities.length &&
+    input.activities.every(x => ['consolidate', 'reflect', 'develop'].includes(x)), 'Invalid activities');
   keys(input.budget, Object.keys(DEFAULT_POLICY.budget));
   for (const [key, low, high] of [['dailyRuns',1,12],['steps',1,32],['toolCalls',1,64],['writes',0,10],['outputTokens',256,16384],['seconds',10,600]])
     integer(input.budget[key], low, high, key);
@@ -84,20 +85,54 @@ export const READ_TOOLS = new Set(['mnemon_memory_bodies','mnemon_recall','mnemo
   'mnemon_status','mnemon_document_search','mnemon_view_route']);
 export const WRITE_TOOLS = new Set(['mnemon_document_create','mnemon_runtime_memory',
   'mnemon_remember','mnemon_link']);
+// Command surface admitted to an autonomous development turn. Anything outside
+// this list is refused before execution; network, privilege and main-push forms
+// are rejected even when they match the general shape.
+export const DEVELOP_COMMAND = /^(?:git (?:status|diff|log|add|commit|push|switch|checkout|branch|rev-parse|rev-list)\b|node (?:tooling\/|tests\/)|bash (?:tooling\/|tests\/)|ls\b|cat\b|mkdir\b|rm -rf? (?:artifacts|\.tmp|dist)\b)/;
+
 export class TurnBudget {
-  constructor(limits) { this.limits = {...limits}; this.steps = 0; this.tools = 0; this.writes = 0; }
+  constructor(limits, activity = 'consolidate') {
+    this.limits = {...limits}; this.activity = activity;
+    this.steps = 0; this.tools = 0; this.writes = 0;
+  }
   step() { if(this.steps>=this.limits.steps)return false;this.steps++;return true; }
   tool(name, input) {
+    if (this.tools >= this.limits.toolCalls) return 'Autonomous tool-call budget exhausted.';
+    if (this.activity === 'develop') return this.developTool(name, input);
     if (!READ_TOOLS.has(name) && !WRITE_TOOLS.has(name)) return 'Autonomous local maintenance only permits bounded Mnemon reads and non-destructive writes.';
     if (name === 'mnemon_runtime_memory' && input?.action !== 'add')
       return 'Autonomous maintenance cannot remove or replace existing hot memory; preserve the source evidence.';
-    if (this.tools >= this.limits.toolCalls) return 'Autonomous tool-call budget exhausted.';
     if (WRITE_TOOLS.has(name) && this.writes >= this.limits.writes) return 'Autonomous memory-write budget exhausted.';
     this.tools++; if (WRITE_TOOLS.has(name)) this.writes++;
+  }
+  developTool(name, input) {
+    if (['read','glob','grep'].includes(name)) { this.tools++; return; }
+    if (['write','edit'].includes(name)) {
+      if (this.writes >= this.limits.writes) return 'Autonomous write budget exhausted.';
+      this.tools++; this.writes++; return;
+    }
+    if (name !== 'bash') return 'Autonomous development permits only repository read/write tools and allowlisted commands.';
+    const command = typeof input?.command === 'string' ? input.command : '';
+    if (!DEVELOP_COMMAND.test(command)) return 'Autonomous development permits only allowlisted repository commands.';
+    if (/\bgit push\b/.test(command) && /\b(?:main|master)\b/.test(command)) return 'Autonomous development never pushes main.';
+    if (/\bgit push\b/.test(command) && /(?:--force\b|\s-f\b)/.test(command)) return 'Autonomous development never force-pushes.';
+    if (/(?:^|[^\w-])(?:ssh|sudo|curl|wget|nc|ncat|scp|sftp|telnet)(?:[^\w-]|$)/.test(command))
+      return 'Autonomous development never uses network, upload or privilege commands.';
+    const publication = /^git (?:add|commit|push)\b/.test(command);
+    if (publication && this.writes >= this.limits.writes) return 'Autonomous publication budget exhausted.';
+    this.tools++; if (publication) this.writes++;
   }
 }
 
 export function activityPrompt(activity, record) {
+  if (activity === 'develop') return `[Sliver Wolf local activity ${record.id}; develop]\n` +
+    'This is a scheduled self-development activity in our existing conversation, not a new identity. ' +
+    'Work only inside this repository and only on the agent/dev branch. ' +
+    'First inspect the current state (git status/diff and recent evidence docs), then pick one small improvement, implement it, build or run the relevant checks, commit and push to agent/dev. ' +
+    'Never push main, never force-push, never restart DSH, never install an APK, never touch credentials, never use network or privilege commands. ' +
+    'Stop on the first failure and record it instead of retrying. ' +
+    `At most ${record.limits.writes} writes, ${record.limits.toolCalls} tool calls and ${record.limits.steps} model steps. ` +
+    'Finish with a short factual outcome and the evidence paths.';
   return `[Sliver Wolf local activity ${record.id}; ${activity}]\n` +
     'This is a scheduled activity in our existing conversation, not a new identity. ' +
     'Inspect the available Mnemon sources and semantically recall relevant evidence first. ' +

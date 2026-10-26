@@ -165,7 +165,7 @@ export function apply(ctx, config = {}) {
       for (const day of Object.keys(state.daily)) if (day < dayOf(now - 7 * 86400000)) delete state.daily[day];
       state.runs.push(record); state.runs = state.runs.slice(-100);
       save(); // Reserve before I/O. An uncertain delivery is not automatically retried.
-      active = {record, agent, budget: new TurnBudget(limits)};
+      active = {record, agent, budget: new TurnBudget(limits, record.activity)};
       active.timer = setTimeout(() => stop('time-budget'), limits.seconds * 1000);
       try {
         await ctx.sessionController.prompt({requestId: record.id, sessionId: agent.id, mode: 'queue',

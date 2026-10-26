@@ -48,9 +48,10 @@ final class CompanionSettings {
         textInput("表达与互动偏好",draft,"style",false);
         drawer.row("活动时间","设置允许活动的时间段与次数",()->drawer.go(this::windowsPage));
         drawer.section("允许的活动");
-        for(String key:new String[]{"consolidate","reflect"}){
-            drawer.toggle(key.equals("consolidate")?"整理已有记忆":"回顾共同经历与联想","",contains(draft.optJSONArray("activities"),key),on->{
-                JSONArray next=new JSONArray();for(String candidate:new String[]{"consolidate","reflect"})if(candidate.equals(key)?on:contains(draft.optJSONArray("activities"),candidate))next.put(candidate);put(draft,"activities",next);});
+        for(String key:new String[]{"consolidate","reflect","develop"}){
+            String label=key.equals("consolidate")?"整理已有记忆":key.equals("reflect")?"回顾共同经历与联想":"受控自主开发（agent/dev 构建与提交）";
+            drawer.toggle(label,"",contains(draft.optJSONArray("activities"),key),on->{
+                JSONArray next=new JSONArray();for(String candidate:new String[]{"consolidate","reflect","develop"})if(candidate.equals(key)?on:contains(draft.optJSONArray("activities"),candidate))next.put(candidate);put(draft,"activities",next);});
         }
         drawer.row("高级活动限制","空闲时间、频率、模型与工具预算",()->drawer.go(this::advancedPage));
         drawer.row("最近活动","查看实际执行记录",()->drawer.go(()->{drawer.title("最近活动");try{drawer.note(history(state));}catch(Exception e){error(e);}}));
