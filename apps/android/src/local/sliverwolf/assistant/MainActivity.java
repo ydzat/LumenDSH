@@ -49,7 +49,7 @@ public final class MainActivity extends Activity {
     private HabitatFeed habitatFeed=new HabitatFeed("等待下一次交互","",-1,false);
     private String habitatSession = "", habitatTrace = "", habitatSnapshot = "";
     private final Runnable habitatTick = new Runnable() {
-        @Override public void run() { if (!isDestroyed()) { updateVoice(); syncWakeScope(); renderHabitat(); main.postDelayed(this, 250); } }
+        @Override public void run() { if (!isDestroyed()) { updateVoice(); syncWakeScope(); renderHabitat(); updateConnectionDetails(); main.postDelayed(this, 250); } }
     };
 
     @Override public void onCreate(Bundle saved) {
@@ -424,12 +424,7 @@ public final class MainActivity extends Activity {
     }
     private TextView modelDetails;
     private void showModelSettings() {
-        modelDetails=new TextView(this);modelDetails.setPadding(32,24,32,24);modelDetails.setTextIsSelectable(true);
-        modelDetails.setText(ModelSettings.describe(controller.modelInfo,controller.modelError));
-        ScrollView scroll=new ScrollView(this);scroll.addView(modelDetails);
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("模型与上下文").setView(scroll)
-            .setPositiveButton("返回",null).create();
-        dialog.setOnDismissListener(d->modelDetails=null);dialog.show();controller.refreshModel();
+        new ModelPicker(this,controller);
     }
     private AlertDialog voiceConfirmation;
     private String agentName(){try{return PresentationSettings.load(this).name;}catch(Exception e){throw new IllegalStateException("Invalid presentation settings",e);}}
@@ -612,13 +607,43 @@ public final class MainActivity extends Activity {
         d.row("系统通知权限","Android 通知设置",()->startActivity(new android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,getPackageName())));
         d.row("关键词与声纹","配置后台自动语音",()->d.go(this::settingsInteraction));
     }
+    private TextView connectionDetails,termuxDetails,bridgeDetails;
+    private long lastBackendResult;
+    private void updateConnectionDetails(){
+        if(settingsDrawer==null||!settingsDrawer.isPage("连接与系统")||connectionDetails==null)return;
+        connectionDetails.setText(controller.diagnostics());termuxDetails.setText(BackendControl.status(this));bridgeDetails.setText(deviceBridge.connectionSummary());
+        long done=BackendControl.prefs(this).getLong("completedAt",0);
+        if(done>lastBackendResult){lastBackendResult=done;controller.diagnose();}
+    }
+    private void backendAction(boolean start){
+        if(!BackendControl.allowed(this)){requestPermissions(new String[]{BackendControl.PERMISSION},88);return;}
+        try{BackendControl.run(this,start);if(start)controller.connect();updateConnectionDetails();}catch(Exception e){petError(e);}
+    }
+    private void openTermux(){
+        android.content.Intent intent=getPackageManager().getLaunchIntentForPackage("com.termux");
+        if(intent==null){petError(new IllegalStateException("尚未安装 Termux"));return;}startActivity(intent);
+    }
     private void settingsSystem(){
-        SettingsDrawer d=settingsDrawer;d.title("连接与系统");d.note(controller.connection);
+        SettingsDrawer d=settingsDrawer;d.title("连接与系统");
+        connectionDetails=d.note(controller.diagnostics());
+        d.row("检测连接","只读检查 DSH 服务与认证，不发送消息",controller::diagnose);
+        d.section("App → Termux → DSH");termuxDetails=d.note(BackendControl.status(this));
+        d.row("检查 DSH 进程","通过 Termux 查询实际 tmux 会话和端口",()->backendAction(false));
+        d.row("启动 DSH","运行现有 agent-start；已运行时不重启",()->backendAction(true));
+        d.row("Termux 命令权限","授权后可直接从 App 启动和检查 DSH",()->requestPermissions(new String[]{BackendControl.PERMISSION},88));
+        d.row("打开 Termux","查看启动结果或完成首次配置",this::openTermux);
+        d.row("首次配置与恢复说明","连接故障的处理步骤",()->new AlertDialog.Builder(this).setTitle("Termux 连接配置")
+            .setMessage("1. 授予本应用在 Termux 运行命令的权限。\n2. 在 ~/.termux/termux.properties 中设置 allow-external-apps=true，然后运行 termux-reload-settings。\n3. 已安装的 agent-start 会启动现有 DSH，不更换版本。启动后 App 会自动重连原会话。\n\n若认证失败，检查 DSH 与 App 的后端配对；手机工具配对是反向通路，不能替代 DSH 登录。\n\n若 Termux 反复消失，在系统应用启动管理中允许后台运行；当前故障是否由省电清理引起，需要退出记录才能确定。")
+            .setPositiveButton("知道了",null).show());
+        d.row("Termux 系统设置","查看后台运行与电池限制",()->startActivity(new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:com.termux"))));
+        d.section("DSH → Agent → App");
+        bridgeDetails=d.note(deviceBridge.connectionSummary());d.note("LLM 与语音提供商：独立通路，本页不发送付费测试请求。");
         d.row("重新连接","恢复当前会话连接",controller::connect);
         d.row("断开客户端连接","DSH 与正在执行的任务继续运行",controller::disconnect);
         d.row("设备工具与配对","连接本机 Termux",this::showDeviceTools);
-        d.row("模型与上下文信息","自动读取 DSH 当前模型配置",this::showModelSettings);
+        d.row("模型与上下文","默认模型、当前会话模型和能力信息",this::showModelSettings);
         d.row("更新与恢复","查看本地候选版本和安装状态",this::showLocalUpdate);
+        controller.diagnose();
     }
     @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);openNotification(intent);receiveShare(intent);}
     private void openNotification(android.content.Intent intent) {

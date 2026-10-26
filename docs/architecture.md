@@ -1,6 +1,6 @@
 # Architecture Baseline
 
-Current checkpoint: Android 0.8.0 with DSH 0.2.1-rc.3 and separately deployed
+Current checkpoint: Android 0.8.1 with DSH 0.2.1-rc.3 and separately deployed
 phone-local character speech. See [current status](project-status.md). The dated baseline below
 describes responsibility boundaries and does not supersede later evidence.
 
@@ -178,3 +178,9 @@ prepares bounded sentence segments and MediaPlayer plays them; stop invalidates
 all queued audio and optionally cancels server synthesis. The independent remote
 CPUFast service receives only reading text. Remote speech does not enable remote
 DSH or move sessions/memory away from Termux. See [protocol and deployment](../integrations/voice/providers.md).
+
+## Explicit backend control
+
+User-invoked startup/status uses Termux RUN_COMMAND, independent of session
+transport. DSH remains outside the APK. Reverse Agent-to-device actions retain
+the authenticated MCP bridge. See [diagnostics](connection-diagnostics.md).

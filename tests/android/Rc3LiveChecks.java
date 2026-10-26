@@ -28,7 +28,8 @@ public final class Rc3LiveChecks {
                 throw new UnsupportedOperationException(method.getName());
             });
         DshTransport wire = new DshTransport(preferences);
-        boolean tools = args.length > 2 && "--tools".equals(args[2]);
+        boolean mcpOnly=args.length>2&&"--mcp".equals(args[2]);
+        boolean tools = args.length > 2 && ("--tools".equals(args[2])||mcpOnly);
         boolean questions = args.length > 2 && "--question".equals(args[2]);
         JSONArray listed = wire.call("session.list", object()).getJSONArray("items");
         System.out.println("LIVE_AUTH_LIST_OK count=" + listed.length());
@@ -96,6 +97,7 @@ public final class Rc3LiveChecks {
             if(!ready.await(20,TimeUnit.SECONDS)||!failures.isEmpty())throw new AssertionError("Follow/host readiness failed " + failures);
             String id = UUID.randomUUID().toString();
             String text = questions ? "Controlled upgrade test. Call ask_user_question with exactly one question id=upgrade_probe, question=Continue this controlled check?, options Yes and No. After the answer arrives, reply exactly RC3_QUESTION_OK. Use no other tool."
+                : mcpOnly ? "Controlled connection check. Call mcp__sliver_wolf__assistant_get_status with empty arguments once, then reply exactly RC3_TOOLS_OK. Do not use any other tool or write memory."
                 : tools ? "Controlled upgrade check. Call bash with command='printf RC3_TOOL_OK', sandbox_permissions='danger-full-access', justification='Print the controlled upgrade marker; Android does not support the default command sandbox.'. Wait for the one-time approval. Then call mcp__sliver_wolf__assistant_get_status with empty arguments. Do not run any other command or diagnose the environment. If a tool fails, stop and report it. Otherwise reply exactly RC3_TOOLS_OK."
                 : "Reply with exactly: RC3_CLIENT_OK. Do not use tools.";
             JSONObject prompt = object("sessionId",session,"mode","queue","content",new JSONArray().put(object("type","text","text",text)));
@@ -123,9 +125,9 @@ public final class Rc3LiveChecks {
                         String name=event.getJSONObject("data").optString("name");
                         bash|="bash".equals(name);mcp|="mcp__sliver_wolf__assistant_get_status".equals(name);
                     }
-                    if(!bash||!mcp||!conversation.text().contains("0.7.40-dsh-rc3"))throw new AssertionError("Real Bash/MCP result missing");
-                    if(approvals[0] != 1)throw new AssertionError("Expected one actual approval");
-                    System.out.println("LIVE_BASH_MCP_OK approvals="+approvals[0]);
+                    if((!mcpOnly&&!bash)||!mcp||!conversation.text().contains("appVersion"))throw new AssertionError("Real Bash/MCP result missing");
+                    if(!mcpOnly&&approvals[0] != 1)throw new AssertionError("Expected one actual approval");
+                    System.out.println((mcpOnly?"LIVE_MCP_OK approvals=":"LIVE_BASH_MCP_OK approvals=")+approvals[0]);
                 }
                 System.out.println("LIVE_PROMPT_DEDUP_FOLLOW_OK terminal="+conversation.terminal()+" streamFrames="+chunks[0]);
             }

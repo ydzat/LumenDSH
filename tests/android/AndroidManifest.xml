@@ -14,6 +14,7 @@
     <instrumentation android:name=".ReleaseCrash" android:targetPackage="local.sliverwolf.assistant" android:label="Explicit release process death check" />
     <instrumentation android:name=".SettingsChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Settings checks" />
     <instrumentation android:name=".VoiceReplyChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Real automatic voice reply checks" />
+    <instrumentation android:name=".ConnectionChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Connection diagnostics" />
     <instrumentation android:name=".VoiceProviderChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Real speech provider checks" />
     <instrumentation android:name=".BackgroundVoiceChecks" android:targetPackage="local.sliverwolf.assistant" android:label="Real background provider reply" />
 </manifest>

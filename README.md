@@ -4,7 +4,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-![Version](https://img.shields.io/badge/version-0.8.0-9274e8)
+![Version](https://img.shields.io/badge/version-0.8.2-9274e8)
 ![Android](https://img.shields.io/badge/Android-10%2B-3ddc84)
 ![Status](https://img.shields.io/badge/status-experimental-orange)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)

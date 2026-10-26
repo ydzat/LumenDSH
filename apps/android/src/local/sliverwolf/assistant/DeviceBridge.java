@@ -84,6 +84,12 @@ final class DeviceBridge extends WebSocketServer {
         main.post(identitySync);
     }
     String pairingToken() { return token; }
+    String connectionSummary(){
+        long at=preferences.getLong("lastToolAt",0);
+        return "本机手机工具服务："+state+"\n已认证连接："+getConnections().size()
+            +"\n最近成功工具请求："+(at==0?"尚无记录":android.text.format.DateFormat.format("MM-dd HH:mm:ss",at))
+            +"\n仅证明已认证客户端能访问 App；Agent 是否配置此 MCP，需在 DSH 中确认。";
+    }
     @Override public ServerHandshakeBuilder onWebsocketHandshakeReceivedAsServer(WebSocket socket,
             org.java_websocket.drafts.Draft draft, ClientHandshake request) throws InvalidDataException {
         if (!"/device-tools".equals(request.getResourceDescriptor()) || request.hasFieldValue("Origin")
@@ -117,18 +123,12 @@ final class DeviceBridge extends WebSocketServer {
                     String provider=store.save(null,args.getString("name"),args.getString("url"),args.getString("token"));
                     result=object("provider",provider,"engine",store.select(provider,args.getString("model"),args.getString("voice")));
                 }
-                else if ("voice/provider".equals(method)) {
-                    if(!visible||speech.isSpeaking())throw new IllegalStateException("Open the app and finish speech before configuring a provider");
-                    JSONObject args=request.getJSONObject("arguments");arguments(args,"name","url","token","model","voice");
-                    VoiceProviders store=new VoiceProviders(context);
-                    String provider=store.save(null,args.getString("name"),args.getString("url"),args.getString("token"));
-                    result=object("provider",provider,"engine",store.select(provider,args.getString("model"),args.getString("voice")));
-                }
                 else if ("backend/pair".equals(method)) result = pairBackend(request.getJSONObject("arguments"));
                 else if ("call".equals(method)) result = call(request.getString("name"), request.getJSONObject("arguments"));
                 else if (method.startsWith("share/")) result = new ShareInbox(context).transfer(method,request.getJSONObject("arguments"));
                 else if (method.startsWith("artifact/")) result = inbox.request(method, request.getJSONObject("arguments"));
                 else throw new IllegalArgumentException("Unknown bridge method");
+                if("call".equals(method))preferences.edit().putLong("lastToolAt",System.currentTimeMillis()).apply();
                 if (result instanceof JSONObject) ((JSONObject) result).remove("inputDigest");
                 if (socket.isOpen()) socket.send(object("id", id, "result", result).toString());
             } catch (Exception error) {

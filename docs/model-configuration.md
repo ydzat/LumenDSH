@@ -92,3 +92,27 @@ and is not used as the stage demonstration.
 
 No claim is made for unregistered providers, a hard output limit that DSH does not
 publish, or independent accuracy of provider-advertised capacities.
+
+## Independent model selection (0.8.2, 2026-10-26)
+
+The Android **Model and context** page now reads the native `session/modelCatalog`
+and offers two separate controls: the persisted default for new sessions and an
+explicit selection for the current session. A third action copies the current
+default into the existing session; it is a one-time selection, not a live binding.
+Provider/model identifiers and labels come from DSH, never an APK model table.
+
+The installed rc.3 `session/selectModel` also saves the deployment default. To
+preserve independent choices, the authenticated companion `model-selection` route
+reuses `resolveCallConfig`, `serializeImageAdmission`, `selectForNextRequest`, and
+`agentDefaultModel.saveSelection` with separate scopes. It validates the live
+catalog, leaves an in-flight request running, and installs the session choice for
+subsequent requests. There is no automatic retry of an uncertain write.
+
+The reported header issue was a retained legacy session route, not a hard-coded
+HTTP header in the client. Existing conversations can select a current route
+without rewriting history or creating another session. Unknown models are not
+silently aliased or assigned guessed image capabilities. A failed metadata lookup
+does not block opening the model selector. HTTP authentication remains the paired
+DSH cookie, separate from model-provider credentials.
+
+See [C32-C34 evidence](../tests/model-selection-evidence.md).

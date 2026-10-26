@@ -211,3 +211,11 @@ routes plus optional voice discovery and cancellation extensions. No automatic
 fallback or uncertain-request replay. Remote credentials are device-owned, encrypted
 and excluded from character exports. CPU throughput and phone RAM remain measured
 constraints, not hidden by provider substitution.
+
+## Explicit App control of independent DSH
+
+The user reaffirmed App-to-DSH startup/control and DSH-Agent-to-App tools. Reuse
+Termux 0.118.3 RUN_COMMAND with user-granted Android permission and its external-app
+configuration. Expose fixed startup/status actions, keeping Agent device operations
+on the existing MCP boundary. Session reconnect never implies service restart.
+See [connection diagnostics](connection-diagnostics.md).

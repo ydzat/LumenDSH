@@ -42,3 +42,8 @@ Models and native synthesis remain outside the APK. Setup and real-phone evidenc
 The settings drawer selects system/local/HTTPS synthesis, with model and voice
 discovery or manual IDs. See [setup](../../integrations/voice/providers.md) and
 [real-device evidence](../../tests/m8-evidence.md). Models remain outside the APK.
+
+## 0.8.1 connection diagnostics
+
+Live connection layers, sanitized faults, retry timing and official Termux
+startup/status actions are documented in [the guide](../../docs/connection-diagnostics.md).

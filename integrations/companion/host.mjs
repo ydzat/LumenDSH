@@ -4,10 +4,10 @@ import {randomUUID} from 'node:crypto';
 import {readdirSync} from 'node:fs';
 import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt} from './policy.mjs';
 import {makePlan, completePlan, dayOf} from './upstream/night-plan.mjs';
-import {modelSnapshot, outputBudget, restoreOutput} from './model-config.mjs';
+import {modelSnapshot, outputBudget, restoreOutput, selectModel} from './model-config.mjs';
 
 export const name = 'sliver-wolf-companion';
-export const inject = ['agents', 'sessionController', 'webServer', 'connection', 'llm'];
+export const inject = ['agents', 'sessionController', 'webServer', 'connection', 'llm', 'agentDefaultModel'];
 
 /** DSH owns Agent execution and memory. This plugin only plans and bounds local work. */
 export function apply(ctx, config = {}) {
@@ -193,10 +193,11 @@ export function apply(ctx, config = {}) {
         return reply(200,await modelSnapshot(ctx,sessionId,policy.budget.outputTokens));
       }
       if (req.method === 'GET' && route === '/sliver-wolf/companion/status') return reply(200, snapshot());
-      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore'].includes(route)) return reply(404, {error:'Unknown operation'});
+      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection'].includes(route)) return reply(404, {error:'Unknown operation'});
       const chunks = []; let bytes = 0;
       for await (const chunk of req) { bytes += chunk.length; if (bytes > 16384) return reply(413, {error:'Policy too large'}); chunks.push(chunk); }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      if(route.endsWith('/model-selection')) return reply(200,await selectModel(ctx,body));
       if (typeof body.expectedRevision !== 'string') throw new Error('Expected revision required');
       if (route.endsWith('/restore')) policy = store.restore(body.revision, body.expectedRevision);
       else {

@@ -12,6 +12,7 @@ final class SettingsDrawer extends Dialog {
     private final Activity activity;
     private final LinearLayout body;
     private final TextView heading;
+    private final ScrollView scroll;
     private final ArrayDeque<Runnable> stack=new ArrayDeque<>();
     private Runnable page;
     SettingsDrawer(Activity activity,Runnable closed) {
@@ -23,7 +24,7 @@ final class SettingsDrawer extends Dialog {
         heading=new TextView(activity);heading.setTextColor(0xffece9f5);heading.setTextSize(21);
         bar.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
         bar.addView(HabitatView.iconControl(activity,"ic_x","关闭设置",this::dismiss),new LinearLayout.LayoutParams(dp(48),dp(56)));
-        root.addView(bar);ScrollView scroll=new ScrollView(activity);scroll.setFillViewport(true);
+        root.addView(bar);scroll=new ScrollView(activity);scroll.setFillViewport(true);
         body=new LinearLayout(activity);body.setOrientation(1);body.setPadding(dp(20),0,dp(20),dp(28));
         scroll.addView(body);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
         Window window=getWindow();window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0xff131723));
@@ -37,7 +38,7 @@ final class SettingsDrawer extends Dialog {
     boolean isPage(String title){return isShowing()&&title.contentEquals(heading.getText());}
     void refresh(){if(page!=null)page.run();}
     @Override public void onBackPressed(){if(stack.isEmpty())dismiss();else{page=stack.pop();page.run();}}
-    void title(String title){heading.setText(title);body.removeAllViews();}
+    void title(String title){heading.setText(title);body.removeAllViews();scroll.post(()->scroll.scrollTo(0,0));}
     void section(String text){TextView v=text(text,12,0xffb8a4e8);v.setPadding(0,dp(22),0,dp(8));body.addView(v);}
     TextView note(String value){TextView v=text(value,13,0xffa5a9ba);v.setPadding(0,dp(8),0,dp(12));body.addView(v);return v;}
     private TextView text(String value,int size,int color){TextView v=new TextView(activity);v.setText(value);v.setTextSize(size);v.setTextColor(color);v.setLineSpacing(dp(3),1);return v;}

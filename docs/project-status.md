@@ -1,6 +1,6 @@
 # Project status and handoff
 
-Date: 2026-10-25. Current installation: Android 0.8.0, independent DSH
+Date: 2026-10-26. Current installation: Android 0.8.2, independent DSH
 0.2.1-rc.3 and companion integration 0.2.1.
 
 M0–M7 and model adaptation are delivered within their recorded scopes. The user
@@ -54,3 +54,15 @@ Before a first push, follow [data/publication review](data-and-publication.md).
 Historical local commits still contain development device identifiers. Choose a
 sanitized history strategy with explicit authorization before uploading that graph;
 do not silently force-push or join unrelated histories.
+
+## Connection recovery follow-up
+
+0.8.1 adds live layered diagnostics and the official Termux command interface
+for fixed DSH startup/status actions. See [guide](connection-diagnostics.md) and
+[C27-C31 device evidence](../tests/connection-evidence.md). The reported backend
+was absent; retained logs do not establish the process termination cause.
+
+Independent default and per-session model selection is available in 0.8.2.
+The catalog and capabilities come from DSH; existing conversations retain their
+identity when changing routes. See [model controls](model-configuration.md) and
+[device evidence](../tests/model-selection-evidence.md).

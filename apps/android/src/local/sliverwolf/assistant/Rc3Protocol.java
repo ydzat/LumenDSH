@@ -14,6 +14,7 @@ final class Rc3Protocol {
 
     JSONObject arguments(String method, JSONObject input, String requestId) throws Exception {
         JSONObject request = new JSONObject(input.toString());
+        if ("session.modelCatalog".equals(method)) return object("args", object());
         if ("userQuestions.answer".equals(method)) return object("args", request);
         if ("session.list".equals(method)) return object("args", object("_request", request));
         if ("session.prompt".equals(method)) request.put("requestId", requestId);

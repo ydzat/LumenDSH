@@ -26,7 +26,7 @@ final class DshTransport {
         modern = new Rc3Protocol();
     }
     JSONObject companion(String operation, JSONObject body) throws Exception {
-        if (!"status".equals(operation) && !"policy".equals(operation) && !"restore".equals(operation) && !operation.startsWith("model?sessionId="))
+        if (!"status".equals(operation) && !"policy".equals(operation) && !"restore".equals(operation) && !"model-selection".equals(operation) && !operation.startsWith("model?sessionId="))
             throw new IllegalArgumentException("Unknown companion operation");
         HttpURLConnection connection=(HttpURLConnection)new URL(base()+"/sliver-wolf/companion/"+operation).openConnection(Proxy.NO_PROXY);
         connection.setConnectTimeout(5000); connection.setReadTimeout(15000); connection.setInstanceFollowRedirects(false);
@@ -54,7 +54,20 @@ final class DshTransport {
     }
     private String base() { return "http://127.0.0.1:" + preferences.getInt("backendPort", 3080); }
     private String cookie() { return preferences.getString("backendCookie", ""); }
-    interface Events { void opened(); void frame(JSONObject frame); void lost(); }
+    interface Events { void opened(); void frame(JSONObject frame); void lost(); default void lost(String reason){lost();} }
+    static final class HttpFailure extends IOException {
+        final int status; HttpFailure(int status){super("HTTP "+status);this.status=status;}
+    }
+    static String failureCode(Throwable error) {
+        for(Throwable e=error;e!=null;e=e.getCause()) {
+            if(e instanceof HttpFailure)return "HTTP_"+((HttpFailure)e).status;
+            if(e instanceof java.net.ConnectException)return "SERVICE_UNREACHABLE";
+            if(e instanceof java.net.SocketTimeoutException)return "TIMEOUT";
+            if(e instanceof Refused)return "RPC_REFUSED";
+            if(e instanceof org.json.JSONException)return "PROTOCOL";
+        }
+        return "TRANSPORT_OR_PROTOCOL";
+    }
     static final class Refused extends IOException {
         Refused(String code) { super(code); }
     }
@@ -150,7 +163,7 @@ final class DshTransport {
         connection.setFixedLengthStreamingMode(body.length);
         try {
             try (java.io.OutputStream output = connection.getOutputStream()) { output.write(body); }
-            if (connection.getResponseCode() != 200) throw new IOException("HTTP " + connection.getResponseCode());
+            if (connection.getResponseCode() != 200) throw new HttpFailure(connection.getResponseCode());
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             try (InputStream input = connection.getInputStream()) {
                 byte[] chunk = new byte[8192];
@@ -197,10 +210,10 @@ final class DshTransport {
                         if (!ready && (host ? "ready" : "snapshot").equals(value.optString("type"))) { ready = true; events.opened(); }
                         return;
                     }
-                } catch (Exception error) { close(); events.lost(); }
+                } catch (Exception error) { events.lost("STREAM_PROTOCOL"); close(); }
             }
-            @Override public void onClose(int code, String reason, boolean remote) { events.lost(); }
-            @Override public void onError(Exception error) { events.lost(); }
+            @Override public void onClose(int code, String reason, boolean remote) { events.lost("WS_CLOSE_"+code); }
+            @Override public void onError(Exception error) { events.lost(failureCode(error)); }
         };
         socket.setConnectionLostTimeout(20);
         socket.connect();

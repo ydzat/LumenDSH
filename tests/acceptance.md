@@ -161,3 +161,17 @@ S01-S08 are defined in [the M8 milestone](../docs/m8-voice-providers.md).
 See [executed evidence and resource limitations](m8-evidence.md). The local
 GPT-SoVITS resource-rejection result is not a successful-playback result.
 Previous waived acoustic tests retain their prior status.
+
+## Connection diagnostics and control
+
+C27-C31: actual authenticated/invalid-credential/closed-port classification, live
+drawer updates, idempotent Termux startup callback and App recovery from stopped
+DSH. See [executed evidence](connection-evidence.md).
+
+## Model selection follow-up
+
+- C32: read the installed DSH catalog; change a session model without changing the default.
+- C33: change the default without changing existing sessions; copy it explicitly to one session.
+- C34: reject unknown models/unauthenticated changes; verify a real request header after selection and inspect the Android selector.
+
+See [model selection evidence](model-selection-evidence.md).

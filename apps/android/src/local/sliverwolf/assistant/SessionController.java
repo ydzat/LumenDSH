@@ -53,7 +53,45 @@ final class SessionController {
     private int generation, opened, failures, hostRevision;
     private long questionSeq = -1;
     private boolean stopped = true, destroyed, describeReady, listBusy;
+    private long retryAt, lastConnectedAt, checkedAt;
+    private String lastFailure="", checkCode="NOT_CHECKED";
+    private boolean checking, hostReady, sessionReady;
+    private final Runnable handshakeDeadline=()->lost(generation,"STREAM_TIMEOUT");
     private final Runnable reconnect = () -> connect();
+    void diagnose() {
+        if(checking||destroyed)return;
+        checking=true;final int epoch=generation;
+        final DshTransport probe=new DshTransport(preferences);
+        io.execute(()->{String code="OK";
+            try{probe.call("session.list",object()).getJSONArray("items");}catch(Exception e){code=DshTransport.failureCode(e);}
+            final String result=code;main.post(()->{checking=false;if(destroyed)return;
+                if(epoch==generation){checkCode=result;checkedAt=System.currentTimeMillis();}changed();});
+        });changed();
+    }
+    private String time(long value){return value==0?"尚无记录":android.text.format.DateFormat.format("MM-dd HH:mm:ss",value).toString();}
+    private String advice(String code) {
+        if(code.equals("SERVICE_UNREACHABLE"))return "本机 DSH 端口不可达。点击启动 DSH；若反复退出，检查 Termux 的后台运行设置。端口不可达本身不能判断退出原因。";
+        if(code.equals("HTTP_401")||code.equals("HTTP_403"))return "DSH 有响应，但身份验证失败。检查后端配对；不要创建新会话来解决认证问题。";
+        if(code.equals("TIMEOUT"))return "DSH 响应超时。检查 Termux 是否仍在运行、设备负载及后台限制，再重新检测。";
+        if(code.equals("RPC_REFUSED"))return "DSH 拒绝接口请求。检查所选会话和后端版本；不会自动新建会话。";
+        if(code.startsWith("WS_")||code.startsWith("STREAM_"))return "事件通道中断或订阅未就绪。先检测服务与认证，再重新连接原会话。";
+        if(code.equals("OK"))return "服务与认证检测通过。事件订阅和任务状态见上方；LLM 与语音服务分别检测。";
+        if(code.equals("NOT_CHECKED"))return "点击检测，检查本机服务及认证，不发送消息。";
+        return "服务接口或协议异常（"+code+"）。检查 DSH 版本与端口，再重新检测。";
+    }
+    String diagnostics() {
+        String code=checkCode;
+        String state=connected?"已连接":stopped?"已手动断开":"正在连接 / 重试";
+        String result="App → DSH："+state+"\n地址：http://127.0.0.1:"+preferences.getInt("backendPort",3080)
+            +"\n服务与认证："+(checking?"检测中":code)+" · "+time(checkedAt)
+            +"\n主机事件："+(hostReady?"已订阅":"未就绪")+"\n会话事件："+(sessionReady?(selected.isEmpty()?"尚未选择会话":"已同步"):"未就绪")
+            +"\n任务："+taskState()+"\n最近连接成功："+time(lastConnectedAt);
+        if(!stopped&&!connected&&retryAt>0)result+="\n下次重试：约 "+Math.max(0,(retryAt-android.os.SystemClock.elapsedRealtime()+999)/1000)+" 秒";
+        if(!lastFailure.isEmpty())result+="\n最近故障："+lastFailure+" · "+time(preferences.getLong("connectionFailureAt",0));
+        result+="\n\n"+advice(code.equals("NOT_CHECKED")&&!lastFailure.isEmpty()?lastFailure:code);
+        if(!pendingId.isEmpty())result+="\n有待确认的发送记录；恢复后核对历史，不自动重发。";
+        return result;
+    }
     private void backendChanged() { if (!stopped && !destroyed) connect(); }
 
     SessionController(SharedPreferences preferences, Listener listener) {
@@ -61,6 +99,7 @@ final class SessionController {
         wire = new DshTransport(preferences);
         preferences.registerOnSharedPreferenceChangeListener(backendChanges);
         this.listener = listener;
+        lastFailure=preferences.getString("connectionFailure","");lastConnectedAt=preferences.getLong("connectionSuccessAt",0);
         selected = preferences.getString("session", "");
         pendingId = preferences.getString("pendingId", "");
         pendingSession = preferences.getString("pendingSession", "");
@@ -72,48 +111,50 @@ final class SessionController {
         closeGeneration();
         wire.refresh();
         final int epoch = generation;
-        connection = "Connecting";
+        connection = "正在连接本机 DSH";retryAt=0;
         decisions.clear();
         conversation.clear();
         questionSeq = -1;
         running = false;
         changed();
-        mux = socket("events.mux", epoch);
-        host = socket("events.host", epoch);
         request(() -> wire.call("host.describe", object()), value -> {
-            describeReady = true;
-            ready();
+            describeReady=true;checkCode="OK";checkedAt=System.currentTimeMillis();
+            mux=socket("events.mux",epoch);host=socket("events.host",epoch);
+            main.postDelayed(handshakeDeadline,20000);
         }, epoch);
     }
     void disconnect() {
         stopped = true;
         closeGeneration();
-        connection = "Disconnected · DSH continues running";
+        connection = "客户端已手动断开 · 不停止 DSH";retryAt=0;
         decisions.clear();
         changed();
     }
     private void closeGeneration() {
         generation++;
         modelInfo=null;modelError="未连接 · 不使用缓存模型配置";modelBusy=false;modelAgain=false;
-        main.removeCallbacks(reconnect);
-        connected = false; opened = 0; describeReady = false; historyBusy = false; listBusy = false; creating = false;
+        main.removeCallbacks(reconnect);main.removeCallbacks(handshakeDeadline);
+        connected = false;hostReady=false;sessionReady=false; opened = 0; describeReady = false; historyBusy = false; listBusy = false; creating = false;
         if (mux != null) mux.close();
         if (host != null) host.close();
         mux = null; host = null;
     }
     private WebSocketClient socket(String channel, int epoch) {
         return wire.stream(channel, selected, new DshTransport.Events() {
-            public void opened() { main.post(() -> { if (current(epoch)) { opened++; ready(); } }); }
+            public void opened() { main.post(() -> { if (current(epoch)) { opened++;if("events.host".equals(channel))hostReady=true;else sessionReady=true;ready();changed(); } }); }
             public void frame(JSONObject frame) { main.post(() -> {
                 if (!current(epoch)) return;
-                try { receive(frame); } catch (Exception error) { SessionController.this.lost(epoch, "Invalid event or history limit"); }
+                try { receive(frame); } catch (Exception error) { SessionController.this.lost(epoch, "STREAM_PROTOCOL"); }
             }); }
-            public void lost() { main.post(() -> SessionController.this.lost(epoch, "Event connection lost")); }
+            public void lost() { lost("STREAM_LOST"); }
+            public void lost(String reason){main.post(()->SessionController.this.lost(epoch,reason));}
         });
     }
     private void ready() {
         if (connected || opened != 2 || !describeReady) return;
-        connected = true; failures = 0; connection = "Connected · local DSH rc.3 · authenticated";
+        connected = true; failures = 0;retryAt=0;main.removeCallbacks(handshakeDeadline);
+        connection = "已连接 · 本机 DSH · 已认证";lastConnectedAt=System.currentTimeMillis();
+        preferences.edit().putLong("connectionSuccessAt",lastConnectedAt).apply();
         refreshSessions();
         refreshModel();
         changed();
@@ -123,8 +164,11 @@ final class SessionController {
         closeGeneration();
         decisions.clear();
         if (!pendingId.isEmpty()) pendingState = "delivery-unknown";
-        connection = "Disconnected · " + message + " · reconnecting";
-        main.postDelayed(reconnect, Math.min(30000, 1000L << Math.min(failures++, 5)));
+        lastFailure=message;preferences.edit().putString("connectionFailure",message).putLong("connectionFailureAt",System.currentTimeMillis()).apply();
+        if(!message.startsWith("WS_")&&!message.startsWith("STREAM_")){checkCode=message;checkedAt=System.currentTimeMillis();}
+        connection = "连接中断 · "+message+" · 自动重连";
+        long delay=Math.min(30000,1000L << Math.min(failures++,5));retryAt=android.os.SystemClock.elapsedRealtime()+delay;
+        main.postDelayed(reconnect,delay);
         changed();
     }
     private boolean current(int epoch) { return !stopped && !destroyed && epoch == generation; }
@@ -142,8 +186,8 @@ final class SessionController {
                 main.post(() -> {
                     if (!current(epoch)) return;
                     historyBusy = false; listBusy = false; creating = false;
-                    if (error instanceof DshTransport.Refused) { notice = "Request refused: " + error.getMessage(); changed(); }
-                    else lost(epoch, "Request failed (" + error.getClass().getSimpleName() + ")");
+                    if (describeReady && error instanceof DshTransport.Refused) { notice = "Request refused: " + error.getMessage(); changed(); }
+                    else lost(epoch, DshTransport.failureCode(error));
                 });
             }
         });
@@ -269,7 +313,7 @@ final class SessionController {
     private void receive(JSONObject frame) throws Exception {
         JSONObject payload = frame.getJSONObject("payload");
         String type = payload.getString("type");
-        if ("stream/error".equals(type)) { lost(generation, "Backend stream error"); return; }
+        if ("stream/error".equals(type)) { lost(generation, "STREAM_PROTOCOL"); return; }
         if (type.startsWith("host/session-")) {
             hostRevision++;
             if (selected.equals(payload.optString("sessionId")) && "host/session-status".equals(type)) running = payload.getBoolean("running");

@@ -38,3 +38,27 @@ export async function modelSnapshot(ctx, sessionId, budget) {
   }
   throw new Error('Model selection changed during lookup; refresh required');
 }
+
+/** Independent defaults and session selection using the installed rc.3 primitives. */
+export async function selectModel(ctx, body) {
+  if (!['default','session'].includes(body.scope)) throw new Error('Model scope required');
+  const catalog=await ctx.sessionController.modelCatalog();
+  const target=body.useDefault ? catalog.default : body;
+  const group=catalog.groups.find(g=>g.id===target.provider);
+  if(!group?.models.some(m=>m.id===target.model)) throw new Error('Model is no longer available; refresh the catalog');
+  const config=await ctx.llm.resolveCallConfig({provider:target.provider,model:target.model,
+    ...(target.reasoningEffort===undefined?{}:{reasoningEffort:target.reasoningEffort})});
+  const selected={provider:config.provider,model:config.model,
+    ...(config.reasoningEffort===undefined?{}:{reasoningEffort:config.reasoningEffort})};
+  if(body.scope==='default') {
+    await ctx.agentDefaultModel.saveSelection(selected);
+    return {selected,scope:'default'};
+  }
+  if(typeof body.sessionId!=='string'||!body.sessionId)throw new Error('Session required');
+  const {agent}=await ctx.sessionController.resolveAgent(body.sessionId);
+  if(!agent)throw new Error('Session unavailable');
+  await ctx.sessionController.agents.serializeImageAdmission(agent,async()=>{
+    ctx.sessionController.agents.selectForNextRequest(agent,selected);
+  });
+  return {selected,scope:'session',sessionId:agent.id};
+}

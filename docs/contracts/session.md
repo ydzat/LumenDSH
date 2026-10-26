@@ -62,3 +62,20 @@ Touches are explicit user messages to the selected session through existing
 `agent.followup`, not `agent.steer`. No cancel is sent. Existing pending-delivery
 fences and unknown-delivery handling apply; rejected touches are not announced as
 sent and are not automatically retried. No session is implicitly created.
+
+## Connection control follow-up
+
+App-driven lifecycle operations are explicit user actions through the official
+Termux RUN_COMMAND interface. The fixed launcher starts the independent existing
+DSH deployment; a reconnect itself still never launches, upgrades or stops DSH.
+Authenticated RPC precedes event subscription. Categorical transport diagnostics
+and subscription deadlines preserve conversation and uncertain-delivery semantics.
+See [connection diagnostics](../connection-diagnostics.md).
+
+## Independent model controls
+
+DSH owns the model catalog and selected routes. Default-model changes affect new
+sessions; explicit session changes affect only the addressed existing session and
+subsequent requests. The rc.3 adapter must avoid the native selector's coupled
+save-default side effect. A missing model remains visible as unavailable rather
+than silently becoming another route. Authentication headers are not model state.
