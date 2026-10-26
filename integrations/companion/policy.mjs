@@ -196,6 +196,8 @@ export function planFor(policy, previous, now = Date.now()) {
 
 export function developDue(policy, state, now = Date.now()) {
   if (!policy.enabled || policy.paused || !policy.sessionId) return {due: false, reason: 'inactive'};
+  if (!Array.isArray(policy.activities) || !policy.activities.includes('develop'))
+    return {due: false, reason: 'disabled'};
   const config = {...DEFAULT_POLICY.develop, ...(policy.develop ?? {})};
   const today = dayOf(now);
   const used = state?.developDaily?.[today] ?? 0;

@@ -153,12 +153,15 @@ test('first activity of the day moves to the earliest allowed moment', async () 
 test('development activity has its own gap-based cadence', async () => {
   const {developDue} = await import('../integrations/companion/policy.mjs');
   const policy = {...DEFAULT_POLICY, enabled:true, sessionId:'session-test',
-    develop:{gapMin:5, idleMinutes:1, dailyRuns:2}};
+    activities:['develop'], develop:{gapMin:5, idleMinutes:1, dailyRuns:2}};
   const now = new Date(2026,9,26,10,0).getTime();
   assert.equal(developDue(policy, {}, now).due, true);
   assert.equal(developDue({...policy, enabled:false}, {}, now).due, false);
   assert.equal(developDue({...policy, paused:true}, {}, now).due, false);
   assert.equal(developDue({...policy, sessionId:''}, {}, now).due, false);
+  assert.equal(developDue({...policy, activities:['consolidate']}, {}, now).due, false,
+    'removing develop from activities must stop the loop');
+  assert.equal(developDue({...policy, activities:['develop']}, {}, now).due, true);
 
   const waiting = developDue(policy, {lastDevelopAt: now - 2 * 60000}, now);
   assert.equal(waiting.due, false);
@@ -176,7 +179,7 @@ test('development activity has its own gap-based cadence', async () => {
 test('develop cadence can be unlimited', async () => {
   const {developDue, DEFAULT_POLICY, limitsForActivity} = await import('../integrations/companion/policy.mjs');
   const policy = {...DEFAULT_POLICY, enabled:true, sessionId:'session-test',
-    develop:{gapMin:0, idleMinutes:0, dailyRuns:0}};
+    activities:['develop'], develop:{gapMin:0, idleMinutes:0, dailyRuns:0}};
   const now = new Date(2026,9,26,10,0).getTime();
   assert.equal(developDue(policy, {lastDevelopAt: now - 1000, developDaily:{'2026-10-26':500}}, now).due, true);
   const limits = limitsForActivity(DEFAULT_POLICY.budget, 'develop');
