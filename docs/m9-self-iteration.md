@@ -96,10 +96,17 @@ toggle in the client companion settings:
   evidence.
 
 Unit tests cover the whitelist, refusals, budget accounting and prompt content
-(`tests/companion-policy.test.mjs`). A client build with the third toggle
-compiles. Activating the expanded activity requires installing the new host
-version (and the rebuilt APK for the toggle) — an explicit user decision, not a
-side effect of the code landing.
+(`tests/companion-policy.test.mjs`). The client was rebuilt as 0.8.3-dev (55)
+with the third toggle and installed in place; the host was upgraded through the
+slot-aware activation.
+
+Development has its own cadence, separate from companionship: it starts as soon
+as the assistant is idle, with no gap, no idle floor and no daily cap by default
+(`develop: {gapMin: 0, idleMinutes: 0, dailyRuns: 0}` means unlimited). Per-run
+ceilings are raised to 1000 steps, 5000 tool calls, 500 writes, 36000 seconds
+and 65536 output tokens. A failed run stops and is recorded; the next run simply
+continues. Restarts never replay an interrupted run: a recovery wake starts a
+fresh turn shortly after the next allowed moment.
 
 ## Boundaries
 
@@ -116,4 +123,20 @@ side effect of the code landing.
 | M9.1 watchdog | `tests/supervise-check.mjs` output, status file |
 | M9.2 A/B switch | controlled switch log, same-session check, forced rollback |
 | M9.3 rollback slot | upgrade receipt and cycle evidence |
-| develop activity | unit tests for guard/prompt; activation pending user decision |
+| develop activity | guard tests, installed host revision, first real run completed |
+| boot persistence | `boot-stack.sh`, Termux:Boot entry, agent-start guard |
+| orphan slot | `tests/stack-adopt-check.mjs` |
+| unlimited cadence | `tests/companion-policy.test.mjs` (gap/cap/idle zero cases) |
+
+
+## Live state (2026-10-26)
+
+- Entrance `127.0.0.1:3080` is served by the relay; slot A listens on 3082 over
+  the shared `DSH_HOME`; the watchdog restarts either side.
+- Installed host revision `01292183…` with unlimited develop cadence; policy
+  window is back to the companionship default 09:00–22:00 for consolidate and
+  reflect.
+- One real develop run completed before the unlimited deploy, changing
+  `stack.mjs` so an orphaned slot listener is adopted instead of restart-looping
+  (`tests/stack-adopt-check.mjs`).
+- Client 0.8.3-dev (55) is installed with the develop toggle.
