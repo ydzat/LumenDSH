@@ -132,7 +132,11 @@ export class TurnBudget {
       if (this.writes >= this.limits.writes) return 'Autonomous write budget exhausted.';
       this.tools++; this.writes++; return;
     }
-    if (name !== 'bash') return 'Autonomous development permits only repository read/write tools and allowlisted commands.';
+    if (['self_experience', 'self_note', 'self_close', 'self_stance', 'extend_self'].includes(name)) {
+      if (this.writes >= this.limits.writes) return 'Autonomous write budget exhausted.';
+      this.tools++; this.writes++; return;
+    }
+    if (name !== 'bash') return 'Autonomous development permits only repository read/write tools, self-development tools and allowlisted commands.';
     const command = typeof input?.command === 'string' ? input.command : '';
     if (!DEVELOP_COMMAND.test(command)) return 'Autonomous development permits only allowlisted repository commands.';
     if (/\bgit push\b/.test(command) && /\b(?:main|master)\b/.test(command)) return 'Autonomous development never pushes main.';
