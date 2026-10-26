@@ -100,9 +100,6 @@ public final class WebChatActivity extends Activity {
             }
         });
 
-        ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        web.setLayoutParams(params);
         if (state != null) web.restoreState(state);
         if (prefs.getString("backendCookie", "").isEmpty()) beginBootstrap(); else load();
     }
