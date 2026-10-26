@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 const home=process.env.HOME,root=path.join(home,'sliver-wolf-companion'),source=path.dirname(fileURLToPath(import.meta.url));
-const files=['package.json','cordis.patch.yml','host.mjs','policy.mjs','model-config.mjs','documents.mjs','document-index-worker.mjs','upstream/night-plan.mjs','upstream/NOTICE.md','upstream/LICENSE-dsh-bili-whale','upstream/LICENSE-dsh-mnemon'];
+const files=['package.json','cordis.patch.yml','host.mjs','policy.mjs','model-config.mjs','documents.mjs','document-index-worker.mjs','situation.mjs','self-notes.mjs','experience.mjs','candidates.mjs','growth.mjs','self-doc.mjs','extend-self.mjs','upstream/night-plan.mjs','upstream/NOTICE.md','upstream/LICENSE-dsh-bili-whale','upstream/LICENSE-dsh-mnemon'];
 const hash=createHash('sha256');for(const file of files){hash.update(file);hash.update(await readFile(path.join(source,file)));}
 const revision=hash.digest('hex'),candidate=path.join(root,'host-'+revision);
 for(const file of files){await mkdir(path.dirname(path.join(candidate,file)),{recursive:true,mode:0o700});await copyFile(path.join(source,file),path.join(candidate,file));}
