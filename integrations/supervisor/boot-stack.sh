@@ -28,13 +28,13 @@ if command -v tmux >/dev/null 2>&1 && tmux has-session -t =dsh 2>/dev/null; then
 fi
 
 setsid nohup node "$DEV/integrations/supervisor/supervise.mjs" --port "$PORT" \
-  --interval-ms 5000 --timeout-ms 3000 --fail-threshold 3 --startup-grace-ms 30000 \
+  --interval-ms 5000 --timeout-ms 3000 --fail-threshold 3 --startup-grace-ms 180000 \
   --state-dir "$STACK_STATE" -- \
   node "$DEV/integrations/supervisor/stack.mjs" --port "$PORT" --slot-name A --slot-port "$SLOT_PORT" \
   --runtime "$RUNTIME" --home "$HOME/.dsh" --workspace "$HOME/agent-workspace" \
   --state-dir "$SLOTS_DIR" --relay-dir "$RELAY_DIR" >/dev/null 2>&1 &
 echo "supervisor scheduled pid=$!"
-for i in $(seq 1 45); do
+for i in $(seq 1 150); do
   if command -v curl >/dev/null 2>&1 && curl -s -o /dev/null -m 2 "http://127.0.0.1:$PORT/"; then
     echo "entrance ready"; exit 0
   fi

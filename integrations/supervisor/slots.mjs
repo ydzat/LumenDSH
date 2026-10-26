@@ -102,7 +102,7 @@ async function start() {
     throw new Error(message);
   };
   let token = null;
-  const deadline = Date.now() + 30000;
+  const deadline = Date.now() + 120000;
   while (!token && Date.now() < deadline) {
     await sleep(150);
     let log = '';

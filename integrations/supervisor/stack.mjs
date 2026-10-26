@@ -85,7 +85,7 @@ if (!slot || !alive(slot.pid)) {
     const started = spawnSync(process.execPath, [slots, 'start', '--name', activeName,
       '--host', activeHost, '--port', String(activePort), '--runtime', flags.runtime, '--home', flags.home,
       '--workspace', flags.workspace, '--stable-port', String(flags.port),
-      '--state-dir', flags.stateDir], {encoding: 'utf8', timeout: 60000});
+      '--state-dir', flags.stateDir], {encoding: 'utf8', timeout: 180000});
     if (started.status !== 0) {
       process.stderr.write('stack: slot start failed\n' + (started.stderr || started.stdout));
       process.exit(1);
