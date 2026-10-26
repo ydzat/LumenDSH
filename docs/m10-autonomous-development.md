@@ -122,3 +122,16 @@ prompt into the current conversation through `session/prompt`
 `~/agent-workspace/restart-host.sh` wraps "hold watchdog → restart slot → nudge".
 Every deliberate restart should go through that wrapper so development continues
 without a user message.
+
+
+## Voice input on device (2026-10-26)
+
+The official experimental voice-input bundle (`@deepseek-ai/dsh-experimental-
+voice-input-bundle`, enabled in the plugins page) now receives microphone
+permission through the WebView (`onPermissionRequest` + `RECORD_AUDIO`). Its
+SenseVoice service still fails to prepare on this device with
+`Local speech is unavailable for android-arm64`, so on-device local
+transcription is not available. The fallback is the native `SpeechRecognizer`
+already used by the client: recognize with Android's engine, then send the
+recognized text as a session prompt (or type it through adb) instead of relying
+on the web plugin's local model.
