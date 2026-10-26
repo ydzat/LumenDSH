@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdirSync, readFileSync, writeFileSync, renameSync, existsSync} from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {windowsOf, occurrences, historyOf, dayOf} from './upstream/night-plan.mjs';
+import {windowsOf, occurrences, historyOf, dayOf, makePlan} from './upstream/night-plan.mjs';
 
 export const DEFAULT_POLICY = Object.freeze({schemaVersion: 1, agentName: '银狼',
   style: 'Warm, concise, curious and candid. Distinguish facts from attributed impressions.',
@@ -188,6 +188,12 @@ export function firstWakeSoon(state, plan, now = Date.now()) {
 // The development activity has its own cadence: it starts as soon as the gap
 // after the previous run allows (and the assistant is idle), instead of waiting
 // for a random daily slot meant for companionship activities.
+// Upstream makePlan only defaults an omitted state, not an explicit null, so a
+// cleared plan (first activity of a day after a restart) must be normalised here.
+export function planFor(policy, previous, now = Date.now()) {
+  return makePlan(policy, previous ?? {}, now);
+}
+
 export function developDue(policy, state, now = Date.now()) {
   if (!policy.enabled || policy.paused || !policy.sessionId) return {due: false, reason: 'inactive'};
   const config = {...DEFAULT_POLICY.develop, ...(policy.develop ?? {})};

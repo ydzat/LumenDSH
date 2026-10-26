@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {readdirSync} from 'node:fs';
-import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon, developDue} from './policy.mjs';
+import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon, developDue, planFor} from './policy.mjs';
 import {makePlan, completePlan, dayOf} from './upstream/night-plan.mjs';
 import {modelSnapshot, outputBudget, restoreOutput, selectModel} from './model-config.mjs';
 
@@ -37,7 +37,7 @@ export function apply(ctx, config = {}) {
   // restart or a policy change: the next plan is re-rolled and moved to the
   // earliest allowed moment by firstWakeSoon.
   if (!state.recovery && (state.daily[dayOf(Date.now())] ?? 0) === 0 && state.plan) {
-    state.plan = null; save();
+    delete state.plan; save();
   }
 
   function settle(status) {
@@ -168,7 +168,7 @@ export function apply(ctx, config = {}) {
         save();
       }
       const previous = state.plan;
-      state.plan = makePlan(policy, previous, now);
+      state.plan = planFor(policy, previous, now);
       if (state.plan !== previous) {
         state.plan = firstWakeSoon(state, state.plan, now);
         save(); clearTimeout(dueTimer);

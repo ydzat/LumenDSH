@@ -182,3 +182,11 @@ test('develop cadence can be unlimited', async () => {
   const limits = limitsForActivity(DEFAULT_POLICY.budget, 'develop');
   assert.ok(limits.steps >= 1000 && limits.toolCalls >= 5000 && limits.writes >= 500 && limits.seconds >= 36000);
 });
+test('a cleared plan is normalised before upstream planning', async () => {
+  const {planFor, DEFAULT_POLICY} = await import('../integrations/companion/policy.mjs');
+  const policy = {...DEFAULT_POLICY, enabled:true, sessionId:'session-test',
+    windows:[{start:'09:00',end:'22:00',wakes:2}]};
+  const now = new Date(2026,9,26,10,0).getTime();
+  const plan = planFor(policy, null, now);
+  assert.ok(plan && ['wake','skip'].includes(plan.action));
+});
