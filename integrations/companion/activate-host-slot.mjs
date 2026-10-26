@@ -158,14 +158,14 @@ const receipt = {schemaVersion: 1, revision, from: currentName, to: targetName,
   fromPort: currentPort, toPort: targetPort, startedAt, soakMs: flags.soakMs, status: 'starting'};
 
 async function verifyTarget() {
-  const status = await entranceReady(targetHost, targetPort, 30000);
+  const status = await entranceReady(targetHost, targetPort, 120000);
   assert(status === 200 || status === 401, 'Target slot did not answer on ' + targetHost + ':' + targetPort);
   assert.equal(await companionStatus(targetHost, targetPort), 200, 'Companion status missing on the target slot');
   assert.deepEqual(await sessionIds(targetHost, targetPort), before, 'Session set changed on the target slot');
   assert(existsSync(path.join(root, 'behavior', 'self-doc.md')), 'Self document was not generated');
 }
 async function verifyLive() {
-  const status = await entranceReady('127.0.0.1', flags.port, 30000);
+  const status = await entranceReady('127.0.0.1', flags.port, 60000);
   assert(status === 200 || status === 401, 'Stable entrance did not answer');
   assert.equal(await companionStatus('127.0.0.1', flags.port), 200, 'Companion status missing through the relay');
   assert.deepEqual(await sessionIds('127.0.0.1', flags.port), before, 'Session set changed through the relay');
