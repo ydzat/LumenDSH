@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {readdirSync} from 'node:fs';
-import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon} from './policy.mjs';
+import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon, developDue} from './policy.mjs';
 import {makePlan, completePlan, dayOf} from './upstream/night-plan.mjs';
 import {modelSnapshot, outputBudget, restoreOutput, selectModel} from './model-config.mjs';
 
@@ -18,7 +18,7 @@ export function apply(ctx, config = {}) {
   let state = loadJson(stateFile, {schemaVersion: 1, plan: {}, runs: [], lastActivity: {}, daily: {}});
   if (state.schemaVersion !== 1 || !Array.isArray(state.runs)) throw new Error('Invalid companion state');
   state.outputOverrides??={};
-  let disposed = false, ticking = false, active, dueTimer;
+  let disposed = false, ticking = false, tickingDev = false, active, dueTimer;
   const startedAt=Date.now();
   const observed = new Set();
   const save = () => atomicJson(stateFile, state);
@@ -46,6 +46,10 @@ export function apply(ctx, config = {}) {
     clearTimeout(current.timer);
     Object.assign(current.record, {status, endedAt: new Date().toISOString(),
       steps: current.budget.steps, tools: current.budget.tools, writesAttempted: current.budget.writes});
+    if (current.record.activity === 'develop') {
+      state.lastDevelopAt = Date.now();
+      setTimeout(() => void devTick(), 2000);
+    }
     save();
   }
   function stop(reason) {
@@ -181,7 +185,10 @@ export function apply(ctx, config = {}) {
       if (!state.lastActivity[agent.id]) { state.lastActivity[agent.id] = now; save(); return; }
       if (agent.status !== 'idle' || now - Math.max(startedAt,state.lastActivity[agent.id]) < policy.idleMinutes * 60000) return;
       if (disposed || policy.paused || !policy.enabled || policy.sessionId !== agent.id) return;
-      const activity = policy.activities[state.runs.length % policy.activities.length];
+      const maintenance = policy.activities.filter(candidate => candidate !== 'develop');
+      if (!maintenance.length) return;
+      const maintenanceRuns = state.runs.filter(run => run.activity !== 'develop').length;
+      const activity = maintenance[maintenanceRuns % maintenance.length];
       const limits = limitsForActivity(policy.budget, activity);
       const record = {id: randomUUID(), sessionId: agent.id, status: 'reserved',
         activity, startedAt: new Date(now).toISOString(), limits};
@@ -198,6 +205,39 @@ export function apply(ctx, config = {}) {
       } catch { settle('delivery-uncertain'); }
     } catch (error) { state.lastError = String(error.message); save(); }
     finally { ticking = false; }
+  }
+
+  async function devTick() {
+    if (disposed || tickingDev || active || !policy.enabled || policy.paused || !policy.sessionId) return;
+    tickingDev = true;
+    try {
+      const now = Date.now();
+      const decision = developDue(policy, state, now);
+      if (!decision.due) return;
+      const result = await ctx.sessionController.resolveAgent(policy.sessionId);
+      if (!result.agent) throw new Error('Selected conversation unavailable');
+      const agent = result.agent;
+      attach(agent);
+      if (agent.status !== 'idle') return;
+      if (!state.lastActivity[agent.id]) { state.lastActivity[agent.id] = now; save(); return; }
+      if (now - Math.max(startedAt, state.lastActivity[agent.id]) < decision.idleMinutes * 60000) return;
+      if (disposed || policy.paused || !policy.enabled) return;
+      const activity = 'develop';
+      const limits = limitsForActivity(policy.budget, activity);
+      const record = {id: randomUUID(), sessionId: agent.id, status: 'reserved', activity,
+        startedAt: new Date(now).toISOString(), limits, source: 'develop-schedule'};
+      const today = dayOf(now);
+      state.developDaily = {...state.developDaily, [today]: (state.developDaily?.[today] ?? 0) + 1};
+      state.runs.push(record); state.runs = state.runs.slice(-100);
+      save();
+      active = {record, agent, budget: new TurnBudget(limits, activity)};
+      active.timer = setTimeout(() => stop('time-budget'), limits.seconds * 1000);
+      try {
+        await ctx.sessionController.prompt({requestId: record.id, sessionId: agent.id, mode: 'queue',
+          content: [{type: 'text', text: activityPrompt(activity, record)}]}, AbortSignal.timeout(15000));
+      } catch { settle('delivery-uncertain'); }
+    } catch (error) { state.lastError = String(error.message); save(); }
+    finally { tickingDev = false; }
   }
 
   const snapshot = () => ({schemaVersion: 1, policy, revision: store.revision(policy),
@@ -238,5 +278,7 @@ export function apply(ctx, config = {}) {
     } catch (error) { reply(400, {error: String(error.message)}); }
   }}));
   const timer = setInterval(() => void tick(), 15000);
-  ctx.effect(() => () => { disposed = true; clearInterval(timer); clearTimeout(dueTimer); stop('plugin-disposed'); });
+  const devTimer = setInterval(() => void devTick(), 60000);
+  const devKick = setTimeout(() => void devTick(), 3000);
+  ctx.effect(() => () => { disposed = true; clearInterval(timer); clearInterval(devTimer); clearTimeout(devKick); clearTimeout(dueTimer); stop('plugin-disposed'); });
 }

@@ -150,3 +150,26 @@ test('first activity of the day moves to the earliest allowed moment', async () 
   assert.equal(skip.action, 'wake');
   assert.equal(skip.atMs, startsAt + 60000);
 });
+test('development activity has its own gap-based cadence', async () => {
+  const {developDue} = await import('../integrations/companion/policy.mjs');
+  const policy = {...DEFAULT_POLICY, enabled:true, sessionId:'session-test',
+    develop:{gapMin:5, idleMinutes:1, dailyRuns:2}};
+  const now = new Date(2026,9,26,10,0).getTime();
+  assert.equal(developDue(policy, {}, now).due, true);
+  assert.equal(developDue({...policy, enabled:false}, {}, now).due, false);
+  assert.equal(developDue({...policy, paused:true}, {}, now).due, false);
+  assert.equal(developDue({...policy, sessionId:''}, {}, now).due, false);
+
+  const waiting = developDue(policy, {lastDevelopAt: now - 2 * 60000}, now);
+  assert.equal(waiting.due, false);
+  assert.equal(waiting.reason, 'gap');
+  assert.equal(waiting.waitMs, 3 * 60000);
+
+  const ready = developDue(policy, {lastDevelopAt: now - 6 * 60000}, now);
+  assert.equal(ready.due, true);
+  assert.equal(ready.idleMinutes, 1);
+
+  const capped = developDue(policy, {developDaily:{'2026-10-26':2}}, now);
+  assert.equal(capped.due, false);
+  assert.equal(capped.reason, 'daily');
+});

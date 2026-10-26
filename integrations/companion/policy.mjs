@@ -9,7 +9,8 @@ export const DEFAULT_POLICY = Object.freeze({schemaVersion: 1, agentName: 'é“¶ç‹
   sessionId: '', enabled: false, paused: false,
   windows: [{start: '09:00', end: '22:00', wakes: 2}], skipChance: 0.2,
   minGapMin: 180, idleMinutes: 20, activities: ['consolidate', 'reflect'],
-  budget: {dailyRuns: 2, steps: 8, toolCalls: 16, writes: 3, outputTokens: 4096, seconds: 180}});
+  budget: {dailyRuns: 2, steps: 8, toolCalls: 16, writes: 3, outputTokens: 4096, seconds: 180},
+  develop: {gapMin: 5, idleMinutes: 1, dailyRuns: 12}});
 
 function keys(value, allowed) {
   assert(value && typeof value === 'object' && !Array.isArray(value), 'Expected object');
@@ -41,6 +42,12 @@ export function validatePolicy(input) {
   keys(input.budget, Object.keys(DEFAULT_POLICY.budget));
   for (const [key, low, high] of [['dailyRuns',1,12],['steps',1,32],['toolCalls',1,64],['writes',0,10],['outputTokens',256,16384],['seconds',10,600]])
     integer(input.budget[key], low, high, key);
+  if (input.develop !== undefined) {
+    keys(input.develop, ['gapMin','idleMinutes','dailyRuns']);
+    integer(input.develop.gapMin, 1, 1440, 'develop gap');
+    integer(input.develop.idleMinutes, 0, 1440, 'develop idle');
+    integer(input.develop.dailyRuns, 1, 48, 'develop daily runs');
+  }
   return structuredClone(input);
 }
 
@@ -176,6 +183,21 @@ export function firstWakeSoon(state, plan, now = Date.now()) {
   return {...plan, action: 'wake', atMs: earliest, at: at.getHours() * 60 + at.getMinutes(),
     atText: `${dayOf(earliest)} ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
     firstWake: true};
+}
+
+// The development activity has its own cadence: it starts as soon as the gap
+// after the previous run allows (and the assistant is idle), instead of waiting
+// for a random daily slot meant for companionship activities.
+export function developDue(policy, state, now = Date.now()) {
+  if (!policy.enabled || policy.paused || !policy.sessionId) return {due: false, reason: 'inactive'};
+  const config = {...DEFAULT_POLICY.develop, ...(policy.develop ?? {})};
+  const today = dayOf(now);
+  const used = state?.developDaily?.[today] ?? 0;
+  if (used >= config.dailyRuns) return {due: false, reason: 'daily'};
+  const last = Number.isFinite(state?.lastDevelopAt) ? state.lastDevelopAt : 0;
+  const waitMs = last + config.gapMin * 60000 - now;
+  if (waitMs > 0) return {due: false, waitMs, reason: 'gap'};
+  return {due: true, idleMinutes: config.idleMinutes, reason: 'ready'};
 }
 
 export function activityPrompt(activity, record) {
