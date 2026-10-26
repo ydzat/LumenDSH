@@ -140,3 +140,23 @@ fresh turn shortly after the next allowed moment.
   `stack.mjs` so an orphaned slot listener is adopted instead of restart-looping
   (`tests/stack-adopt-check.mjs`).
 - Client 0.8.3-dev (55) is installed with the develop toggle.
+
+
+## Host upgrades through slots (2026-10-26)
+
+Companion host upgrades no longer stop the live slot. `activate-host-slot.mjs`
+installs the new immutable revision, starts the *other* slot on it, verifies the
+target (entrance, companion status, identical session set, generated self
+document), then points the relay at it. The previous slot keeps serving through
+the whole flow as the rollback point; after a soak window it is retained by
+default (`--stop-source` opts into stopping it).
+
+The stack now follows `active.json`: a watchdog restart after an A→B switch keeps
+B instead of rewriting the relay back to A (`stack-active-check.mjs`). A failed
+activation restores the profile backup, points the relay back and stops the
+target; the receipt records `rolled-back` with the error. Receipts are written to
+`host-activation-slot.json` and `slots/receipts/`.
+
+Remaining limitation: the relay closes existing connections when `active.json`
+changes, so a switch still produces one short reconnect; the previous slot stays
+warm so rollback is another switch, not a restart.
