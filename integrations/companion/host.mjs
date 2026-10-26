@@ -3,6 +3,7 @@ import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {readdirSync} from 'node:fs';
 import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon, developDue, planFor} from './policy.mjs';
+import {buildSituation} from './situation.mjs';
 import {makePlan, completePlan, dayOf} from './upstream/night-plan.mjs';
 import {modelSnapshot, outputBudget, restoreOutput, selectModel} from './model-config.mjs';
 
@@ -232,9 +233,11 @@ export function apply(ctx, config = {}) {
       save();
       active = {record, agent, budget: new TurnBudget(limits, activity)};
       active.timer = setTimeout(() => stop('time-budget'), limits.seconds * 1000);
+      const situation = buildSituation({notesFile: path.join(root, 'self-notes.jsonl'),
+        runs: state.runs, lastError: state.lastError ?? null});
       try {
         await ctx.sessionController.prompt({requestId: record.id, sessionId: agent.id, mode: 'queue',
-          content: [{type: 'text', text: activityPrompt(activity, record)}]}, AbortSignal.timeout(15000));
+          content: [{type: 'text', text: activityPrompt(activity, record, situation)}]}, AbortSignal.timeout(15000));
       } catch { settle('delivery-uncertain'); }
     } catch (error) { state.lastError = String(error.message); save(); }
     finally { tickingDev = false; }

@@ -206,11 +206,13 @@ export function developDue(policy, state, now = Date.now()) {
   return {due: true, idleMinutes: config.idleMinutes, reason: 'ready'};
 }
 
-export function activityPrompt(activity, record) {
+export function activityPrompt(activity, record, situation = '') {
   if (activity === 'develop') return `[Sliver Wolf local activity ${record.id}; develop]\n` +
+    (situation ? situation + '\n\n' : '') +
     'This is a scheduled self-development activity in our existing conversation, not a new identity. ' +
+    'Read the situation above, then decide what, if anything, is worth doing. If you act, make it one bounded step: inspect, implement, verify, commit and push to agent/dev. ' +
+    'When something felt wrong, missing or worth exploring, append it to your self-notes ledger so the next turn can see it. ' +
     'Work only inside this repository and only on the agent/dev branch. ' +
-    'First inspect the current state (git status/diff and recent evidence docs), then pick one small improvement, implement it, build or run the relevant checks, commit and push to agent/dev. ' +
     'Never push main, never force-push, never restart DSH, never install an APK, never touch credentials, never use network or privilege commands. ' +
     'Stop on the first failure and record it instead of retrying. ' +
     `At most ${record.limits.writes} writes, ${record.limits.toolCalls} tool calls and ${record.limits.steps} model steps. ` +
