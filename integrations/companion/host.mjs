@@ -1,7 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
-import {readdirSync, renameSync, writeFileSync} from 'node:fs';
+import {appendFileSync, readdirSync, renameSync, statSync, writeFileSync} from 'node:fs';
 import {spawn} from 'node:child_process';
 import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon, developDue, planFor} from './policy.mjs';
 import {buildSituation} from './situation.mjs';
@@ -415,11 +415,20 @@ export function apply(ctx, config = {}) {
       }
       if (req.method === 'GET' && route === '/sliver-wolf/companion/status') return reply(200, snapshot());
       if (req.method === 'GET' && route === '/sliver-wolf/companion/period') return reply(200, state.period ?? {phase: null});
-      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection','/sliver-wolf/companion/period'].includes(route)) return reply(404, {error:'Unknown operation'});
+      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection','/sliver-wolf/companion/period','/sliver-wolf/companion/log'].includes(route)) return reply(404, {error:'Unknown operation'});
       const chunks = []; let bytes = 0;
       for await (const chunk of req) { bytes += chunk.length; if (bytes > 16384) return reply(413, {error:'Policy too large'}); chunks.push(chunk); }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       if(route.endsWith('/model-selection')) return reply(200,await selectModel(ctx,body));
+      if (route.endsWith('/log')) {
+        const message = String(body?.message ?? '').slice(0, 8000);
+        if (!message) throw new Error('Log message required');
+        const file = path.join(root, 'app.log');
+        let size = 0;
+        try { size = statSync(file).size; } catch { size = 0; }
+        if (size < 512 * 1024) appendFileSync(file, new Date().toISOString() + ' ' + message + '\n', {mode: 0o600});
+        return reply(200, {ok: true});
+      }
       if (route.endsWith('/period')) {
         // Written by the Android client from the tide plugin's own client state
         // (which includes holiday handling). Peak means no develop run.

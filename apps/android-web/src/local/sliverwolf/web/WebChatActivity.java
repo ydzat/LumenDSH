@@ -29,6 +29,7 @@ public final class WebChatActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        CrashLog.install(this);
         try { build(state); } catch (Throwable error) {
             TextView view = new TextView(this);
             view.setTextSize(11);

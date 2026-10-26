@@ -53,7 +53,8 @@ public final class MainActivity extends Activity {
     };
 
     @Override public void onCreate(Bundle saved) {
-        super.onCreate(saved);interaction=new InteractionSettings(this);if(saved!=null){documentPending=saved.getBoolean("documentPending",false);presentationExport=saved.getString("presentationExport");}
+        super.onCreate(saved);
+        CrashLog.install(this);interaction=new InteractionSettings(this);if(saved!=null){documentPending=saved.getBoolean("documentPending",false);presentationExport=saved.getString("presentationExport");}
         try{new ContentReleases(this).recover();}catch(Exception error){throw new IllegalStateException("Content recovery failed",error);}
         LinearLayout root = column();
         transcriptPage = root; root.setBackgroundColor(0xff0c1420);
