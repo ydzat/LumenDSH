@@ -64,3 +64,20 @@ node integrations/supervisor/upgrade.mjs --from A --to B \
   --relay-dir "$HOME/.local/state/sliver-wolf-supervisor" \
   --observe-ms 3000 --rollback-on-fail --rollback-to C
 ```
+
+## Production cutover (M9.2, user-triggered)
+
+`migrate.mjs` replaces a direct launcher on the stable port with the relay plus a
+slot. Run it detached because the cutover drops the current client connection;
+on failure it restores the launcher with `--restore-command`.
+
+```bash
+setsid nohup node integrations/supervisor/migrate.mjs \
+  --port 3080 --slot-name A --slot-port 3082 \
+  --runtime "$RUNTIME" --home "$HOME/.dsh" --workspace "$HOME/agent-workspace" \
+  --stop-command "tmux kill-session -t dsh" \
+  --restore-command "tmux new-session -d -s dsh ..." \
+  --state-dir "$HOME/.local/state/sliver-wolf-slots" \
+  --relay-dir "$HOME/.local/state/sliver-wolf-supervisor" \
+  >> "$HOME/.local/state/sliver-wolf-slots/migrate.log" 2>&1
+```

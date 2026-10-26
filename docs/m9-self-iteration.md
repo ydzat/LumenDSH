@@ -53,8 +53,11 @@ and a forced B failure that returns to A.
 Verified (2026-10-26): `tests/upgrade-check.mjs` runs two real slots over a
 copied `DSH_HOME` plus a relay and a third rollback slot: A→B switch with a
 durable receipt, B→A cycle, and a killed target whose relay returns to slot C.
-The live cutover from the direct 3080 launcher to the relay architecture is the
-remaining step.
+The cutover itself is covered by `tests/migrate-check.mjs`: a failed slot start
+leaves the direct launcher untouched, and a successful migration moves the
+stable port to relay + slot with a receipt. The production cutover on 3080 is a
+user-triggered operation (it drops the live client connection for a few seconds)
+and is not performed by M9 code automatically.
 
 Verified so far (2026-10-26): the relay follows `active.json` and drops existing
 connections on a switch. A slot started over a copied `DSH_HOME` served a cookie
