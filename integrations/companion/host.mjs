@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {readdirSync} from 'node:fs';
-import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt} from './policy.mjs';
+import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity} from './policy.mjs';
 import {makePlan, completePlan, dayOf} from './upstream/night-plan.mjs';
 import {modelSnapshot, outputBudget, restoreOutput, selectModel} from './model-config.mjs';
 
@@ -156,10 +156,10 @@ export function apply(ctx, config = {}) {
       if (!state.lastActivity[agent.id]) { state.lastActivity[agent.id] = now; save(); return; }
       if (agent.status !== 'idle' || now - Math.max(startedAt,state.lastActivity[agent.id]) < policy.idleMinutes * 60000) return;
       if (disposed || policy.paused || !policy.enabled || policy.sessionId !== agent.id) return;
-      const limits = {...policy.budget};
+      const activity = policy.activities[state.runs.length % policy.activities.length];
+      const limits = limitsForActivity(policy.budget, activity);
       const record = {id: randomUUID(), sessionId: agent.id, status: 'reserved',
-        activity: policy.activities[state.runs.length % policy.activities.length],
-        startedAt: new Date(now).toISOString(), limits};
+        activity, startedAt: new Date(now).toISOString(), limits};
       state.plan = completePlan(state.plan, now);
       state.daily[today] = (state.daily[today] ?? 0) + 1;
       for (const day of Object.keys(state.daily)) if (day < dayOf(now - 7 * 86400000)) delete state.daily[day];

@@ -84,3 +84,19 @@ test('develop prompt states the branch, red lines and evidence expectation', asy
   assert.match(text, /never restart DSH/);
   assert.match(text, /evidence paths/);
 });
+test('develop turns get a practical budget floor without changing memory budgets', async () => {
+  const {limitsForActivity} = await import('../integrations/companion/policy.mjs');
+  const base = {...DEFAULT_POLICY.budget};
+  assert.deepEqual(limitsForActivity(base, 'consolidate'), base);
+  const develop = limitsForActivity(base, 'develop');
+  assert.equal(develop.steps, 24);
+  assert.equal(develop.toolCalls, 60);
+  assert.equal(develop.writes, 8);
+  assert.equal(develop.seconds, 600);
+  assert.equal(develop.outputTokens, 8192);
+  assert.equal(develop.dailyRuns, base.dailyRuns);
+  const larger = {...base, steps: 30, seconds: 900};
+  const kept = limitsForActivity(larger, 'develop');
+  assert.equal(kept.steps, 30);
+  assert.equal(kept.seconds, 900);
+});

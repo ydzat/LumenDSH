@@ -90,6 +90,20 @@ export const WRITE_TOOLS = new Set(['mnemon_document_create','mnemon_runtime_mem
 // are rejected even when they match the general shape.
 export const DEVELOP_COMMAND = /^(?:git (?:status|diff|log|add|commit|push|switch|checkout|branch|rev-parse|rev-list)\b|node (?:tooling\/|tests\/)|bash (?:tooling\/|tests\/)|ls\b|cat\b|mkdir\b|rm -rf? (?:artifacts|\.tmp|dist)\b)/;
 
+// Development turns keep the policy budget but get a floor that a build and a
+// verification pass can actually fit in. Memory activities are unchanged.
+export function limitsForActivity(limits, activity) {
+  const result = {...limits};
+  if (activity === 'develop') {
+    result.steps = Math.max(result.steps, 24);
+    result.toolCalls = Math.max(result.toolCalls, 60);
+    result.writes = Math.max(result.writes, 8);
+    result.seconds = Math.max(result.seconds, 600);
+    result.outputTokens = Math.max(result.outputTokens, 8192);
+  }
+  return result;
+}
+
 export class TurnBudget {
   constructor(limits, activity = 'consolidate') {
     this.limits = {...limits}; this.activity = activity;
