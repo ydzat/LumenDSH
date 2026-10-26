@@ -72,7 +72,7 @@ export function apply(ctx, config = {}) {
     output: output({text: {type: 'string'}}),
     async execute(parameters, exec) {
       requireOwn(exec);
-      const value = runPhone(args(parameters));
+      const value = runPhone(...args(parameters));
       return {text: value || text};
     }
   });
