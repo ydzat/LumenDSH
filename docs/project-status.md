@@ -76,3 +76,29 @@ Independent default and per-session model selection is available in 0.8.2.
 The catalog and capabilities come from DSH; existing conversations retain their
 identity when changing routes. See [model controls](model-configuration.md) and
 [device evidence](../tests/model-selection-evidence.md).
+
+
+## M10 autonomous development (0.10.x)
+
+The active line is 0.10.x: `apps/android-web` (package `local.sliverwolf.web`,
+label LumenDSH Web) runs the official DSH Web UI inside a WebView and keeps the
+native surface for the character, voice and device work. Delivered so far:
+
+- Embedded official UI with cookie handoff, reconnect, crash capture and a
+  headless 1dp WebView that keeps the tide plugin alive for the home screen.
+- Home shows 「梁文峰 / 梁文谷 · countdown」 from the tide plugin's own client
+  state, with a policy-route fallback when the plugin state is unavailable.
+- Peak/valley gating: a fresh peak report suppresses `developDue`; valley keeps
+  the full develop loop.
+- Device operation through adb over the USB tether (`phone_shot/tap/text/key/
+  start/install/ui`), plus an accessibility + MediaProjection fallback.
+- Community reuse instead of custom screens: official settings/automation pages,
+  the official experimental voice bundle (local model unavailable on
+  android-arm64; the client falls back to Android's SpeechRecognizer), and an
+  evaluated `dsh-schedule-panel` (tool works, panel incompatible on 0.2.1-rc.3).
+- Automatic continuation after restarts: `restart-host.sh` holds the watchdog,
+  restarts the slot, then queues a `session/prompt` nudge so work resumes
+  without a user message.
+
+The old `local.sliverwolf.assistant` client has been removed; the device bridge
+MCP now targets the new client on port 3084.
