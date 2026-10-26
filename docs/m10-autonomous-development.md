@@ -135,3 +135,13 @@ transcription is not available. The fallback is the native `SpeechRecognizer`
 already used by the client: recognize with Android's engine, then send the
 recognized text as a session prompt (or type it through adb) instead of relying
 on the web plugin's local model.
+
+
+## Community plugin evaluation (2026-10-26)
+
+| Plugin | Result |
+|---|---|
+| `dsh-voice-input` / official experimental voice bundle | Installed and enabled in the plugins page; WebView now grants `RESOURCE_AUDIO_CAPTURE` after `RECORD_AUDIO`. Its local SenseVoice service reports `Local speech is unavailable for android-arm64`, so the client falls back to Android's `SpeechRecognizer` and sends the transcript as a session prompt. |
+| `dsh-schedule-panel` (GitHub) | Installed and its `schedule` tool worked (add/list), but its client panel fails to mount on 0.2.1-rc.3 (`Remote 挂载失败: typert …`) and renders broken, so it was removed. Scheduling stays on the official 自动化任务 page. |
+| `dsh-mobile-drawer` | Rejected: requires Node >= 26.3.1; the device runs 24.22. |
+| Official settings / plugins page | Used as-is; no custom settings screens are built. |
