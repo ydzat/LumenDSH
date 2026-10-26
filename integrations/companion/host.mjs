@@ -56,8 +56,7 @@ export function apply(ctx, config = {}) {
   // Agent-facing tools. They are plain JSON Schema specs registered directly on
   // the host registry; no dependency on @deepseek-ai/dsh-tools is required.
   const output = (properties) => ({schema: {type: 'object', additionalProperties: false,
-    properties: Object.fromEntries(Object.entries(properties).map(([key, value]) =>
-      [key, {...value, required: true}]))}, render: (_args, value) => [{type: 'text',
+    properties, required: Object.keys(properties)}, render: (_args, value) => [{type: 'text',
     text: String(value?.text ?? JSON.stringify(value))}]});
   const requireOwn = (exec) => {
     if (exec?.agent?.id !== policy.sessionId) throw new Error('Only the selected conversation may record self-development state');
