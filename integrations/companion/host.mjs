@@ -1,7 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
-import {appendFileSync, readdirSync, renameSync, statSync, writeFileSync} from 'node:fs';
+import {appendFileSync, existsSync, readdirSync, renameSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {execFileSync, spawn} from 'node:child_process';
 import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon, developDue, planFor} from './policy.mjs';
 import {buildSituation} from './situation.mjs';
@@ -172,6 +172,24 @@ export function apply(ctx, config = {}) {
   // Audible cue for the user: a finished human turn rings once; autonomous
   // activity stays silent. Disable with SLIVER_WOLF_TURN_TONE=0.
   const toneScript = path.join(os.homedir(), 'agent-workspace', 'tone.sh');
+  const nudgeFlag = path.join(os.homedir(), '.local/state/sliver-wolf-m9/nudge-on-start');
+  function scheduleStartupNudge() {
+    if (!existsSync(nudgeFlag)) return;
+    let attempts = 0;
+    const timer = setInterval(async () => {
+      attempts += 1;
+      const sessionId = state.policy?.sessionId;
+      if (!sessionId) { if (attempts > 8) { clearInterval(timer); } return; }
+      try {
+        await ctx.sessionController.prompt({requestId: randomUUID(), sessionId, mode: 'queue',
+          content: [{type: 'text', text: '【自动继续】M10：先检查进度（git status、最近提交、待办），然后继续开发剩余项；每步验证后提交并推送 agent/dev，不需要等我。'}]}, AbortSignal.timeout(15000));
+        rmSync(nudgeFlag, {force: true});
+        clearInterval(timer);
+      } catch { if (attempts > 8) clearInterval(timer); }
+    }, 5000);
+    setTimeout(() => clearInterval(timer), 120000);
+  }
+  scheduleStartupNudge();
   const phoneScript = path.join(os.homedir(), 'agent-workspace', 'phone.sh');
   let lastToneAt = 0;
   function playTone(kind) {
