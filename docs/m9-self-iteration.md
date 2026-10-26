@@ -171,3 +171,36 @@ is therefore impossible from the addresses clients use, which removes the
 another wrote through the relay. `slots.mjs` takes `--host`, the stack starts
 slots with `--slot-host` (default `127.0.0.2`), and `active.json` carries the host
 the relay must dial. The Android client refuses to pair any port other than 3080.
+
+
+## Closure (2026-10-26)
+
+M9 is delivered and verified on the phone:
+
+- **Boot**: Termux:Boot runs `~/.termux/boot/lumendsh-stack.sh`, which calls
+  `boot-stack.sh`; after a reboot the stack reached `entrance ready` without any
+  app being opened (`boot.log`, 13:19). A cold slot needs about 36 s, so the
+  slot deadline is 120 s, the stack wait 180 s and the watchdog startup grace
+  180 s (the previous 30 s values caused a restart loop after boot).
+- **Single entrance**: slots bind the internal loopback `127.0.0.2` (3082/3083);
+  only the relay listens on `127.0.0.1:3080`. Clients must use 3080 — a direct
+  slot connection contends for the session writer and is refused with
+  `session/writer-held`. The Android client pairs only 3080.
+- **Host upgrades through slots**: `activate-host-slot.mjs` installs the
+  revision, starts the target slot, verifies entrance/companion status/sessions/
+  self document, switches the relay, soaks, and keeps the source slot for
+  rollback; the watchdog is held during installation. An A→B activation completed
+  with a durable receipt.
+- **Termux channel**: the installed Termux is the GitHub release
+  (`TERMUX_APK_RELEASE=GITHUB`, 0.118.3). Add-ons must come from the same channel;
+  GitHub Termux:Boot 0.8.1 and Termux:API 0.53.0 share its certificate and are
+  installed. `termux-api` 0.60.0 provides the device commands (battery status
+  verified). F-Droid builds use a different key and cannot be mixed.
+- **Self-development loop**: experience stream, candidate derivation with quiet
+  mode, growth stages/stances, self document and `extend_self` are implemented
+  and deployed. The loop is **paused by the user**; resuming it is a policy
+  change, not a code change.
+
+Remaining follow-ups (not blocking M9): re-run a live A→B switch after the
+single-entrance change, with both clients on 3080; keep the Web GUI at
+`http://127.0.0.1:3080` because opening a slot URL bypasses the relay.

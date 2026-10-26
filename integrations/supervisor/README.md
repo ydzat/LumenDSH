@@ -36,20 +36,24 @@ it never restarts the live DSH launcher.
 and mints a cookie whose authority is the stable entrance port, so the client's
 existing cookie stays valid across a switch.
 
+Slots listen on the **internal loopback host** `127.0.0.2` (default
+`--slot-host` in `stack.mjs`, per-slot `--host` in `slots.mjs`). Only the relay
+listens on `127.0.0.1:3080`; clients must never connect to a slot port directly,
+because two writers would contend for the same session log (`session/writer-held`).
+
 ```bash
-node integrations/supervisor/slots.mjs start --name B --port 3082 \
+node integrations/supervisor/slots.mjs start --name B --host 127.0.0.2 --port 3083 \
   --runtime "$RUNTIME" --home "$HOME/.dsh" --workspace "$HOME/agent-workspace" \
   --stable-port 3080 --state-dir "$HOME/.local/state/sliver-wolf-slots"
-node integrations/supervisor/slots.mjs switch --name B \
-  --state-dir "$HOME/.local/state/sliver-wolf-slots" \
-  --relay-dir "$HOME/.local/state/sliver-wolf-supervisor"
-node integrations/supervisor/slots.mjs stop --name B \
+node integrations/supervisor/slots.mjs stop --name B --port 3083 \
   --state-dir "$HOME/.local/state/sliver-wolf-slots"
 ```
 
 Verified behaviour: the cookie authority follows the request `Host` header, and
 instances sharing a `DSH_HOME` share the cookie signing key — a live client
 cookie from the stable port was accepted by the slot with a `Host` override.
+A cold-boot slot needs about 36 seconds to print its token URL, so `slots start`
+waits up to 120 seconds and `stack.mjs` up to 180 seconds.
 
 ## Upgrade orchestration (M9.3)
 
@@ -90,25 +94,41 @@ or the slot failing restarts the whole entrance:
 
 ```bash
 node integrations/supervisor/supervise.mjs --port 3080 \
-  --interval-ms 5000 --timeout-ms 3000 --fail-threshold 3 --startup-grace-ms 25000 \
+  --interval-ms 5000 --timeout-ms 3000 --fail-threshold 3 --startup-grace-ms 180000 \
   --state-dir "$HOME/.local/state/sliver-wolf-stack" -- \
   node integrations/supervisor/stack.mjs --port 3080 --slot-name A --slot-port 3082 \
+  --slot-host 127.0.0.2 \
   --runtime "$RUNTIME" --home "$HOME/.dsh" --workspace "$HOME/agent-workspace" \
   --state-dir "$HOME/.local/state/sliver-wolf-slots" \
   --relay-dir "$HOME/.local/state/sliver-wolf-supervisor"
 ```
 
 `--startup-grace-ms` skips health probes while a fresh slot boots; without it the
-watchdog would kill the stack mid-start.
+watchdog would kill the stack mid-start. The value must cover a **cold-boot**
+slot start (measured ~36 s on the phone; 180 s leaves margin for a cold page
+cache and a slow first plugin load). The stack follows `active.json`: after an
+A→B switch a watchdog restart keeps B instead of rewriting the relay back to A.
 
 ## Boot and host upgrades in the relay architecture
 
 - `boot-stack.sh` starts the supervised stack unless the entrance already
-  answers or a supervisor is alive. `agent-start` now prefers it and exits when
+  answers or a supervisor is alive; it waits up to 150 s for the entrance so a
+  cold start is reported accurately. `agent-start` prefers it and exits when
   port 3080 already responds, so the client-driven startup no longer races the
   relay for the port.
 - `~/.termux/boot/lumendsh-stack.sh` calls the same script from Termux:Boot.
-- `integrations/companion/activate-host-slot.mjs` installs a companion host
-  revision, stops the slot and lets the watchdog restart the stack; it restores
-  the profile and the slot on failure. `activate-host.mjs` remains for the old
-  direct-launcher layout.
+  Verified on the installed HUAWEI/EMUI device: reboot → Termux:Boot →
+  `boot-stack.sh` → stack; `3080` is ready without opening any app. Termux and
+  its add-ons must come from the **same channel**: the installed GitHub build
+  (0.118.3, `TERMUX_APK_RELEASE=GITHUB`) shares its certificate with the GitHub
+  Termux:Boot/API debug APKs; F-Droid builds are signed with a different key and
+  cannot be mixed (`INSTALL_FAILED_SHARED_USER_INCOMPATIBLE`).
+- `integrations/companion/activate-host-slot.mjs` upgrades the host through the
+  **other slot**: it installs the revision, starts the target slot, verifies
+  entrance, companion status, identical sessions and the generated self document,
+  switches the relay, soaks, and keeps the previous slot as the rollback point
+  (`--stop-source` opts into stopping it). The watchdog is held (a hold file with
+  the installer pid) so it cannot race the installer for the slot port. A failed
+  activation restores the profile, switches the relay back and stops the target;
+  receipts go to `host-activation-slot.json` and `slots/receipts/`.
+  `activate-host.mjs` remains for the old direct-launcher layout.

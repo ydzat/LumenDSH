@@ -1,7 +1,7 @@
 # Project status and handoff
 
-Date: 2026-10-26. Current installation: Android 0.8.2, independent DSH
-0.2.1-rc.3 and companion integration 0.2.1.
+Date: 2026-10-26. Current installation: Android 0.8.3-dev (55), independent DSH
+0.2.1-rc.3 and the companion host revision `cadb777`.
 
 M0–M7 and model adaptation are delivered within their recorded scopes. The user
 subsequently resumed character work: persona revision 2 and the accepted Silver
@@ -20,6 +20,16 @@ and [scoped device evidence](../tests/settings-evidence.md).
 Foreground keyword listening now yields to automatic reply speech and resumes
 after playback; the failure was reproduced on 0.7.49 and the same real DSH/device
 check passed on 0.7.50. See [handoff evidence](../tests/voice-reply-handoff-evidence.md).
+
+## M9 self-iteration infrastructure
+
+M9 is delivered: supervised relay + A/B slots on the internal `127.0.0.2`
+loopback with a single client entrance at `127.0.0.1:3080`, slot-based host
+upgrades with verification/soak/rollback, boot persistence through Termux:Boot,
+and the situation-driven self-development loop (experience stream, candidates
+with quiet mode, growth stages, self document, `extend_self`). The loop is
+currently paused by the user. See [M9 design and status](m9-self-iteration.md)
+and [self-development loop](self-iteration.md).
 
 ## Future directions, not scheduled milestones
 
