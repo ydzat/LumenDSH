@@ -126,3 +126,27 @@ test('recovery wake brings the next turn forward without replaying the interrupt
   assert.ok(plan.atMs <= inside);
   assert.equal(plan.usedCount[key], 1, 'history must be preserved');
 });
+test('first activity of the day moves to the earliest allowed moment', async () => {
+  const {firstWakeSoon} = await import('../integrations/companion/policy.mjs');
+  const startsAt = new Date(2026,9,26,9,0).getTime();
+  const endsAt = new Date(2026,9,26,22,0).getTime();
+  const plan = {schema:2, action:'wake', fired:false, atMs:new Date(2026,9,26,13,0).getTime(),
+    startsAt, endsAt, windowKey:'2026-10-26|09:00–22:00'};
+  const night = new Date(2026,9,26,3,0).getTime();
+  const moved = firstWakeSoon({daily:{}}, plan, night);
+  assert.equal(moved.atMs, startsAt + 60000);
+  assert.equal(moved.action, 'wake');
+  assert.equal(moved.firstWake, true);
+
+  const morning = new Date(2026,9,26,10,0).getTime();
+  const nowMoved = firstWakeSoon({daily:{}}, plan, morning);
+  assert.equal(nowMoved.atMs, morning + 60000);
+
+  assert.equal(firstWakeSoon({daily:{'2026-10-26':1}}, plan, night), plan);
+  assert.equal(firstWakeSoon({daily:{}}, {...plan, fired:true}, night).atMs, plan.atMs);
+  assert.equal(firstWakeSoon({daily:{}}, {...plan, atMs:night + 30000}, night).atMs, night + 30000);
+
+  const skip = firstWakeSoon({daily:{}}, {...plan, action:'skip', atMs:endsAt - 3600000}, night);
+  assert.equal(skip.action, 'wake');
+  assert.equal(skip.atMs, startsAt + 60000);
+});

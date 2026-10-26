@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {readdirSync} from 'node:fs';
-import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan} from './policy.mjs';
+import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon} from './policy.mjs';
 import {makePlan, completePlan, dayOf} from './upstream/night-plan.mjs';
 import {modelSnapshot, outputBudget, restoreOutput, selectModel} from './model-config.mjs';
 
@@ -33,6 +33,12 @@ export function apply(ctx, config = {}) {
   // repository state and continue the work.
   const recovery = recoveryTarget(policy, state);
   if (recovery) { state.recovery = recovery; save(); }
+  // Before the first run of a day, do not keep a stale random plan across a
+  // restart or a policy change: the next plan is re-rolled and moved to the
+  // earliest allowed moment by firstWakeSoon.
+  if (!state.recovery && (state.daily[dayOf(Date.now())] ?? 0) === 0 && state.plan) {
+    state.plan = null; save();
+  }
 
   function settle(status) {
     if (!active) return;
@@ -160,6 +166,7 @@ export function apply(ctx, config = {}) {
       const previous = state.plan;
       state.plan = makePlan(policy, previous, now);
       if (state.plan !== previous) {
+        state.plan = firstWakeSoon(state, state.plan, now);
         save(); clearTimeout(dueTimer);
         if (state.plan.atMs > now) dueTimer = setTimeout(() => void tick(), state.plan.atMs - now);
       }

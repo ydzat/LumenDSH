@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdirSync, readFileSync, writeFileSync, renameSync, existsSync} from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {windowsOf, occurrences, historyOf} from './upstream/night-plan.mjs';
+import {windowsOf, occurrences, historyOf, dayOf} from './upstream/night-plan.mjs';
 
 export const DEFAULT_POLICY = Object.freeze({schemaVersion: 1, agentName: '银狼',
   style: 'Warm, concise, curious and candid. Distinguish facts from attributed impressions.',
@@ -160,6 +160,22 @@ export function recoveryPlan(policy, state, now = Date.now()) {
     window: current.label, windowKey: current.key, startsAt: current.startsAt,
     endsAt: current.endsAt, withinWindow: current.label + ' 恢复执行',
     recovery: true, createdAt: new Date(now).toISOString()};
+}
+
+// The first activity of a day should not wait for a random afternoon slot that
+// may have been planned before the policy changed. Move it to the earliest
+// allowed moment (or now) and never let the first slot be a random skip.
+export function firstWakeSoon(state, plan, now = Date.now()) {
+  if (!plan || plan.fired || !['wake', 'skip'].includes(plan.action)) return plan;
+  if ((state?.daily?.[dayOf(now)] ?? 0) > 0) return plan;
+  if (!Number.isFinite(plan.startsAt) || !Number.isFinite(plan.endsAt)) return plan;
+  const earliest = Math.max(now + 60000, plan.startsAt + 60000);
+  if (earliest >= plan.endsAt - 30000) return plan;
+  if (plan.action === 'wake' && earliest >= plan.atMs) return plan;
+  const at = new Date(earliest);
+  return {...plan, action: 'wake', atMs: earliest, at: at.getHours() * 60 + at.getMinutes(),
+    atText: `${dayOf(earliest)} ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
+    firstWake: true};
 }
 
 export function activityPrompt(activity, record) {
