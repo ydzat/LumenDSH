@@ -2,7 +2,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {appendFileSync, readdirSync, renameSync, statSync, writeFileSync} from 'node:fs';
-import {spawn} from 'node:child_process';
+import {execFileSync, spawn} from 'node:child_process';
 import {PolicyStore, TurnBudget, atomicJson, loadJson, activityPrompt, limitsForActivity, recoveryTarget, recoveryPlan, firstWakeSoon, developDue, planFor} from './policy.mjs';
 import {buildSituation} from './situation.mjs';
 import {appendExperience, readExperiences, recentExperiences} from './experience.mjs';
@@ -62,6 +62,34 @@ export function apply(ctx, config = {}) {
   const requireOwn = (exec) => {
     if (exec?.agent?.id !== policy.sessionId) throw new Error('Only the selected conversation may record self-development state');
   };
+  function runPhone(...args) {
+    try { return String(execFileSync('bash', [phoneScript, ...args], {encoding: 'utf8', timeout: 60000})).trim(); }
+    catch (error) { return 'phone command failed: ' + String(error.message); }
+  }
+  const phoneTool = (name, description, properties, args, text) => ctx.tools.register({
+    name, description,
+    parameters: {type: 'object', additionalProperties: false, properties},
+    output: output({text: {type: 'string'}}),
+    async execute(parameters, exec) {
+      requireOwn(exec);
+      const value = runPhone(args(parameters));
+      return {text: value || text};
+    }
+  });
+  phoneTool('phone_shot', 'Capture the phone screen through adb; returns the PNG path to read with read_image.',
+    {}, () => ['shot'], 'screen captured');
+  phoneTool('phone_tap', 'Tap phone screen coordinates through adb.',
+    {x: {type: 'number'}, y: {type: 'number'}}, (p) => ['tap', String(p.x), String(p.y)], 'tapped');
+  phoneTool('phone_text', 'Type text into the focused field through adb.',
+    {text: {type: 'string'}}, (p) => ['text', String(p.text)], 'typed');
+  phoneTool('phone_key', 'Send an adb keyevent (e.g. 3 home, 4 back, 26 power).',
+    {code: {type: 'integer'}}, (p) => ['key', String(p.code)], 'key sent');
+  phoneTool('phone_start', 'Start an Android component, e.g. local.sliverwolf.web/.MainActivity.',
+    {component: {type: 'string'}}, (p) => ['start', String(p.component)], 'started');
+  phoneTool('phone_install', 'Install an APK from a file path through adb without user interaction.',
+    {apk: {type: 'string'}}, (p) => ['install', String(p.apk)], 'installed');
+  phoneTool('phone_ui', 'Dump the visible UI hierarchy of the phone through adb (uiautomator).',
+    {}, () => ['ui'], 'ui dumped');
   ctx.tools.register({
     name: 'self_experience',
     description: 'Record a real experience (failure, correction, friction, observation, capability-gap, extension, review) into the append-only stream that derives future development candidates.',
@@ -145,6 +173,7 @@ export function apply(ctx, config = {}) {
   // Audible cue for the user: a finished human turn rings once; autonomous
   // activity stays silent. Disable with SLIVER_WOLF_TURN_TONE=0.
   const toneScript = path.join(os.homedir(), 'agent-workspace', 'tone.sh');
+  const phoneScript = path.join(os.homedir(), 'agent-workspace', 'phone.sh');
   let lastToneAt = 0;
   function playTone(kind) {
     if (process.env.SLIVER_WOLF_TURN_TONE === '0') return;

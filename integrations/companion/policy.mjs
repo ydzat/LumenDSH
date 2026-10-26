@@ -132,7 +132,7 @@ export class TurnBudget {
       if (this.writes >= this.limits.writes) return 'Autonomous write budget exhausted.';
       this.tools++; this.writes++; return;
     }
-    if (['self_experience', 'self_note', 'self_close', 'self_stance', 'extend_self'].includes(name)) {
+    if (['self_experience', 'self_note', 'self_close', 'self_stance', 'extend_self', 'phone_shot', 'phone_tap', 'phone_text', 'phone_key', 'phone_start', 'phone_install', 'phone_ui'].includes(name)) {
       if (this.writes >= this.limits.writes) return 'Autonomous write budget exhausted.';
       this.tools++; this.writes++; return;
     }
