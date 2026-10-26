@@ -55,8 +55,9 @@ export function apply(ctx, config = {}) {
 
   // Agent-facing tools. They are plain JSON Schema specs registered directly on
   // the host registry; no dependency on @deepseek-ai/dsh-tools is required.
-  const output = (properties, required) => ({schema: {type: 'object', additionalProperties: false,
-    properties, required}, render: (_args, value) => [{type: 'text',
+  const output = (properties) => ({schema: {type: 'object', additionalProperties: false,
+    properties: Object.fromEntries(Object.entries(properties).map(([key, value]) =>
+      [key, {...value, required: true}]))}, render: (_args, value) => [{type: 'text',
     text: String(value?.text ?? JSON.stringify(value))}]});
   const requireOwn = (exec) => {
     if (exec?.agent?.id !== policy.sessionId) throw new Error('Only the selected conversation may record self-development state');
@@ -71,8 +72,7 @@ export function apply(ctx, config = {}) {
       severity: {type: 'integer', description: '1..5'},
       tags: {type: 'array', items: {type: 'string'}},
       refs: {type: 'array', items: {type: 'string'}}}, required: ['kind', 'summary']},
-    output: output({id: {type: 'string'}, kind: {type: 'string'}, at: {type: 'string'}, text: {type: 'string'}},
-      ['id', 'kind', 'at', 'text']),
+    output: output({id: {type: 'string'}, kind: {type: 'string'}, at: {type: 'string'}, text: {type: 'string'}}),
     async execute(args, exec) {
       requireOwn(exec);
       const record = recordExperience({...args, source: 'agent'});
@@ -85,7 +85,7 @@ export function apply(ctx, config = {}) {
     parameters: {type: 'object', additionalProperties: false, properties: {
       kind: {type: 'string', enum: ['need', 'curiosity', 'friction', 'idea', 'result']},
       text: {type: 'string'}, tags: {type: 'array', items: {type: 'string'}}}, required: ['kind', 'text']},
-    output: output({id: {type: 'string'}, kind: {type: 'string'}, text: {type: 'string'}}, ['id', 'kind', 'text']),
+    output: output({id: {type: 'string'}, kind: {type: 'string'}, text: {type: 'string'}}),
     async execute(args, exec) {
       requireOwn(exec);
       const note = appendNote(notesFile, {kind: args.kind, text: args.text, tags: args.tags});
@@ -98,7 +98,7 @@ export function apply(ctx, config = {}) {
     parameters: {type: 'object', additionalProperties: false, properties: {
       id: {type: 'string'}, status: {type: 'string', enum: ['open', 'done', 'dropped']}, detail: {type: 'string'}},
       required: ['id', 'status']},
-    output: output({id: {type: 'string'}, status: {type: 'string'}, text: {type: 'string'}}, ['id', 'status', 'text']),
+    output: output({id: {type: 'string'}, status: {type: 'string'}, text: {type: 'string'}}),
     async execute(args, exec) {
       requireOwn(exec);
       updateNote(notesFile, args.id, args.status, args.detail ?? '');
@@ -111,7 +111,7 @@ export function apply(ctx, config = {}) {
     description: 'From stage 3 onwards, record a durable stance backed by evidence ids (experience or note ids).',
     parameters: {type: 'object', additionalProperties: false, properties: {
       text: {type: 'string'}, evidence: {type: 'array', items: {type: 'string'}}}, required: ['text', 'evidence']},
-    output: output({id: {type: 'string'}, text: {type: 'string'}}, ['id', 'text']),
+    output: output({id: {type: 'string'}, text: {type: 'string'}}),
     async execute(args, exec) {
       requireOwn(exec);
       const stance = addStance(state.growth, {text: args.text, evidence: args.evidence});
@@ -128,7 +128,7 @@ export function apply(ctx, config = {}) {
       requirement: {type: 'string', description: 'What the capability must do, 1..500 characters'}},
       required: ['name', 'requirement']},
     output: output({name: {type: 'string'}, path: {type: 'string'}, files: {type: 'array', items: {type: 'string'}},
-      text: {type: 'string'}}, ['name', 'path', 'files', 'text']),
+      text: {type: 'string'}}),
     async execute(args, exec) {
       requireOwn(exec);
       const scaffold = scaffoldExtension({name: args.name, requirement: args.requirement, root: extensionsRoot});
