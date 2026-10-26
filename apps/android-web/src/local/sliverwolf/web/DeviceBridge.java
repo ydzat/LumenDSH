@@ -26,7 +26,7 @@ import static local.sliverwolf.web.DshTransport.object;
 
 /** Authenticated app boundary; standard MCP framing is owned by the Termux SDK adapter. */
 final class DeviceBridge extends WebSocketServer {
-    static final int PORT = 3081;
+    static final int PORT = 3084;
     private static final String CHANNEL = "agent-device-tools";
     private final Context context;
     private final SharedPreferences preferences;

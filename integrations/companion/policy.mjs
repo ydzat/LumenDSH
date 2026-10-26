@@ -203,6 +203,12 @@ export function developDue(policy, state, now = Date.now()) {
   if (!Array.isArray(policy.activities) || !policy.activities.includes('develop'))
     return {due: false, reason: 'disabled'};
   const config = {...DEFAULT_POLICY.develop, ...(policy.develop ?? {})};
+  const period = state?.period;
+  if (period && (period.phase === 'peak' || period.phase === 'valley')) {
+    const reported = Date.parse(period.reportedAt ?? '');
+    const fresh = Number.isFinite(reported) && now - reported < 6 * 3600000;
+    if (fresh && period.phase === 'peak') return {due: false, reason: 'peak'};
+  }
   const today = dayOf(now);
   const used = state?.developDaily?.[today] ?? 0;
   if (config.dailyRuns > 0 && used >= config.dailyRuns) return {due: false, reason: 'daily'};

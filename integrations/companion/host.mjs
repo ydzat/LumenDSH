@@ -398,7 +398,7 @@ export function apply(ctx, config = {}) {
 
   const snapshot = () => ({schemaVersion: 1, policy, revision: store.revision(policy),
     plan: state.plan, daily: state.daily, runs: state.runs, lastError: state.lastError ?? null,
-    active: active?.record.id ?? null, versions: (() => {
+    active: active?.record.id ?? null, period: state.period ?? null, versions: (() => {
       try { return readdirSync(path.join(root, 'versions')).filter(x => /^[0-9a-f]{64}\.json$/.test(x)).map(x => x.slice(0,-5)); }
       catch (e) { if (e.code === 'ENOENT') return []; throw e; }
     })()});
@@ -414,11 +414,22 @@ export function apply(ctx, config = {}) {
         return reply(200,await modelSnapshot(ctx,sessionId,policy.budget.outputTokens));
       }
       if (req.method === 'GET' && route === '/sliver-wolf/companion/status') return reply(200, snapshot());
-      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection'].includes(route)) return reply(404, {error:'Unknown operation'});
+      if (req.method === 'GET' && route === '/sliver-wolf/companion/period') return reply(200, state.period ?? {phase: null});
+      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection','/sliver-wolf/companion/period'].includes(route)) return reply(404, {error:'Unknown operation'});
       const chunks = []; let bytes = 0;
       for await (const chunk of req) { bytes += chunk.length; if (bytes > 16384) return reply(413, {error:'Policy too large'}); chunks.push(chunk); }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       if(route.endsWith('/model-selection')) return reply(200,await selectModel(ctx,body));
+      if (route.endsWith('/period')) {
+        // Written by the Android client from the tide plugin's own client state
+        // (which includes holiday handling). Peak means no develop run.
+        const phase = body?.phase;
+        if (phase !== 'peak' && phase !== 'valley') throw new Error('Period phase must be peak or valley');
+        const flipAt = Number.isFinite(body?.flipAt) ? Number(body.flipAt) : null;
+        state.period = {phase, flipAt, reportedAt: new Date().toISOString(), source: 'plugin'};
+        save();
+        return reply(200, state.period);
+      }
       if (typeof body.expectedRevision !== 'string') throw new Error('Expected revision required');
       if (route.endsWith('/restore')) policy = store.restore(body.revision, body.expectedRevision);
       else {

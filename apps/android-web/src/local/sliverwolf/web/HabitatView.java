@@ -1,6 +1,7 @@
 package local.sliverwolf.web;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -364,7 +365,16 @@ final class HabitatView extends LinearLayout {
             c.drawColor(shownBase);
             drawEnvironment(c,w,h,accent,calm);
             paint.setTypeface(Typeface.MONOSPACE); paint.setTextSize(compact?18:21); paint.setColor(blend(0xffa9b9ca,0xff3f4d60,focusAmount));
-            c.drawText(clock.format(new Date()),4,compact?28:48,paint);
+            SharedPreferences period= getContext().getSharedPreferences("period",0);
+            String phase=period.getString("phase","");
+            long flipAt=period.getLong("flipAt",0);
+            String label="peak".equals(phase)?"梁文峰":"valley".equals(phase)?"梁文谷":"峰谷未知";
+            long remaining=flipAt-System.currentTimeMillis();
+            String countdown=remaining<=0?"":String.format(Locale.ROOT,"%d:%02d:%02d",remaining/3600000,(remaining/60000)%60,(remaining/1000)%60);
+            String periodText=countdown.isEmpty()?label:label+" · "+countdown;
+            paint.setTextSize(compact?14:18);
+            c.drawText(periodText,4,compact?28:48,paint);
+            paint.setTextSize(compact?18:21);
             paint.setTextSize(8); c.drawText(new SimpleDateFormat("EEE · MMM dd",Locale.getDefault()).format(new Date()),4,compact?46:66,paint);
             paint.setTextSize(10);paint.setColor(blend(accent,0xff687084,focusAmount));
             String headline=!connected?"本机连接中断 · 执行情况未知":decision?"等待你的决定":listening?"正在聆听":speaking?"正在回应":activity;

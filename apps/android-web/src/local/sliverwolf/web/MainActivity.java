@@ -68,6 +68,7 @@ public final class MainActivity extends Activity {
         session.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
         LinearLayout navigation = row(root); navigation.setVisibility(android.view.View.GONE);
         button(navigation, "Sessions", () -> chooseSession());
+        button(navigation, "官方界面", () -> startActivity(new android.content.Intent(this, WebChatActivity.class)));
         button(navigation, "New", () -> new AlertDialog.Builder(this).setTitle("New conversation?")
             .setMessage("This explicitly creates a DSH conversation. Existing conversations remain available.")
             .setNegativeButton("返回", null).setPositiveButton("Create", (d, w) -> controller.create()).show());

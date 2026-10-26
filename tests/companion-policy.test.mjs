@@ -193,3 +193,16 @@ test('a cleared plan is normalised before upstream planning', async () => {
   const plan = planFor(policy, null, now);
   assert.ok(plan && ['wake','skip'].includes(plan.action));
 });
+
+test('a fresh peak period suppresses development runs', async () => {
+  const {developDue, DEFAULT_POLICY} = await import('../integrations/companion/policy.mjs');
+  const base = {...DEFAULT_POLICY, enabled: true, sessionId: 'session-test', activities: ['develop'],
+    develop: {gapMin: 0, idleMinutes: 0, dailyRuns: 0}};
+  const now = new Date(2026, 9, 26, 10, 0).getTime();
+  const peak = {...base, period: undefined};
+  assert.equal(developDue({...peak, state: undefined}, {period: {phase: 'peak', reportedAt: new Date(now - 60000).toISOString()}}, now).due, false);
+  assert.equal(developDue(base, {period: {phase: 'peak', reportedAt: new Date(now - 60000).toISOString()}}, now).reason, 'peak');
+  assert.equal(developDue(base, {period: {phase: 'valley', reportedAt: new Date(now - 60000).toISOString()}}, now).due, true);
+  assert.equal(developDue(base, {period: {phase: 'peak', reportedAt: new Date(now - 7 * 3600000).toISOString()}}, now).due, true,
+    'stale period data must not gate runs forever');
+});

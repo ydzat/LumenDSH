@@ -53,6 +53,7 @@ public final class WebChatActivity extends Activity {
         settings.setBuiltInZoomControls(false);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
+        web.addJavascriptInterface(new PeriodBridge(this), "SliverWolfNative");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
 
@@ -63,6 +64,9 @@ public final class WebChatActivity extends Activity {
                 if (host != null && (host.equals("127.0.0.1") || host.equals("localhost") || host.equals("127.0.0.2"))) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) { }
                 return true;
+            }
+            @Override public void onPageFinished(WebView view, String url) {
+                view.evaluateJavascript("(function(){function t(){try{var s=window.__liangwenTide&&window.__liangwenTide.state&&window.__liangwenTide.state();if(s&&s.phase)SliverWolfNative.report(JSON.stringify({phase:s.phase,flipAt:s.flipAt||0}));}catch(e){}}t();setInterval(t,10000);})()", null);
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame()) showFallback("无法连接 DSH 入口：" + error.getDescription());
