@@ -661,7 +661,14 @@ public final class MainActivity extends Activity {
         d.row("更新与恢复","查看本地候选版本和安装状态",this::showLocalUpdate);
         controller.diagnose();
     }
-    @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);openNotification(intent);receiveShare(intent);}
+    @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);openNotification(intent);receiveShare(intent);forwardShareToWeb(intent);}
+    private void forwardShareToWeb(android.content.Intent intent) {
+        if (intent == null || !android.content.Intent.ACTION_SEND.equals(intent.getAction())) return;
+        String text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT);
+        if (text == null || text.isEmpty()) return;
+        startActivity(new android.content.Intent(this, WebChatActivity.class)
+            .setAction(android.content.Intent.ACTION_SEND).putExtra(android.content.Intent.EXTRA_TEXT, text));
+    }
     private void openNotification(android.content.Intent intent) {
         String selected=intent.getStringExtra("notificationSession");intent.removeExtra("notificationSession");
         if(selected!=null&&!selected.isEmpty()&&controller!=null)controller.select(selected);

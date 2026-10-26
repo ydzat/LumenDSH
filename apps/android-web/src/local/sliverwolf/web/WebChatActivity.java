@@ -8,6 +8,9 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.webkit.*;
+import android.speech.*;
+import org.json.JSONObject;
+import java.util.ArrayList;
 import android.widget.*;
 
 /**
@@ -18,6 +21,8 @@ import android.widget.*;
 public final class WebChatActivity extends Activity {
     private WebView web;
     private TextView status;
+    private String pendingShare = "";
+    private SpeechRecognizer recognizer;
     private SharedPreferences prefs;
     private final BroadcastReceiver ready = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -43,6 +48,11 @@ public final class WebChatActivity extends Activity {
     }
 
     private void build(Bundle state) {
+        android.content.Intent startIntent = getIntent();
+        if (startIntent != null && android.content.Intent.ACTION_SEND.equals(startIntent.getAction())) {
+            String text = startIntent.getStringExtra(android.content.Intent.EXTRA_TEXT);
+            if (text != null) pendingShare = text;
+        }
         CrashLog.mark(this, "webchat:build");
         prefs = ConnectionBootstrap.session(this);
         if (checkSelfPermission("com.termux.permission.RUN_COMMAND") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -68,6 +78,18 @@ public final class WebChatActivity extends Activity {
         home.setGravity(Gravity.CENTER);
         home.setBackgroundColor(0x66000000);
         home.setOnClickListener(v -> finish());
+        TextView mic = new TextView(this);
+        mic.setText("🎤");
+        mic.setTextSize(22);
+        mic.setTextColor(Color.WHITE);
+        mic.setGravity(Gravity.CENTER);
+        mic.setBackgroundColor(0x66000000);
+        mic.setOnClickListener(v -> startVoice());
+        FrameLayout.LayoutParams micParams = new FrameLayout.LayoutParams(90, 90);
+        micParams.gravity = Gravity.TOP | Gravity.END;
+        micParams.topMargin = 130;
+        micParams.rightMargin = 24;
+        root.addView(mic, micParams);
         FrameLayout.LayoutParams homeParams = new FrameLayout.LayoutParams(90, 90);
         homeParams.gravity = Gravity.TOP | Gravity.END;
         homeParams.topMargin = 24;
@@ -105,6 +127,7 @@ public final class WebChatActivity extends Activity {
             }
             @Override public void onPageFinished(WebView view, String url) {
                 CrashLog.mark(WebChatActivity.this, "page:" + url);
+                if (!pendingShare.isEmpty()) { injectText(pendingShare); pendingShare = ""; }
                 view.evaluateJavascript("document.title+'|'+location.href+'|'+(document.body?document.body.innerText.slice(0,160):'nobody')", value -> CrashLog.mark(WebChatActivity.this, "dom:" + value));
                 view.evaluateJavascript("(function(){function t(){try{var s=window.__liangwenTide&&window.__liangwenTide.state&&window.__liangwenTide.state();if(s&&s.phase)SliverWolfNative.report(JSON.stringify({phase:s.phase,flipAt:s.flipAt||0}));}catch(e){}}t();setInterval(t,10000);})()", null);
             }
@@ -148,6 +171,47 @@ public final class WebChatActivity extends Activity {
     private void showFallback(String message) {
         showStatus(message + "\n\n点此打开原生界面");
         status.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
+    }
+
+    private void startVoice() {
+        try {
+            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO}, 43);
+                return;
+            }
+            if (recognizer == null) {
+                recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+                recognizer.setRecognitionListener(new RecognitionListener() {
+                    @Override public void onResults(android.os.Bundle results) {
+                        ArrayList<String> values = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                        if (values != null && !values.isEmpty()) injectText(values.get(0));
+                    }
+                    @Override public void onError(int error) { }
+                    @Override public void onReadyForSpeech(android.os.Bundle params) { }
+                    @Override public void onBeginningOfSpeech() { }
+                    @Override public void onRmsChanged(float rmsdB) { }
+                    @Override public void onBufferReceived(byte[] buffer) { }
+                    @Override public void onEndOfSpeech() { }
+                    @Override public void onPartialResults(android.os.Bundle partialResults) { }
+                    @Override public void onEvent(int eventType, android.os.Bundle params) { }
+                });
+            }
+            android.content.Intent intent = new android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN");
+            recognizer.startListening(intent);
+        } catch (Throwable ignored) { }
+    }
+
+    private void injectText(String text) {
+        if (text == null || text.isEmpty() || web == null) return;
+        String quoted;
+        try { quoted = JSONObject.quote(text); } catch (Exception error) { return; }
+        web.evaluateJavascript("(function(){var t=document.querySelector('textarea');" +
+            "if(!t){var e=document.querySelector('[contenteditable=true]');if(e){e.focus();e.textContent=" + quoted + ";e.dispatchEvent(new Event('input',{bubbles:true}));return;}" +
+            "return;}" +
+            "var s=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;" +
+            "s.call(t," + quoted + ");t.dispatchEvent(new Event('input',{bubbles:true}));t.focus();})()", null);
     }
 
     private void load() {
