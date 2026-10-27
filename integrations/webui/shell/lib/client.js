@@ -30,7 +30,36 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function installStyles() {
+      if (typeof document === 'undefined' || document.getElementById('lumendsh-shell-css')) return
+      const style = document.createElement('style')
+      style.id = 'lumendsh-shell-css'
+      style.textContent = ''
+      document.head.appendChild(style)
+    }
+
+    // The tide capsule duplicates the habitat's period display and collides with
+    // the console header on narrow screens; keep the console for precise work.
+    function hideTideCapsule() {
+      if (typeof document === 'undefined') return
+      const util = document.querySelector('[class*="headerUtilities"]')
+      if (!util) return
+      for (const child of util.children) {
+        if (/梁文[峰谷]|距[峰谷]/.test(child.textContent || '')) child.style.display = 'none'
+      }
+    }
+
     function apply(ctx) {
+      installStyles()
+      if (typeof document !== 'undefined') {
+        const start = () => {
+          hideTideCapsule()
+          const observer = new MutationObserver(() => hideTideCapsule())
+          observer.observe(document.body, {childList: true, subtree: true})
+        }
+        if (document.body) start()
+        else document.addEventListener('DOMContentLoaded', start, {once: true})
+      }
       const slots = ctx.get('slots')
       if (slots === undefined) return
       slots.inject('shell.overlay', () =>
