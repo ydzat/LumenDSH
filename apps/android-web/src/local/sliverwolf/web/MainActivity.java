@@ -85,6 +85,7 @@ public final class MainActivity extends Activity {
             public void stop() { stopVoice("语音已停止"); }
             public void decisions() { showDecision(); }
             public void settings() { showHabitatMenu(); }
+            public void console() { startActivity(new android.content.Intent(MainActivity.this, WebChatActivity.class)); }
             public void touch(String action) { submitCharacterTouch(action); }
         });
         pages.addView(habitat,new android.widget.FrameLayout.LayoutParams(-1,-1));

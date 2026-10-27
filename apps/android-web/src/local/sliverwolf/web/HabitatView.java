@@ -20,7 +20,7 @@ import java.util.Locale;
 
 /** Native habitat presentation; interaction controls remain accessible Android widgets. */
 final class HabitatView extends LinearLayout {
-    interface Actions { void voice(); void stop(); void decisions(); void settings(); void touch(String action); }
+    interface Actions { void voice(); void stop(); void decisions(); void settings(); void console(); void touch(String action); }
     private final Scene scene;
     private final HabitatState state=new HabitatState();
     private final TextView connection, companionStatus, feedback;
@@ -47,6 +47,7 @@ final class HabitatView extends LinearLayout {
         LinearLayout header = new LinearLayout(context);
         name = text("银狼", 17); name.setLetterSpacing(.16f);
         header.addView(name, new LinearLayout.LayoutParams(0,-2,1));
+        header.addView(iconControl(context,"ic_console","官方界面",actions::console),new LinearLayout.LayoutParams(dp(48),dp(48)));
         header.addView(iconControl(context,"ic_menu","菜单",actions::settings),new LinearLayout.LayoutParams(dp(48),dp(48)));addView(header);
         connection = text("正在连接本机 DSH", 9); connection.setTextColor(0xff8fa3b9); addView(connection);
         companionStatus = text("", 9); companionStatus.setTextColor(0xff8fa3b9); addView(companionStatus);
