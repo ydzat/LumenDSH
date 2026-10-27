@@ -96,3 +96,19 @@ self-note `06398a89` (official slot API: `conversation.input.activity` supplies
 The action audit (`behavior/activity-audit.jsonl`) only records tool calls while
 a run is active; because the run had already settled, this attempt produced no
 audit lines. That is expected, not a bug in the browse guard.
+
+
+## Wake word verified (2026-10-28)
+
+The user confirmed a real on-device wake. The device bridge status afterwards
+reports `wake.hits=1`, `recognized=1`, `ownerRejected=0`,
+`ownerProfile=long_readings/logistic`, `learnedSamples=1` — the detector fired,
+passed the owner check and handed the utterance to recognition. Background
+keyword wake remains opt-in; the page pauses it while the UI is visible.
+
+## Version bump defect (fixed)
+
+Manifest version edits after 0.10.27 silently did nothing because each bump
+replaced a previous string that no longer existed, so every build kept
+`versionCode=83 / 0.10.27-dev` while the code changed. Fixed by setting
+`0.10.47 / 103` explicitly; future bumps read the current value first.
