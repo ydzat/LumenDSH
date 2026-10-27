@@ -90,7 +90,6 @@ public final class MainActivity extends Activity {
         controller = new SessionController(getSharedPreferences("session", MODE_PRIVATE), this::scheduleRender);
         controller.connect();
         startCompanionStatus();
-        petIo.execute(()->{try{ScheduleAlarms.restore(this);}catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}});
         openNotification(getIntent());
         if(saved==null)main.post(()->receiveShare(getIntent()));
         deviceBridge = SharedDeviceBridge.acquire(this);
@@ -530,81 +529,8 @@ public final class MainActivity extends Activity {
         String selected=intent.getStringExtra("notificationSession");intent.removeExtra("notificationSession");
         if(selected!=null&&!selected.isEmpty()&&controller!=null)controller.select(selected);
     }
-    private void showSchedules() {
-        try {
-            ScheduledTaskStore store=new ScheduledTaskStore(getFilesDir());
-            java.util.List<ScheduledTaskStore.Task> tasks=store.list();
-            String[] labels=new String[tasks.size()];
-            for(int i=0;i<labels.length;i++) {
-                ScheduledTaskStore.Task task=tasks.get(i);
-                labels[i]=(store.isPaused(task.id)?"已暂停 · ":"已启用 · ")+
-                    android.text.format.DateFormat.format("MM-dd HH:mm",task.triggerAt)+" · "+task.text.substring(0,Math.min(32,task.text.length()));
-            }
-            new AlertDialog.Builder(this).setTitle("定时任务 · "+tasks.size())
-                .setItems(labels,(d,w)->showSchedule(tasks.get(w)))
-                .setPositiveButton("新建",(d,w)->createSchedule())
-                .setNeutralButton("记忆整理",(d,w)->createSchedule("在当前会话中做一次简短的本地记忆整理：只依据可访问的对话和已有记忆，检查是否有一条值得保留的偏好、纠正或共同经历；先查重，最多新增或修正一条，不虚构经历、不保存秘密，不向外发送消息、不启动其他周期任务。若无合适内容就跳过。最后简短说明实际结果。"))
-                .setNegativeButton("返回",null).show();
-        }catch(Exception error){petError(error);}
-    }
-    private void createSchedule() { createSchedule(""); }
-    private void createSchedule(String initialText) {
-        if(controller.selected.isEmpty()){petError(new IllegalStateException("Select a conversation first"));return;}
-        String selected=controller.selected;
-        LinearLayout form=column();
-        label(form,"到时提交到当前会话。应用关闭也可触发；强行停止后需重新打开。",14);
-        if(!initialText.isEmpty()) label(form,"记忆整理每天最多触发一次；会话忙碌时跳过，不打断任务。",13);
-        EditText text=new EditText(this);text.setHint("要交给 Agent 的任务");text.setText(initialText);form.addView(text);
-        java.util.Calendar when=java.util.Calendar.getInstance();when.add(java.util.Calendar.MINUTE,1);
-        Button date=button(form,android.text.format.DateFormat.format("yyyy-MM-dd",when).toString(),()->{});
-        date.setOnClickListener(v->new android.app.DatePickerDialog(this,(picker,y,m,day)->{when.set(y,m,day);date.setText(android.text.format.DateFormat.format("yyyy-MM-dd",when));},when.get(java.util.Calendar.YEAR),when.get(java.util.Calendar.MONTH),when.get(java.util.Calendar.DAY_OF_MONTH)).show());
-        Button time=button(form,android.text.format.DateFormat.format("HH:mm",when).toString(),()->{});
-        time.setOnClickListener(v->new android.app.TimePickerDialog(this,(picker,h,m)->{when.set(java.util.Calendar.HOUR_OF_DAY,h);when.set(java.util.Calendar.MINUTE,m);time.setText(android.text.format.DateFormat.format("HH:mm",when));},when.get(java.util.Calendar.HOUR_OF_DAY),when.get(java.util.Calendar.MINUTE),true).show());
-        label(form,"重复",13);android.widget.RadioGroup repetitions=new android.widget.RadioGroup(this);form.addView(repetitions);
-        String[] names={"仅一次","每 24 小时","自定义间隔"};for(int i=0;i<names.length;i++){android.widget.RadioButton option=new android.widget.RadioButton(this);option.setId(200+i);option.setText(names[i]);repetitions.addView(option);}repetitions.check(200);
-        EditText repeat=new EditText(this);repeat.setInputType(2);repeat.setHint("间隔分钟（1–10080）");repeat.setText("1440");form.addView(repeat);repeat.setVisibility(android.view.View.GONE);
-        repetitions.setOnCheckedChangeListener((group,id)->repeat.setVisibility(id==202?android.view.View.VISIBLE:android.view.View.GONE));
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("新建定时任务").setView(scrollForm(form))
-            .setPositiveButton("保存并启用",null).setNegativeButton("返回",null).create();
-        dialog.show();dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
-            try {
-                long trigger=when.getTimeInMillis();int interval=repetitions.getCheckedRadioButtonId()==200?0:repetitions.getCheckedRadioButtonId()==201?1440:Integer.parseInt(repeat.getText().toString());
-                String prompt=text.getText().toString().trim();
-                if(trigger<=System.currentTimeMillis()||trigger-System.currentTimeMillis()>10080*60000L||interval<0||interval>10080||(repetitions.getCheckedRadioButtonId()==202&&interval==0)||prompt.isEmpty()||prompt.length()>8192)
-                    throw new IllegalArgumentException("Task text or schedule interval is invalid");
-                if(!initialText.isEmpty() && interval>0 && interval<1440)
-                    throw new IllegalArgumentException("Memory reflection interval must be at least 1440 minutes");
-                ScheduledTaskStore.Task task=new ScheduledTaskStore.Task((initialText.isEmpty()?"":"companion-")+java.util.UUID.randomUUID().toString(),
-                    trigger,interval==0?"once":"interval",interval,prompt).withSession(selected);
-                ScheduledTaskStore store=new ScheduledTaskStore(getFilesDir());store.put(task);
-                try{ScheduleAlarms.register(this,task);}catch(Exception failure){store.pause(task.id,true);throw failure;}
-                dialog.dismiss();showSchedules();
-            }catch(Exception error){petError(error);}
-        });
-    }
-    private ScrollView scrollForm(LinearLayout form){ScrollView scroll=new ScrollView(this);scroll.addView(form);return scroll;}
-    private void showSchedule(ScheduledTaskStore.Task task) {
-        try {
-            ScheduledTaskStore store=new ScheduledTaskStore(getFilesDir());boolean paused=store.isPaused(task.id);
-            String fallback=store.deliveredAt(task.id)>0?"delivery-unknown · occurrence consumed":"not submitted";
-            android.content.SharedPreferences outcomes=getSharedPreferences("schedules",0);
-            String result=outcomes.getLong(task.id+":at",0)==store.deliveredAt(task.id)?outcomes.getString(task.id,fallback):fallback;
-            new AlertDialog.Builder(this).setTitle("定时任务")
-                .setMessage(task.text+"\n\n会话："+task.sessionId.substring(0,Math.min(8,task.sessionId.length()))+
-                    "\n"+result+"\n暂停或取消不撤回已进入提交流程的轮次。错过的任务不会在重新打开时补发。")
-                .setPositiveButton(paused?"一分钟后启用":"暂停",(d,w)->{
-                    try {
-                        if(paused){ScheduledTaskStore.Task next=task.at(System.currentTimeMillis()+60000);store.put(next);store.pause(task.id,false);
-                            try{ScheduleAlarms.register(this,next);}catch(Exception failure){store.pause(task.id,true);throw failure;}}
-                        else {store.pause(task.id,true);ScheduleAlarms.cancel(this,task);}
-                        showSchedules();
-                    }catch(Exception error){petError(error);}
-                }).setNeutralButton("取消任务",(d,w)->{
-                    try{store.cancel(task.id);ScheduleAlarms.cancel(this,task);showSchedules();}catch(Exception error){petError(error);}
-                }).setNegativeButton("返回",null).show();
-        }catch(Exception error){petError(error);}
-    }
-    private void receiveShare(android.content.Intent intent) {
+                private ScrollView scrollForm(LinearLayout form){ScrollView scroll=new ScrollView(this);scroll.addView(form);return scroll;}
+        private void receiveShare(android.content.Intent intent) {
         String action=intent.getAction();
         if(!android.content.Intent.ACTION_SEND.equals(action)&&!android.content.Intent.ACTION_SEND_MULTIPLE.equals(action))return;
         android.content.Intent incoming=new android.content.Intent(intent);
