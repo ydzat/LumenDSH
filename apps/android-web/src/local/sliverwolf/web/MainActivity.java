@@ -282,16 +282,6 @@ public final class MainActivity extends Activity {
         body.setTextColor(0xffdce3ef);body.setLineSpacing(6,1.1f);body.setTextIsSelectable(true);
         scroll.addView(body);return scroll;
     }
-    private CharSequence styledTranscript(String text) {
-        android.text.SpannableString styled=new android.text.SpannableString(text);
-        java.util.regex.Matcher roles=java.util.regex.Pattern.compile("(?m)^(You|Assistant(?: \\(streaming\\))?|Tool result|Tool:.*)$").matcher(text);
-        while(roles.find()) {
-            int color=roles.group().startsWith("You")?0xffa7dcd5:roles.group().startsWith("Tool")?0xff8194b0:0xffc2b0ef;
-            styled.setSpan(new android.text.style.ForegroundColorSpan(color),roles.start(),roles.end(),0);
-            styled.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),roles.start(),roles.end(),0);
-        }
-        return styled;
-    }
     private void scheduleRender() {
         if (renderQueued) return;
         renderQueued = true;
