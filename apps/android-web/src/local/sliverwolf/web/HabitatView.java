@@ -23,7 +23,7 @@ final class HabitatView extends LinearLayout {
     interface Actions { void voice(); void stop(); void transcript(); void decisions(); void settings(); void touch(String action); }
     private final Scene scene;
     private final HabitatState state=new HabitatState();
-    private final TextView connection, feedback;
+    private final TextView connection, companionStatus, feedback;
     private TextView name;
     private PresentationSettings presentation;
     private final ReplyCard bubble;
@@ -49,6 +49,7 @@ final class HabitatView extends LinearLayout {
         header.addView(name, new LinearLayout.LayoutParams(0,-2,1));
         header.addView(iconControl(context,"ic_menu","菜单",actions::settings),new LinearLayout.LayoutParams(dp(48),dp(48)));addView(header);
         connection = text("正在连接本机 DSH", 9); connection.setTextColor(0xff8fa3b9); addView(connection);
+        companionStatus = text("", 9); companionStatus.setTextColor(0xff8fa3b9); addView(companionStatus);
         body=new LinearLayout(context);body.setOrientation(VERTICAL);
         layers=new FrameLayout(context);
         layers.addView(body,new FrameLayout.LayoutParams(-1,-1));
@@ -135,6 +136,8 @@ final class HabitatView extends LinearLayout {
             }
         });
     }
+    void setCompanionStatus(String value) { companionStatus.setText(value == null ? "" : value); }
+
     void update(boolean connected, boolean listening, boolean speaking, boolean running,
             int decisionCount, String state, String voiceFeedback, String spokenText, HabitatFeed feed) {
         scene.connected=connected; scene.listening=listening; scene.speaking=speaking;

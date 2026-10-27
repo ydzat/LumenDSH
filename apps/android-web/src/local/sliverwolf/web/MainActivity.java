@@ -152,6 +152,7 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(0xff0c1420); getWindow().setNavigationBarColor(0xff0c1420);
         controller = new SessionController(getSharedPreferences("session", MODE_PRIVATE), this::scheduleRender);
         controller.connect();
+        startCompanionStatus();
         petIo.execute(()->{try{ScheduleAlarms.restore(this);}catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}});
         openNotification(getIntent());
         if(saved==null)main.post(()->receiveShare(getIntent()));
@@ -169,6 +170,61 @@ public final class MainActivity extends Activity {
         } catch(Exception e) { petError(e); }
 
     }
+    private void startCompanionStatus() {
+        android.os.Handler handler = new android.os.Handler(getMainLooper());
+        Runnable poll = new Runnable() { public void run() {
+            petIo.execute(() -> {
+                String value;
+                try {
+                    android.content.SharedPreferences session = getSharedPreferences("session", 0);
+                    String cookie = session.getString("backendCookie", "");
+                    int port = session.getInt("backendPort", 3080);
+                    if (cookie.isEmpty()) { value = "自主 未连接"; }
+                    else {
+                        java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(
+                            "http://127.0.0.1:" + port + "/sliver-wolf/companion/status").openConnection();
+                        c.setRequestProperty("Cookie", cookie);
+                        c.setConnectTimeout(3000); c.setReadTimeout(4000);
+                        StringBuilder body = new StringBuilder();
+                        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(c.getInputStream(), "UTF-8"))) {
+                            String line; while ((line = r.readLine()) != null) body.append(line);
+                        }
+                        c.disconnect();
+                        org.json.JSONObject d = new org.json.JSONObject(body.toString());
+                        org.json.JSONObject p = d.optJSONObject("policy");
+                        boolean paused = p != null && p.optBoolean("paused");
+                        boolean enabled = p != null && p.optBoolean("enabled");
+                        org.json.JSONObject period = d.optJSONObject("period");
+                        String phase = period == null ? "" : period.optString("phase", "");
+                        String last = "";
+                        org.json.JSONArray runs = d.optJSONArray("runs");
+                        if (runs != null && runs.length() > 0) {
+                            org.json.JSONObject r = runs.optJSONObject(runs.length() - 1);
+                            if (r != null) {
+                                String at = r.optString("startedAt", "");
+                                if (at.length() >= 16) at = at.substring(11, 16);
+                                last = " · 最近：" + activityLabel(r.optString("activity", "")) + " " + at;
+                            }
+                        }
+                        value = (enabled ? (paused ? "自主 已暂停" : "自主 运行中") : "自主 已关闭")
+                            + (phase.equals("peak") ? " · 峰段" : phase.equals("valley") ? " · 谷段" : "") + last;
+                    }
+                } catch (Exception error) { value = "自主 状态未知"; }
+                final String shown = value;
+                main.post(() -> { if (!isDestroyed()) habitat.setCompanionStatus(shown); });
+            });
+            handler.postDelayed(this, 30000);
+        }};
+        handler.post(poll);
+    }
+
+    private String activityLabel(String activity) {
+        if ("consolidate".equals(activity)) return "整理记忆";
+        if ("reflect".equals(activity)) return "回顾";
+        if ("develop".equals(activity)) return "自主开发";
+        return activity;
+    }
+
     private boolean sendInteractive(String text,boolean home,boolean voice){
         if(!controller.send(text))return false;
         if(interaction.speak(home,voice))spokenRequests.put(controller.pendingId,controller.selected);
