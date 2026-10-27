@@ -464,9 +464,8 @@ public final class MainActivity extends Activity {
         SettingsDrawer d=settingsDrawer;d.title("LumenDSH");
         d.note(agentName()+" · "+(controller.connected?"已连接":"未连接")+" · "+controller.taskState());
         d.section("日常");
-        d.row("会话","记录与任务控制",()->d.go(this::settingsSessions));
-        d.row("任务与收件箱","定时任务 · 分享收件箱",()->d.go(this::settingsTasks));
-        d.row("记忆","工作记忆与长期记忆",()->showMemory(0));
+        d.row("官方界面","DSH WebUI · 插件与对话",()->{d.dismiss();CrashLog.mark(this,"open-webchat");startActivity(new android.content.Intent(this,WebChatActivity.class));});
+        d.row("屏幕读取权限","允许助手截屏识别界面",()->{d.dismiss();try{android.media.projection.MediaProjectionManager manager=(android.media.projection.MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);startActivityForResult(manager.createScreenCaptureIntent(),77);}catch(Throwable ignored){}});
         d.section("偏好");
         d.row("交互与声音","输入、回复、唤醒和声纹",()->d.go(this::settingsInteraction));
         d.row("角色与空间","形象、名称、动画和预设",()->d.go(this::settingsAppearance));
