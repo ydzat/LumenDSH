@@ -49,8 +49,6 @@ window.__ModuleLoader__.load({
         if (document.body) start()
         else document.addEventListener('DOMContentLoaded', start, {once: true})
       }
-      const slots = ctx.get('slots')
-      if (slots === undefined) return
       // No floating client controls on the official page: the Android back
       // gesture returns to the habitat and the habitat owns voice.
     }

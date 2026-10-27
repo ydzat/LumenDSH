@@ -20,6 +20,7 @@ for (const dir of plugins) {
     assert.ok(existsSync(path.join(full, 'lib/client.js')), 'client bundle exists');
     assert.ok(existsSync(path.join(full, 'lib/index.js')), 'host entry exists');
     const client = readFileSync(path.join(full, 'lib/client.js'), 'utf8');
+    if (dir.endsWith('composer')) assert.match(client, /ctx\.slots \?\? ctx\.get\('slots'\)/);
     assert.match(client, /__ModuleLoader__\.load/);
     assert.match(client, /exports\.apply\s*=/);
     assert.match(client, /exports\.inject\s*=/);

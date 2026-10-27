@@ -42,7 +42,7 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
-      const slots = ctx.get('slots')
+      const slots = ctx.slots ?? ctx.get('slots')
       if (slots === undefined) {
         console.warn('[lumendsh-composer] slots service unavailable')
         return
