@@ -27,6 +27,7 @@ recovery, and artifact handoff are [verified within D01-D04 scope](../tests/m2-e
 
 ## Reading order
 
+0. [Standing requirements](design/standing-requirements.md): long-lived product and engineering constraints; check these before any new instruction.
 1. [Decisions](decisions.md): agreed scope and remaining technical choices.
 2. [Architecture](architecture.md): responsibility and state ownership.
    [Web-first consolidation](design/web-first-consolidation.md): parallel implementations and cleanup in 0.10.x.
