@@ -150,6 +150,7 @@ final class HabitatView extends LinearLayout {
         scene.setFeed(feed);
         feedback.setText(voiceFeedback);
         String voiceAction=listening?"结束说话":speaking?"停止播报":"开始说话";
+        voice.setColorFilter(listening?0xff9ee8dc:speaking?0xffb6a4ff:0xffc0e1df);
         voice.setContentDescription(voiceAction);voice.setTooltipText(voiceAction);
         voice.setImageResource(getResources().getIdentifier(listening||speaking?"ic_square":"ic_mic","drawable",getContext().getPackageName()));
         revealNarration();scene.invalidate();
