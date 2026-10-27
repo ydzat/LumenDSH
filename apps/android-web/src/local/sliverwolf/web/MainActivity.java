@@ -259,7 +259,7 @@ public final class MainActivity extends Activity {
     }
     @Override public void onWindowFocusChanged(boolean focused){super.onWindowFocusChanged(focused);if(!focused&&voiceInput!=null&&(voiceInput.active()||manualCapture))stopVoice("操作设置期间暂停语音");syncWakeScope();}
     @Override protected void onResume(){
-        super.onResume();resumed=true;syncWakeScope();ensureWakeService();if(habitat!=null)habitat.setVoiceNote("");
+        super.onResume();resumed=true;syncWakeScope();ensureWakeService();if(habitat!=null)habitat.setVoiceNote("");if(voiceStatus!=null)voiceStatus.setText("我在。");
         CompanionOverlayService.activity(true);CompletionService.foreground=true;
         if(getSharedPreferences("overlay",0).getBoolean("enabled",false)&&android.provider.Settings.canDrawOverlays(this))startForegroundService(new android.content.Intent(this,CompanionOverlayService.class));
         if(getSharedPreferences("completion",0).getBoolean("enabled",false))startForegroundService(new android.content.Intent(this,CompletionService.class));
