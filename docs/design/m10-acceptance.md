@@ -45,3 +45,24 @@ Caveat is in the environment, not in the run path.
 - Idle autonomy catalogue (`browse`, `explore-phone`, `chat`) and its visibility.
 - Delete the remaining dead native code (transcript/schedules/memory/model pages).
 - Control console polish and the post-M10 plugin growth.
+
+
+## Structure cleanup (2026-10-27, after the user's "no redundant parallel implementations" rule)
+
+Old-app leftovers removed from the client:
+
+| Removed | Evidence |
+| --- | --- |
+| Native conversation page (transcript, draft, composer, status bar, back handling) | commit `88c1f00`; `MainActivity` 1334 → 1228 lines |
+| Dead memory/model/session pages and `styledTranscript` | commits `44f65fa`, `92ec988`; `MainActivity` → 1127 lines |
+| Native schedule subsystem (`ScheduledTaskStore`, `ScheduleAlarms`, receiver, delivery service, UI, boot permission) | commit `999afe6`; −446 lines |
+| Native share inbox (`ShareInbox`, review dialog, `assistant_receive_share` tool); text shares go to the composer, files are copied to Download and announced there | commit `3646f38`; −286 lines |
+| Floating client buttons on the official page; back gesture returns to the habitat | commits `c188a2b`, `90e35fa` |
+
+Remaining duplicate candidates are intentional:
+
+- ADB control vs accessibility/MediaProjection: primary vs fallback for the same goal, documented.
+- App device bridge vs ADB: the bridge exposes app-only capabilities (speech, releases), ADB covers device-wide actions.
+- Native completion notifications vs tone cues: different audiences (Android notification shade vs audible turn cue).
+
+The native conversation, schedules and share intake no longer have any parallel implementation.
