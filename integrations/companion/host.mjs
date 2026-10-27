@@ -402,16 +402,17 @@ export function apply(ctx, config = {}) {
     finally { ticking = false; }
   }
 
-  async function devTick() {
+  async function devTick(force = false) {
     if (disposed || tickingDev || active || !policy.enabled || policy.paused || !policy.sessionId) return;
     tickingDev = true;
     try {
       const now = Date.now();
-      const decision = developDue(policy, state, now);
+      const decision = force ? {due: true, idleMinutes: 0} : developDue(policy, state, now);
       if (!decision.due) return;
       const candidates = deriveCandidates({experiences: recentExperiences(experienceFile, {sinceMs: 30 * 86400000}),
         notes: readAllNotes(), runs: state.runs, now});
-      const candidate = pickCandidate(candidates, {runs: state.runs});
+      const candidate = pickCandidate(candidates, {runs: state.runs}) ??
+        (force ? {id: 'manual', kind: 'manual'} : undefined);
       if (!candidate) { state.lastQuietAt = new Date(now).toISOString(); save(); return; }
       const result = await ctx.sessionController.resolveAgent(policy.sessionId);
       if (!result.agent) throw new Error('Selected conversation unavailable');
@@ -473,7 +474,7 @@ export function apply(ctx, config = {}) {
         writeFileSync(file, Buffer.concat(chunks), {mode: 0o600});
         return reply(200, {ok: true, path: file, bytes});
       }
-      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection','/sliver-wolf/companion/period','/sliver-wolf/companion/log','/sliver-wolf/companion/composer'].includes(route)) return reply(404, {error:'Unknown operation'});
+      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection','/sliver-wolf/companion/period','/sliver-wolf/companion/log','/sliver-wolf/companion/composer','/sliver-wolf/companion/run'].includes(route)) return reply(404, {error:'Unknown operation'});
       const chunks = []; let bytes = 0;
       for await (const chunk of req) { bytes += chunk.length; if (bytes > 16384) return reply(413, {error:'Policy too large'}); chunks.push(chunk); }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -486,6 +487,13 @@ export function apply(ctx, config = {}) {
         try { size = statSync(file).size; } catch { size = 0; }
         if (size < 512 * 1024) appendFileSync(file, new Date().toISOString() + ' ' + message + '\n', {mode: 0o600});
         return reply(200, {ok: true});
+      }
+      if (route.endsWith('/run')) {
+        const activity = String(body?.activity ?? 'develop');
+        if (activity !== 'develop') throw new Error('Only develop runs can be triggered manually');
+        if (active) return reply(409, {ok: false, reason: 'busy'});
+        await devTick(true);
+        return reply(200, {ok: true, active: active?.record.id ?? null});
       }
       if (route.endsWith('/composer')) {
         const text = String(body?.text ?? '').slice(0, 8192);
