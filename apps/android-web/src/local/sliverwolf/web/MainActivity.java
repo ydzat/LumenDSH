@@ -167,7 +167,7 @@ public final class MainActivity extends Activity {
             deviceBridge.holdProfile(true);
             loadPet(null,false);
         } catch(Exception e) { petError(e); }
-        if(saved!=null&&saved.getBoolean("transcriptVisible",false))showTranscript(true);
+
     }
     private boolean sendInteractive(String text,boolean home,boolean voice){
         if(!controller.send(text))return false;
@@ -478,7 +478,6 @@ public final class MainActivity extends Activity {
         SettingsDrawer d=settingsDrawer;d.title("会话");
         d.row("屏幕读取权限","允许助手截屏识别界面",()->{d.dismiss();try{android.media.projection.MediaProjectionManager manager=(android.media.projection.MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);startActivityForResult(manager.createScreenCaptureIntent(),77);}catch(Throwable ignored){}});
         d.row("官方界面","DSH WebUI · 插件与对话",()->{d.dismiss();CrashLog.mark(this,"open-webchat");startActivity(new android.content.Intent(this,WebChatActivity.class));});
-        d.row("展开当前对话","文字输入、复制、审批与任务控制",()->{d.dismiss();showTranscript(true);});
         JSONArray items=controller.sessions;String[] labels=new String[items.length()];int selected=-1;
         for(int i=0;i<items.length();i++){String id=items.optJSONObject(i).optString("sessionId");labels[i]="会话 · "+id.substring(Math.max(0,id.length()-12));if(id.equals(controller.selected))selected=i;}
         d.choice("当前会话",selected<0?"尚未选择":labels[selected],labels,selected,i->{stopVoice("会话已切换");controller.select(items.optJSONObject(i).optString("sessionId"));});
@@ -1128,7 +1127,7 @@ public final class MainActivity extends Activity {
         if(!habitatSession.equals(controller.selected)){
             habitatSession=controller.selected;habitat.resetConversation();
         }
-        habitat.showConversation(controller.conversation.text());
+        // The official WebUI owns conversation text; the habitat only shows presence.
         habitatFeed=HabitatFeed.from(controller.conversation);habitatTrace=habitatFeed.trace;
     }
     private void checkReleaseHealth() {

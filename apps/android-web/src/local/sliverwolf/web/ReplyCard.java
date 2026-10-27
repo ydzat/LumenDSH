@@ -18,9 +18,6 @@ final class ReplyCard extends LinearLayout {
     private String content=null;
     ReplyCard(Context context,Listener listener){
         super(context);this.listener=listener;setOrientation(VERTICAL);
-        android.widget.ImageButton expand=HabitatView.iconControl(context,"ic_expand","展开会话",listener::expand);
-        LayoutParams ep=new LayoutParams(dp(48),dp(48));ep.gravity=android.view.Gravity.RIGHT;
-        addView(expand,ep);
         body=new TextView(context);body.setTextSize(13);body.setTextColor(0xffe0e5f0);
         body.setPadding(dp(14),0,dp(14),dp(8));body.setLineSpacing(dp(3),1);
         scroll=new ScrollView(context);scroll.addView(body);
@@ -43,7 +40,9 @@ final class ReplyCard extends LinearLayout {
         // The expanded conversation retains the full loaded history; this preview follows its tail.
         int start=Math.max(0,text.length()-6000);
         if(start>0&&Character.isLowSurrogate(text.charAt(start)))start++;
-        body.setText(text.isEmpty()?"暂无会话记录，点展开开始文字聊天":text.substring(start));
+        if (text.isEmpty()) { setVisibility(GONE); return; }
+        setVisibility(VISIBLE);
+        body.setText(text.substring(start));
         if(follow)scroll.post(()->{if(followTail&&!touching)scroll.fullScroll(View.FOCUS_DOWN);});
     }
 }
