@@ -20,7 +20,7 @@ import java.util.Locale;
 
 /** Native habitat presentation; interaction controls remain accessible Android widgets. */
 final class HabitatView extends LinearLayout {
-    interface Actions { void voice(); void stop(); void transcript(); void decisions(); void settings(); void touch(String action); }
+    interface Actions { void voice(); void stop(); void decisions(); void settings(); void touch(String action); }
     private final Scene scene;
     private final HabitatState state=new HabitatState();
     private final TextView connection, companionStatus, feedback;
@@ -59,7 +59,6 @@ final class HabitatView extends LinearLayout {
         scene = new Scene(context); stage.addView(scene, new FrameLayout.LayoutParams(-1,-1));
         bubble = new ReplyCard(context,new ReplyCard.Listener(){
             public void activity(boolean touching){reading=touching;scene.reading=touching;revealNarration();}
-            public void expand(){actions.transcript();}
         });
         narration=new FrameLayout(context);
         interaction=new LinearLayout(context);interaction.setOrientation(VERTICAL);

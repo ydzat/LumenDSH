@@ -10,7 +10,7 @@ import android.widget.TextView;
 /** Conversation strip reusing the upstream card's follow-tail/touch policy.
  * Adapted from OverlayService, a5af7b1, MIT (c) 2026 zhou-gu24. */
 final class ReplyCard extends LinearLayout {
-    interface Listener { void activity(boolean touching); void expand(); }
+    interface Listener { void activity(boolean touching); }
     private final TextView body;
     private final ScrollView scroll;
     private final Listener listener;

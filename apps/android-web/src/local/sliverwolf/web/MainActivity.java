@@ -21,11 +21,6 @@ import static local.sliverwolf.web.DshTransport.object;
 public final class MainActivity extends Activity {
     private SessionController controller;
     private DeviceBridge deviceBridge;
-    private TextView connection, session, status, history;
-    private EditText draft;
-    private ScrollView transcript;
-    private android.widget.ImageButton send;
-    private Button decisions, older, delivery, cancel;
     private final Handler main = new Handler();
     private boolean renderQueued;
     private AlertDialog decisionDialog;
@@ -45,7 +40,6 @@ public final class MainActivity extends Activity {
     private AssistantProfile activeProfile;
     private static final java.util.concurrent.ExecutorService petIo=java.util.concurrent.Executors.newSingleThreadExecutor();
     private android.widget.FrameLayout pages;
-    private LinearLayout transcriptPage;
     private HabitatFeed habitatFeed=new HabitatFeed("等待下一次交互","",-1,false);
     private String habitatSession = "", habitatTrace = "", habitatSnapshot = "";
     private final Runnable habitatTick = new Runnable() {
@@ -65,77 +59,20 @@ public final class MainActivity extends Activity {
             }
         }interaction=new InteractionSettings(this);if(saved!=null){documentPending=saved.getBoolean("documentPending",false);presentationExport=saved.getString("presentationExport");}
         try{new ContentReleases(this).recover();}catch(Exception error){throw new IllegalStateException("Content recovery failed",error);}
-        LinearLayout root = column();
-        transcriptPage = root; root.setBackgroundColor(0xff0c1420);
-        android.widget.ImageButton back=HabitatView.iconControl(this,"ic_chevron_down","返回角色空间",()->showTranscript(false));
-        int touchSize=Math.round(48*getResources().getDisplayMetrics().density);
-        root.addView(back,new LinearLayout.LayoutParams(touchSize,touchSize));
-        int padding = (int) (12 * getResources().getDisplayMetrics().density);
-        root.setPadding(padding, padding, padding, padding);
-        connection = label(root, "Connecting…", 13);
-        session = label(root, "Choose a conversation", 16);
-        session.setSingleLine(true);
-        session.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-        LinearLayout navigation = row(root); navigation.setVisibility(android.view.View.GONE);
-        button(navigation, "Sessions", () -> chooseSession());
-        button(navigation, "官方界面", () -> startActivity(new android.content.Intent(this, WebChatActivity.class)));
-        button(navigation, "New", () -> new AlertDialog.Builder(this).setTitle("New conversation?")
-            .setMessage("This explicitly creates a DSH conversation. Existing conversations remain available.")
-            .setNegativeButton("返回", null).setPositiveButton("Create", (d, w) -> controller.create()).show());
-        LinearLayout connectivity = row(root); connectivity.setVisibility(android.view.View.GONE);
-        button(connectivity, "Reconnect", () -> controller.connect());
-        button(connectivity, "Disconnect", () -> controller.disconnect());
-        button(connectivity, "Device tools", this::showDeviceTools);
-        status = label(root, "", 14);
-        LinearLayout actions = row(root);
-        older = button(actions, "更早记录", () -> controller.loadHistory(true));
-        decisions = button(actions, "待处理", () -> showDecision());
-        cancel = button(actions, "停止任务", () -> new AlertDialog.Builder(this).setTitle("停止当前任务？")
-            .setMessage("将请求 DSH 取消当前执行轮次，已经排队的消息仍可能继续执行。")
-            .setNegativeButton("返回", null).setPositiveButton("停止本轮", (d, w) -> controller.cancel()).show());
-        delivery = button(root, "Review uncertain delivery", () -> new AlertDialog.Builder(this)
-            .setTitle("Delivery record")
-            .setMessage("Request: " + controller.pendingId + "\nState: " + controller.pendingState
-                + "\n\nReconnect and inspect history before sending again. Clearing this record does not prove the original request was rejected, and never resends it.")
-            .setNegativeButton("Keep record", null)
-            .setPositiveButton("Acknowledge uncertainty", (d, w) -> controller.acknowledgeUnknown()).show());
-        ScrollView scroll = new ScrollView(this);
-        transcript = scroll;
-        history = new TextView(this); history.setTextSize(16); history.setTextIsSelectable(true);
-        history.setTextColor(0xffdce3ef);history.setLineSpacing(8,1.1f);
-        history.setPadding(padding,padding,padding,padding);
-        scroll.addView(history);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        draft = new EditText(this); draft.setHint("输入消息，或返回空间使用语音");
-        draft.setMinLines(1); draft.setMaxLines(4);
-        draft.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        if (saved != null) draft.setText(saved.getString("draft", ""));
-        draft.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
-        LinearLayout composer=row(root);
-        composer.addView(draft,new LinearLayout.LayoutParams(0,-2,1));
-        send = HabitatView.iconControl(this,"ic_arrow_up","发送",()->{if(sendInteractive(draft.getText().toString(),false,false))draft.setText("");});
-        composer.addView(send);
-        send.setLayoutParams(new LinearLayout.LayoutParams((int)(76*getResources().getDisplayMetrics().density),-2));
-        if(getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
-            connection.setVisibility(android.view.View.GONE);session.setVisibility(android.view.View.GONE);status.setMaxLines(1);
-        }
-        voiceStatus = label(root, "我在。", 13); voiceStatus.setVisibility(android.view.View.GONE);
-        composer.addView(HabitatView.iconControl(this,"ic_mic","语音输入",()->{if(voiceInput.active()||deviceBridge.isSpeaking())stopVoice("语音已停止");else startVoice();}),new LinearLayout.LayoutParams(touchSize,touchSize));
+        voiceStatus = new TextView(this);
+        voiceStatus.setVisibility(android.view.View.GONE);
         pages = new android.widget.FrameLayout(this);
-        pages.addView(root, new android.widget.FrameLayout.LayoutParams(-1,-1));
         habitat = new HabitatView(this, new HabitatView.Actions() {
             public void voice() {
                 if (voiceInput != null && (voiceInput.active() || deviceBridge.isSpeaking() || (WakeVoiceService.homeAllowed&&"listening".equals(WakeVoiceService.phase())))) stopVoice("语音已停止");
                 else startVoice();
             }
             public void stop() { stopVoice("语音已停止"); }
-            public void transcript() { showTranscript(true); }
             public void decisions() { showDecision(); }
             public void settings() { showHabitatMenu(); }
             public void touch(String action) { submitCharacterTouch(action); }
         });
         pages.addView(habitat,new android.widget.FrameLayout.LayoutParams(-1,-1));
-        root.setVisibility(android.view.View.GONE);
         setContentView(pages);
         try { PeriodWatcher.start(this, pages, getSharedPreferences("session", MODE_PRIVATE)); } catch (Throwable ignored) { }
         if (checkSelfPermission("com.termux.permission.RUN_COMMAND") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -235,14 +172,8 @@ public final class MainActivity extends Activity {
     private void acceptVoice(String text){
         manualCapture=false;
         if(!voiceSession.equals(controller.selected)){voiceStatus.setText("会话已变化，识别内容未发送");syncWakeScope();return;}
-        if(!voiceFromHome){
-            if(!draft.getText().toString().trim().isEmpty()){voiceStatus.setText("草稿已变化，识别内容需单独确认");confirmVoice(text,false);return;}
-            draft.setText(text);
-            if(!voiceAutoSend){voiceStatus.setText("已转成草稿，可编辑后发送");syncWakeScope();return;}
-        }
-        if(voiceAutoSend&&sendInteractive(text,voiceFromHome,true)){
-            if(!voiceFromHome)draft.setText("");voiceStatus.setText("已发送，等待回复");
-        }else confirmVoice(text,voiceFromHome);
+        if(voiceAutoSend&&sendInteractive(text,true,true)) voiceStatus.setText("已发送，等待回复");
+        else confirmVoice(text,true);
         syncWakeScope();renderHabitat();
     }
     private void confirmVoice(String text,boolean home){
@@ -255,7 +186,7 @@ public final class MainActivity extends Activity {
         dialog.setOnDismissListener(v->{voiceConfirmation=null;syncWakeScope();});dialog.show();dialog.getWindow().setGravity(android.view.Gravity.BOTTOM);dialog.getWindow().setLayout(-1,-2);
         dialog.getButton(-1).setOnClickListener(v->{
             if(!selected.equals(controller.selected)){content.setError("会话已变化，请取消后重新输入");return;}
-            if(sendInteractive(content.getText().toString(),home,true)){if(!home&&text.equals(draft.getText().toString()))draft.setText("");voiceStatus.setText("已发送，等待回复");dialog.dismiss();}
+            if(sendInteractive(content.getText().toString(),home,true)){voiceStatus.setText("已发送，等待回复");dialog.dismiss();}
             else content.setError("尚未发送：请等待连接恢复或处理待确认请求");
         });
         voiceStatus.setText("识别完成，等待确认发送");
@@ -264,8 +195,7 @@ public final class MainActivity extends Activity {
         if(OwnerEnrollment.active){voiceStatus.setText("正在录入声纹，请稍候");return;}
         if(petBusy){voiceStatus.setText("配置正在校验，请稍候");return;}
         if(!controller.canSend()||controller.running||!voiceRequest.isEmpty()){voiceStatus.setText("请等待当前任务结束或连接恢复");return;}
-        voiceFromHome=transcriptPage.getVisibility()!=android.view.View.VISIBLE;
-        if(!voiceFromHome&&!draft.getText().toString().trim().isEmpty()){voiceStatus.setText("请先发送或清除聊天草稿");return;}
+        voiceFromHome=true;
         if(checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},91);return;}
         manualCapture=true;syncWakeScope();deviceBridge.stopSpeaking();voiceSession=controller.selected;voiceAutoSend=interaction.autoSend(voiceFromHome);
         startAfterMicrophoneRelease(android.os.SystemClock.elapsedRealtime()+2500);
@@ -371,43 +301,9 @@ public final class MainActivity extends Activity {
     private void render() {
         if(modelDetails!=null)modelDetails.setText(ModelSettings.describe(controller.modelInfo,controller.modelError));
         updateVoice();
-        connection.setText(controller.connection);
-        session.setText(controller.selected.isEmpty() ? "尚未选择会话" : "当前会话 · " + controller.selected.substring(Math.max(0,controller.selected.length()-8)));
-        session.setContentDescription("当前会话标识："+controller.selected);
-        session.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("会话信息").setView(readableDetails(controller.selected)).setPositiveButton("返回",null).show());
-        status.setText(controller.taskState() + (controller.notice.isEmpty() ? "" : "\n" + controller.notice)
-            + (controller.pendingId.isEmpty() ? "" : "\nDelivery: " + controller.pendingState));
-        String text = controller.conversation.text();
-        if (!text.contentEquals(history.getText())) {
-            boolean nearBottom = history.getHeight() - transcript.getHeight() - transcript.getScrollY() < 100;
-            history.setText(styledTranscript(text));
-            if (nearBottom) transcript.post(() -> transcript.scrollTo(0, history.getBottom()));
-        }
         updateHabitatContent();
         renderHabitat();
-        send.setEnabled(controller.canSend());
-        cancel.setEnabled(controller.connected && !controller.selected.isEmpty());
-        older.setEnabled(controller.connected && controller.conversation.hasMore && !controller.historyBusy);
-        decisions.setText("待处理 · " + controller.decisions.size());
-        decisions.setEnabled(controller.connected && !controller.decisions.isEmpty());
-        delivery.setVisibility(controller.pendingId.isEmpty() ? android.view.View.GONE : android.view.View.VISIBLE);
         if (decisionDialog != null && !controller.decisions.containsKey(dialogId)) { decisionDialog.dismiss(); decisionDialog = null; }
-    }
-    private void showTranscript(boolean show) {
-        if (!show) ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE))
-            .hideSoftInputFromWindow(draft.getWindowToken(),0);
-        transcriptPage.setVisibility(show ? android.view.View.VISIBLE : android.view.View.GONE);
-        habitat.setVisibility(show ? android.view.View.GONE : android.view.View.VISIBLE);
-        syncWakeScope();
-        if (show) {
-            stopVoice("阅读文字记录中");
-            transcript.post(()->transcript.fullScroll(android.view.View.FOCUS_DOWN));
-        }
-        else if ("阅读文字记录中".contentEquals(voiceStatus.getText())) voiceStatus.setText("我在。");
-    }
-    @Override public void onBackPressed() {
-        if (transcriptPage.getVisibility()==android.view.View.VISIBLE) showTranscript(false);
-        else super.onBackPressed();
     }
     private void showLocalUpdate(){
         petIo.execute(()->{try{
@@ -559,7 +455,7 @@ public final class MainActivity extends Activity {
     }
     private void syncWakeScope(){
         if(interaction==null||habitat==null)return;
-        WakeVoiceService.homeAllowed=resumed&&hasWindowFocus()&&transcriptPage.getVisibility()!=android.view.View.VISIBLE&&settingsDrawer==null&&voiceConfirmation==null&&interaction.homeWake()&&!manualCapture
+        WakeVoiceService.homeAllowed=resumed&&hasWindowFocus()&&settingsDrawer==null&&voiceConfirmation==null&&interaction.homeWake()&&!manualCapture
             &&voiceRequest.isEmpty()&&spokenRequests.isEmpty()&&deviceBridge!=null&&!deviceBridge.isSpeaking();
         WakeVoiceService.homeResult=WakeVoiceService.homeAllowed?this::homeWakeResult:null;
         WakeVoiceService.activity(resumed||documentPending);
@@ -867,7 +763,7 @@ public final class MainActivity extends Activity {
                 final String prompt=text;
                 main.post(()->{
                     boolean sent=!isDestroyed()&&selected.equals(controller.selected)&&controller.send(prompt,request);
-                    if(sent){showTranscript(true);return;}
+                    if(sent){return;}
                     petIo.execute(()->{try{new ShareInbox(this).unreserve(id,request);}
                         catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}});
                     if(!isDestroyed())petError(new IllegalStateException("Conversation changed or delivery busy; nothing sent"));
@@ -882,7 +778,7 @@ public final class MainActivity extends Activity {
             new AlertDialog.Builder(this).setTitle(labels.length==0?"暂无完成提醒":"完成提醒历史").setItems(labels,(d,w)->{
                 JSONObject record=records.optJSONObject(w);new AlertDialog.Builder(this).setTitle(record.optString("title"))
                     .setMessage(record.optString("text")).setPositiveButton("打开原会话",(dialog,which)->{
-                        controller.select(record.optString("session"));updateHabitatContent();showTranscript(false);
+                        controller.select(record.optString("session"));updateHabitatContent();
                         habitat.offerSource(AttentionQueue.Source.NOTIFICATION,record.optString("id"),record.optString("text"));
                     })
                     .setNegativeButton("返回",null).show();
@@ -1305,8 +1201,6 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putBoolean("documentPending",documentPending);state.putString("presentationExport",presentationExport);
-        state.putString("draft", draft.getText().toString());
-        state.putBoolean("transcriptVisible",transcriptPage.getVisibility()==android.view.View.VISIBLE);
         super.onSaveInstanceState(state);
     }
     @Override public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
