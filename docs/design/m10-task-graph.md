@@ -134,3 +134,26 @@ F1 期间可并行：M1（删原生对话）与 F7（状态源）改的是不同
 
 重启后的续跑由宿主消费标记完成；中断的自主轮按既有 at-most-once 规则不重放，
 下一次唤醒提前。下一步需要一次真实的自主轮来验证这条链路。
+
+
+## 9. 实施状态（2026-10-27 晚）
+
+| 节点 | 状态 | 证据 |
+| --- | --- | --- |
+| F1 插件脚手架 | ✅ | `integrations/webui/{composer,shell}`，`dsh plugin add` 可装，patch 层生效，卸载可回退 |
+| F2 composer 注入 | ✅ | 宿主 `/composer` + `/composer/pending`；真机：分享文本与语音转写进入官方输入框 |
+| M1 删原生对话 | ✅（入口与首页摘录） | 0.10.20；抽屉"展开当前对话"移除 |
+| M2 撤原生覆盖按钮 | ✅ | 0.10.24；官方页按钮由 `webui-shell` 渲染，`LumenShell.home()` 返回角色空间 |
+| M3 麦克风收敛 | ✅（部分） | 官方语音插件卸载（本地模型不可用）；shell 麦克风走系统识别 |
+| M5 抽屉精简 | ✅（入口层） | 0.10.22；会话/任务/记忆入口移除 |
+| M7 自主活动单控件 | ✅ | 0.10.25/26；总开关 + 明确状态行 |
+| F4 受控查资料 | ✅ | `policy.mjs` 允许 read_image/web_search/web_fetch；14/14 测试 |
+| F5 自升级入口 | ✅（工具就绪） | `tooling/self-restart.sh`；尚缺一次真实自主轮验证 |
+| F6 重启恢复 | ✅（脚本） | `tooling/restore-adb.sh` 已挂 Termux:Boot |
+| F7 单一状态源 | ⏳ | 首页仍显示"工具运行中"，需接宿主状态 |
+| F8 活动时间线 | ⏳ | 未开始 |
+| F10 胶囊布局 | ⏳ | 顶栏重叠仍存在 |
+| F9 验收/文档 | ⏳ | 持续更新 |
+
+自主策略当前：`paused=false`、activities=consolidate/reflect/develop、
+预算 steps 24 / toolCalls 48 / writes 10 / 600s。
