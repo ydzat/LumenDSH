@@ -225,7 +225,7 @@ public final class MainActivity extends Activity {
         manualCapture=false;if(voiceInput!=null)voiceInput.stop();WakeVoiceService.stopForegroundCapture();
         voiceRequest="";spokenRequests.clear();
         if(deviceBridge!=null)deviceBridge.stopSpeaking();
-        if(habitat!=null&&reason!=null&&!reason.isEmpty())habitat.setVoiceNote(reason);
+        if(habitat!=null&&reason!=null&&!reason.isEmpty()&&!reason.equals("语音已停止")&&!reason.equals("已暂停前台语音"))habitat.setVoiceNote(reason);
         continuousPending=false;
         if(voiceStatus!=null)voiceStatus.setText(reason);syncWakeScope();
     }
@@ -259,14 +259,15 @@ public final class MainActivity extends Activity {
     }
     @Override public void onWindowFocusChanged(boolean focused){super.onWindowFocusChanged(focused);if(!focused&&voiceInput!=null&&(voiceInput.active()||manualCapture))stopVoice("操作设置期间暂停语音");syncWakeScope();}
     @Override protected void onResume(){
-        super.onResume();resumed=true;syncWakeScope();ensureWakeService();
+        super.onResume();resumed=true;syncWakeScope();ensureWakeService();if(habitat!=null)habitat.setVoiceNote("");
         CompanionOverlayService.activity(true);CompletionService.foreground=true;
         if(getSharedPreferences("overlay",0).getBoolean("enabled",false)&&android.provider.Settings.canDrawOverlays(this))startForegroundService(new android.content.Intent(this,CompanionOverlayService.class));
         if(getSharedPreferences("completion",0).getBoolean("enabled",false))startForegroundService(new android.content.Intent(this,CompletionService.class));
         if(deviceBridge!=null)deviceBridge.visible=true;main.removeCallbacks(habitatTick);main.post(habitatTick);
+        try { PeriodWatcher.start(this, pages, getSharedPreferences("session", MODE_PRIVATE)); } catch (Throwable ignored) { }
         if(settingsDrawer!=null&&settingsDrawer.isShowing())settingsDrawer.refresh();
     }
-    @Override protected void onPause(){resumed=false;CompanionOverlayService.activity(documentPending);CompletionService.foreground=false;main.removeCallbacks(habitatTick);stopVoice("已暂停前台语音");syncWakeScope();if(deviceBridge!=null)deviceBridge.visible=false;super.onPause();}
+    @Override protected void onPause(){try { PeriodWatcher.stop(); } catch (Throwable ignored) { }resumed=false;CompanionOverlayService.activity(documentPending);CompletionService.foreground=false;main.removeCallbacks(habitatTick);stopVoice("已暂停前台语音");syncWakeScope();if(deviceBridge!=null)deviceBridge.visible=false;super.onPause();}
     private LinearLayout column() {
         LinearLayout layout = new LinearLayout(this); layout.setOrientation(LinearLayout.VERTICAL); return layout;
     }
