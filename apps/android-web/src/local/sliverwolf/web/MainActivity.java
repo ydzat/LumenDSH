@@ -108,7 +108,7 @@ public final class MainActivity extends Activity {
         if(saved==null)main.post(()->receiveShare(getIntent()));
         deviceBridge = SharedDeviceBridge.acquire(this);
         voiceInput = new VoiceInput(this, new VoiceInput.Listener() {
-            public void state(String state) { voiceStatus.setText(state); renderHabitat();main.post(()->{if(voiceInput!=null&&!voiceInput.active()&&manualCapture){manualCapture=false;syncWakeScope();}}); }
+            public void state(String state) { voiceStatus.setText(state); if(habitat!=null)habitat.setVoiceNote(state); renderHabitat();main.post(()->{if(voiceInput!=null&&!voiceInput.active()&&manualCapture){manualCapture=false;syncWakeScope();}}); }
             public void result(String text) { acceptVoice(text); }
         });
         deviceBridge.microphoneActive = voiceInput::active;
@@ -185,7 +185,7 @@ public final class MainActivity extends Activity {
     private void acceptVoice(String text){
         manualCapture=false;
         if(!voiceSession.equals(controller.selected)){voiceStatus.setText("会话已变化，识别内容未发送");syncWakeScope();return;}
-        if(voiceAutoSend&&sendInteractive(text,true,true)){voiceStatus.setText("已发送，等待回复");continuousPending=true;}
+        if(voiceAutoSend&&sendInteractive(text,true,true)){voiceStatus.setText("已发送，等待回复");if(habitat!=null)habitat.setVoiceNote("已发送，等待回复");continuousPending=true;}
         else confirmVoice(text);
         syncWakeScope();renderHabitat();
     }
@@ -225,6 +225,7 @@ public final class MainActivity extends Activity {
         manualCapture=false;if(voiceInput!=null)voiceInput.stop();WakeVoiceService.stopForegroundCapture();
         voiceRequest="";spokenRequests.clear();
         if(deviceBridge!=null)deviceBridge.stopSpeaking();
+        if(habitat!=null&&reason!=null&&!reason.isEmpty())habitat.setVoiceNote(reason);
         continuousPending=false;
         if(voiceStatus!=null)voiceStatus.setText(reason);syncWakeScope();
     }

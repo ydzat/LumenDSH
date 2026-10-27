@@ -23,7 +23,7 @@ final class HabitatView extends LinearLayout {
     interface Actions { void voice(); void stop(); void decisions(); void settings(); void console(); void touch(String action); }
     private final Scene scene;
     private final HabitatState state=new HabitatState();
-    private final TextView connection, companionStatus, feedback;
+    private final TextView connection, companionStatus, voiceNote, feedback;
     private TextView name;
     private PresentationSettings presentation;
     private final ReplyCard bubble;
@@ -51,6 +51,7 @@ final class HabitatView extends LinearLayout {
         header.addView(iconControl(context,"ic_menu","菜单",actions::settings),new LinearLayout.LayoutParams(dp(48),dp(48)));addView(header);
         connection = text("正在连接本机 DSH", 9); connection.setTextColor(0xff8fa3b9); addView(connection);
         companionStatus = text("", 9); companionStatus.setTextColor(0xff8fa3b9); addView(companionStatus);
+        voiceNote = text("", 11); voiceNote.setTextColor(0xff9ee8dc); voiceNote.setVisibility(GONE); addView(voiceNote);
         body=new LinearLayout(context);body.setOrientation(VERTICAL);
         layers=new FrameLayout(context);
         layers.addView(body,new FrameLayout.LayoutParams(-1,-1));
@@ -137,6 +138,15 @@ final class HabitatView extends LinearLayout {
         });
     }
     void setCompanionStatus(String value) { companionStatus.setText(value == null ? "" : value); }
+
+    private int voiceNoteSeq;
+
+    void setVoiceNote(String value) {
+        if (value == null || value.isEmpty()) { voiceNote.setVisibility(GONE); return; }
+        voiceNote.setText(value); voiceNote.setVisibility(VISIBLE);
+        final int seq = ++voiceNoteSeq;
+        voiceNote.postDelayed(() -> { if (seq == voiceNoteSeq) voiceNote.setVisibility(GONE); }, 6000);
+    }
 
     void update(boolean connected, boolean listening, boolean speaking, boolean running,
             int decisionCount, String state, String voiceFeedback, String spokenText, HabitatFeed feed) {
