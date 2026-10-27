@@ -1,7 +1,10 @@
 # Architecture Baseline
 
-Current checkpoint: Android 0.8.1 with DSH 0.2.1-rc.3 and separately deployed
-phone-local character speech. See [current status](project-status.md). The dated baseline below
+Current checkpoint: Android 0.10.17 web client (`local.sliverwolf.web`) with DSH
+0.2.1-rc.3 and separately deployed remote character speech. The 0.10 web-first
+revision and its parallel-implementation cleanup are in
+[web-first consolidation](design/web-first-consolidation.md); read it together
+with this baseline. See [current status](project-status.md). The dated baseline below
 describes responsibility boundaries and does not supersede later evidence.
 
 Status: accepted responsibility baseline; independent phone build and M1 native
