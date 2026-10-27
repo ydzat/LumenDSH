@@ -152,7 +152,7 @@ F1 期间可并行：M1（删原生对话）与 F7（状态源）改的是不同
 | F6 重启恢复 | ✅（脚本） | `tooling/restore-adb.sh` 已挂 Termux:Boot |
 | F7 单一状态源 | ⏳ | 首页仍显示"工具运行中"，需接宿主状态 |
 | F8 活动时间线 | ⏳ | 未开始 |
-| F10 胶囊布局 | ⏳ | 顶栏重叠仍存在 |
+| F10 胶囊布局 | ✅ | 控制台隐藏 tide 胶囊（角色空间保留峰谷显示），顶栏不再重叠 |
 | F9 验收/文档 | ⏳ | 持续更新 |
 
 自主策略当前：`paused=false`、activities=consolidate/reflect/develop、
