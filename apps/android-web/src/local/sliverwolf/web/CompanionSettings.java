@@ -43,8 +43,9 @@ final class CompanionSettings {
     }
     private void mainPage(){
         drawer.title("行为与自主活动");drawer.note("设置应用到当前 Agent 与当前会话。");
-        drawer.toggle("自主活动","关闭后停止安排新的自主活动",draft.optBoolean("enabled"),on->put(draft,"enabled",on));
-        boolean paused=draft.optBoolean("paused");drawer.row(paused?"恢复自主活动":"暂停自主活动",paused?"已暂停；恢复后继续原有安排":"保留原有安排，暂时停止执行",()->{put(draft,"paused",!paused);drawer.refresh();});
+        drawer.toggle("启用自主活动","总开关；关闭后不再安排任何新的自主活动",draft.optBoolean("enabled"),on->put(draft,"enabled",on));
+        boolean paused=draft.optBoolean("paused");
+        drawer.row(paused?"当前：已暂停 · 点按恢复":"当前：运行中 · 点按暂停",paused?"暂停期间保留原有安排，恢复后继续":"下次唤醒会按活动时间与预算执行",()->{put(draft,"paused",!paused);drawer.refresh();});
         textInput("表达与互动偏好",draft,"style",false);
         drawer.row("活动时间","设置允许活动的时间段与次数",()->drawer.go(this::windowsPage));
         drawer.section("允许的活动");

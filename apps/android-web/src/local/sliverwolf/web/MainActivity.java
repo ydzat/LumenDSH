@@ -493,7 +493,6 @@ public final class MainActivity extends Activity {
         String[] input={"点击麦克风","说唤醒词"};d.choice("开始说话",input[interaction.homeWake()?1:0],input,interaction.homeWake()?1:0,i->{
             if(i==1&&!wakeReady())return;interaction.values.edit().putBoolean("homeWake",i==1).apply();ensureWakeService();syncWakeScope();});
         d.toggle("说完自动发送","关闭后在主页确认文字",interaction.autoSend(true),on->interaction.values.edit().putBoolean("homeAutoSend",on).apply());replyChoice(true);
-        d.section("文字聊天页");d.toggle("语音说完自动发送","关闭后保留为可编辑草稿",interaction.autoSend(false),on->interaction.values.edit().putBoolean("chatAutoSend",on).apply());replyChoice(false);
         d.section("识别与唤醒");String language=interaction.language(deviceBridge.voiceProfile().language);
         d.choice("识别语言",language.equals("en-US")?"英语":"中文",new String[]{"中文","英语"},language.equals("en-US")?1:0,i->interaction.values.edit().putString("inputLanguage",i==1?"en-US":"zh-CN").apply());
         d.note("唤醒词：嗨，"+agentName()+"。当前唤醒模型支持中文名称。");
