@@ -529,17 +529,7 @@ public final class MainActivity extends Activity {
         d.row("通知与后台","悬浮角色与任务提醒",()->d.go(this::settingsBackground));
         d.section("系统");d.row("连接与系统","设备配对、模型信息、更新与恢复",()->d.go(this::settingsSystem));
     }
-    private void settingsSessions(){
-        SettingsDrawer d=settingsDrawer;d.title("会话");
-        d.row("屏幕读取权限","允许助手截屏识别界面",()->{d.dismiss();try{android.media.projection.MediaProjectionManager manager=(android.media.projection.MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);startActivityForResult(manager.createScreenCaptureIntent(),77);}catch(Throwable ignored){}});
-        d.row("官方界面","DSH WebUI · 插件与对话",()->{d.dismiss();CrashLog.mark(this,"open-webchat");startActivity(new android.content.Intent(this,WebChatActivity.class));});
-        JSONArray items=controller.sessions;String[] labels=new String[items.length()];int selected=-1;
-        for(int i=0;i<items.length();i++){String id=items.optJSONObject(i).optString("sessionId");labels[i]="会话 · "+id.substring(Math.max(0,id.length()-12));if(id.equals(controller.selected))selected=i;}
-        d.choice("当前会话",selected<0?"尚未选择":labels[selected],labels,selected,i->{stopVoice("会话已切换");controller.select(items.optJSONObject(i).optString("sessionId"));});
-        d.row("新建会话","保留原有会话",()->new AlertDialog.Builder(this).setTitle("新建会话？").setNegativeButton("取消",null).setPositiveButton("创建",(v,w)->controller.create()).show());
-    }
-    private void settingsTasks(){SettingsDrawer d=settingsDrawer;d.title("任务与收件箱");d.row("定时任务","创建、暂停和管理任务",this::showSchedules);d.row("分享收件箱","查看分享给 Agent 的内容",this::showShareInbox);}
-    private void replyChoice(boolean home){
+            private void replyChoice(boolean home){
         String key=home?"homeReply":"chatReply";String value=interaction.values.getString(key,home?"voice":"follow");
         String[] values={"voice","text","follow"},labels={"语音并显示文字","仅文字","跟随输入方式"};int index=java.util.Arrays.asList(values).indexOf(value);
         settingsDrawer.choice("回复方式",labels[Math.max(0,index)],labels,index,i->interaction.values.edit().putString(key,values[i]).apply());
