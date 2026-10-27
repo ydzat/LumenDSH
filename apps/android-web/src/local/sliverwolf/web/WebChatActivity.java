@@ -74,30 +74,6 @@ public final class WebChatActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         root.addView(status, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        TextView home = new TextView(this);
-        home.setText("⌂");
-        home.setTextSize(22);
-        home.setTextColor(Color.WHITE);
-        home.setGravity(Gravity.CENTER);
-        home.setBackgroundColor(0x66000000);
-        home.setOnClickListener(v -> finish());
-        TextView mic = new TextView(this);
-        mic.setText("🎤");
-        mic.setTextSize(22);
-        mic.setTextColor(Color.WHITE);
-        mic.setGravity(Gravity.CENTER);
-        mic.setBackgroundColor(0x66000000);
-        mic.setOnClickListener(v -> startVoice());
-        FrameLayout.LayoutParams micParams = new FrameLayout.LayoutParams(90, 90);
-        micParams.gravity = Gravity.TOP | Gravity.END;
-        micParams.topMargin = 130;
-        micParams.rightMargin = 24;
-        root.addView(mic, micParams);
-        FrameLayout.LayoutParams homeParams = new FrameLayout.LayoutParams(90, 90);
-        homeParams.gravity = Gravity.TOP | Gravity.END;
-        homeParams.topMargin = 24;
-        homeParams.rightMargin = 24;
-        root.addView(home, homeParams);
         setContentView(root);
         CrashLog.mark(this, "webchat:view");
 
