@@ -29,6 +29,7 @@ public final class MainActivity extends Activity {
     private TextView voiceStatus;
     private String voiceSession = "", voiceRequest = "";
     private boolean voiceAutoSend;
+    private boolean speakingBefore, continuousPending;
     private HabitatView habitat;
     private String renderedPresentation="", renderedProfile="";
     private boolean releaseHealthRunning;
@@ -43,7 +44,21 @@ public final class MainActivity extends Activity {
     private HabitatFeed habitatFeed=new HabitatFeed("等待下一次交互","",-1,false);
     private String habitatSession = "", habitatTrace = "", habitatSnapshot = "";
     private final Runnable habitatTick = new Runnable() {
-        @Override public void run() { if (!isDestroyed()) { updateVoice(); syncWakeScope(); renderHabitat(); updateConnectionDetails(); main.postDelayed(this, 250); } }
+        @Override public void run() {
+            if (!isDestroyed()) {
+                boolean speaking = deviceBridge != null && deviceBridge.isSpeaking();
+                if (speakingBefore && !speaking && continuousPending && interaction != null && interaction.continuous()
+                    && resumed && !manualCapture && voiceConfirmation == null && settingsDrawer == null
+                    && controller != null && controller.canSend() && !controller.running) {
+                    continuousPending = false;
+                    main.postDelayed(() -> {
+                        if (!isDestroyed() && resumed && !manualCapture && deviceBridge != null && !deviceBridge.isSpeaking()) startVoice();
+                    }, 700);
+                }
+                speakingBefore = speaking;
+                updateVoice(); syncWakeScope(); renderHabitat(); updateConnectionDetails(); main.postDelayed(this, 250);
+            }
+        }
     };
 
     @Override public void onCreate(Bundle saved) {
@@ -169,7 +184,7 @@ public final class MainActivity extends Activity {
     private void acceptVoice(String text){
         manualCapture=false;
         if(!voiceSession.equals(controller.selected)){voiceStatus.setText("会话已变化，识别内容未发送");syncWakeScope();return;}
-        if(voiceAutoSend&&sendInteractive(text,true,true)) voiceStatus.setText("已发送，等待回复");
+        if(voiceAutoSend&&sendInteractive(text,true,true)){voiceStatus.setText("已发送，等待回复");continuousPending=true;}
         else confirmVoice(text);
         syncWakeScope();renderHabitat();
     }
@@ -209,6 +224,7 @@ public final class MainActivity extends Activity {
         manualCapture=false;if(voiceInput!=null)voiceInput.stop();WakeVoiceService.stopForegroundCapture();
         voiceRequest="";spokenRequests.clear();
         if(deviceBridge!=null)deviceBridge.stopSpeaking();
+        continuousPending=false;
         if(voiceStatus!=null)voiceStatus.setText(reason);syncWakeScope();
     }
     private void updateVoice() {
@@ -337,6 +353,7 @@ public final class MainActivity extends Activity {
         d.section("识别与唤醒");String language=interaction.language(deviceBridge.voiceProfile().language);
         d.choice("识别语言",language.equals("en-US")?"英语":"中文",new String[]{"中文","英语"},language.equals("en-US")?1:0,i->interaction.values.edit().putString("inputLanguage",i==1?"en-US":"zh-CN").apply());
         d.note("唤醒词：嗨，"+agentName()+"。当前唤醒模型支持中文名称。");
+        d.toggle("连续对话","播报结束后自动再次聆听",interaction.continuous(),on->interaction.values.edit().putBoolean("continuous",on).apply());
         d.toggle("后台关键词唤醒",WakeVoiceService.status(),getSharedPreferences("wake",0).getBoolean("enabled",false),on->{
             if(on&&!wakeReady()){d.refresh();return;}getSharedPreferences("wake",0).edit().putBoolean("enabled",on).apply();ensureWakeService();});
         d.row("主人声纹",new OwnerVoiceStore(this).exists()?"已录入 · 唤醒时验证主人":"尚未录入",()->startActivity(new android.content.Intent(this,OwnerVoiceActivity.class)));

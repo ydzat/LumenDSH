@@ -18,6 +18,7 @@ final class InteractionSettings {
     }
     boolean autoSend(boolean home){return values.getBoolean(home?"homeAutoSend":"chatAutoSend",home);}
     boolean homeWake(){return values.getBoolean("homeWake",false);}
+    boolean continuous(){return values.getBoolean("continuous",false);}
     boolean speak(boolean home,boolean voice) {
         String mode=values.getString(home?"homeReply":"chatReply",home?"voice":"follow");
         return "voice".equals(mode)||("follow".equals(mode)&&voice);
