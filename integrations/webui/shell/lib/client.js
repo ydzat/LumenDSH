@@ -19,17 +19,6 @@ window.__ModuleLoader__.load({
       textAlign: 'center', cursor: 'pointer', padding: 0, backdropFilter: 'blur(6px)',
     }
 
-    function ShellControls() {
-      const api = typeof window !== 'undefined' ? window.LumenShell : undefined
-      if (!api) return null
-      return React.createElement('div', {
-        style: {position: 'fixed', right: '14px', bottom: '112px', display: 'flex', flexDirection: 'column', gap: '10px', zIndex: 30},
-      },
-        React.createElement('button', {style: buttonStyle, title: '返回角色空间', onClick: () => api.home()}, '⌂'),
-        React.createElement('button', {style: buttonStyle, title: '语音输入', onClick: () => api.voice()}, '🎤'),
-      )
-    }
-
     function installStyles() {
       if (typeof document === 'undefined' || document.getElementById('lumendsh-shell-css')) return
       const style = document.createElement('style')
@@ -62,9 +51,8 @@ window.__ModuleLoader__.load({
       }
       const slots = ctx.get('slots')
       if (slots === undefined) return
-      slots.inject('shell.overlay', () =>
-        slots.register({name: 'shell.overlay', id: 'lumendsh-shell', order: 40}, ShellControls),
-      )
+      // No floating client controls on the official page: the Android back
+      // gesture returns to the habitat and the habitat owns voice.
     }
 
     exports.apply = apply
