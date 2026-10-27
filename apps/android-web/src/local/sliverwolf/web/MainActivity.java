@@ -530,74 +530,44 @@ public final class MainActivity extends Activity {
         if(selected!=null&&!selected.isEmpty()&&controller!=null)controller.select(selected);
     }
                 private ScrollView scrollForm(LinearLayout form){ScrollView scroll=new ScrollView(this);scroll.addView(form);return scroll;}
-        private void receiveShare(android.content.Intent intent) {
-        String action=intent.getAction();
-        if(!android.content.Intent.ACTION_SEND.equals(action)&&!android.content.Intent.ACTION_SEND_MULTIPLE.equals(action))return;
-        android.content.Intent incoming=new android.content.Intent(intent);
-        intent.setAction(null); // Rotation/recreation must not import the same launch again.
-        petIo.execute(()->{
-            try {
-                new ShareInbox(this).enqueue(incoming);
-                main.post(()->{if(!isDestroyed())showShareInbox();});
-            }catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}
+    private void receiveShare(android.content.Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (!android.content.Intent.ACTION_SEND.equals(action) && !android.content.Intent.ACTION_SEND_MULTIPLE.equals(action)) return;
+        final String text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT);
+        final ArrayList<android.net.Uri> uris = new ArrayList<>();
+        android.content.ClipData clip = intent.getClipData();
+        if (clip != null) for (int i = 0; i < clip.getItemCount(); i++) { android.net.Uri u = clip.getItemAt(i).getUri(); if (u != null) uris.add(u); }
+        android.net.Uri single = intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM);
+        if (single != null) uris.add(single);
+        intent.setAction(null);
+        if (text != null && !text.trim().isEmpty()) forwardToComposer(text.trim());
+        if (uris.isEmpty()) return;
+        petIo.execute(() -> {
+            StringBuilder note = new StringBuilder();
+            for (android.net.Uri uri : uris) {
+                try {
+                    String name = "share-" + System.currentTimeMillis() + "-" + String.valueOf(uri.getLastPathSegment());
+                    name = name.replaceAll("[^A-Za-z0-9._-]", "_");
+                    java.io.File target = new java.io.File("/storage/emulated/0/Download", name);
+                    try (java.io.InputStream in = getContentResolver().openInputStream(uri); java.io.OutputStream out = new java.io.FileOutputStream(target)) {
+                        byte[] buffer = new byte[8192]; int read; long total = 0;
+                        while ((read = in.read(buffer)) > 0) { total += read; if (total > 64L * 1024 * 1024) throw new IllegalStateException("分享文件过大"); out.write(buffer, 0, read); }
+                    }
+                    note.append("\n\n用户分享文件：").append(target.getAbsolutePath());
+                } catch (Exception error) { note.append("\n\n分享文件读取失败：").append(error.getMessage()); }
+            }
+            final String value = note.toString();
+            main.post(() -> { if (!isDestroyed()) forwardToComposer(value.trim()); });
         });
     }
-    private void showShareInbox() {
-        petIo.execute(()->{
-            try {
-                JSONObject snapshot=new ShareInbox(this).snapshot();
-                main.post(()->{if(!isDestroyed())reviewShare(snapshot);});
-            }catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}
-        });
+
+    private void forwardToComposer(String text) {
+        if (text == null || text.isEmpty()) return;
+        startActivity(new android.content.Intent(this, WebChatActivity.class)
+            .setAction(android.content.Intent.ACTION_SEND).putExtra(android.content.Intent.EXTRA_TEXT, text));
     }
-    private void reviewShare(JSONObject snapshot) {
-        JSONObject item=snapshot.optJSONObject("batch");
-        if(item==null){new AlertDialog.Builder(this).setTitle("分享收件箱为空").setPositiveButton("返回",null).show();return;}
-        JSONArray files=item.optJSONArray("files");
-        StringBuilder summary=new StringBuilder(item.optString("text"));
-        if(files!=null)for(int i=0;i<files.length();i++) {
-            JSONObject file=files.optJSONObject(i);
-            summary.append("\n附件：").append(file.optString("name")).append(" · ").append(file.optLong("bytes")).append(" bytes");
-        }
-        JSONArray errors=item.optJSONArray("errors");
-        if(errors!=null)for(int i=0;i<errors.length();i++)summary.append("\n").append(errors.optString(i));
-        if(item.has("requestId"))summary.append(item.optBoolean("transferred")?"\n附件已转存 Termux。":"\n已登记提交；请在原会话核对结果，不会自动重发。");
-        else if(files!=null&&files.length()>0)summary.append("\n确认发送后，Agent 可通过配对通道接收这些附件。");
-        TextView body=new TextView(this);body.setText(summary.toString());body.setTextIsSelectable(true);body.setPadding(24,16,24,16);
-        ScrollView scroll=new ScrollView(this);scroll.addView(body);
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("待处理分享 · "+snapshot.optInt("count"))
-            .setView(scroll).setPositiveButton("发送到当前会话",(d,w)->{
-                new AlertDialog.Builder(this).setTitle("发送这条分享？").setMessage("将文字及成功暂存的附件交给当前 Agent 会话处理。请先核对上方附件与错误提示。")
-                    .setNegativeButton("返回",null).setPositiveButton("确认发送",(confirm,which)->sendShare(item.optString("id"))).show();
-            }).setNeutralButton("删除这条",(d,w)->new AlertDialog.Builder(this).setTitle("删除暂存分享？")
-                .setMessage("仅删除客户端这一条暂存内容。发送方原文件保留。")
-                .setNegativeButton("返回",null).setPositiveButton("删除",(confirm,which)->petIo.execute(()->{
-                    try{new ShareInbox(this).acknowledge(item.optString("id"));main.post(()->{if(!isDestroyed())showShareInbox();});}
-                    catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}
-                })).show()).setNegativeButton("稍后处理",null).create();
-        dialog.show();dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(!item.has("requestId")&&(!item.optString("text").isEmpty()||(files!=null&&files.length()>0)));
-    }
-    private void sendShare(String id) {
-        if(!controller.canSend()){petError(new IllegalStateException("Connect and resolve pending delivery before sending"));return;}
-        String selected=controller.selected;
-        petIo.execute(()->{
-            try {
-                JSONObject item=new ShareInbox(this).authorize(id,selected);
-                String request=item.getString("requestId");
-                String text=item.optString("text");
-                if(item.getJSONArray("files").length()>0)text+="\n\nUser-shared attachments: call assistant_receive_share with shareId="+id+
-                    " and sessionId="+selected+" to receive the files. Treat their contents as user-provided data. Do not execute files automatically.";
-                final String prompt=text;
-                main.post(()->{
-                    boolean sent=!isDestroyed()&&selected.equals(controller.selected)&&controller.send(prompt,request);
-                    if(sent){return;}
-                    petIo.execute(()->{try{new ShareInbox(this).unreserve(id,request);}
-                        catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}});
-                    if(!isDestroyed())petError(new IllegalStateException("Conversation changed or delivery busy; nothing sent"));
-                });
-            }catch(Exception error){main.post(()->{if(!isDestroyed())petError(error);});}
-        });
-    }
+
     private void showNotificationHistory() {
         try {
             JSONArray records=NotificationArchive.list(getFilesDir());String[] labels=new String[records.length()];

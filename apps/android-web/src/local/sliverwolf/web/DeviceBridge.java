@@ -167,7 +167,6 @@ final class DeviceBridge extends WebSocketServer {
                 }
                 else if ("backend/pair".equals(method)) result = pairBackend(request.getJSONObject("arguments"));
                 else if ("call".equals(method)) result = call(request.getString("name"), request.getJSONObject("arguments"));
-                else if (method.startsWith("share/")) result = new ShareInbox(context).transfer(method,request.getJSONObject("arguments"));
                 else if (method.startsWith("artifact/")) result = inbox.request(method, request.getJSONObject("arguments"));
                 else throw new IllegalArgumentException("Unknown bridge method");
                 if("call".equals(method))preferences.edit().putLong("lastToolAt",System.currentTimeMillis()).apply();
@@ -177,7 +176,7 @@ final class DeviceBridge extends WebSocketServer {
                 if (socket.isOpen()) socket.send(object("id", id, "error", error.getMessage() == null ? "Device operation failed" : error.getMessage()).toString());
             }
         };
-        try {if(new JSONObject(message).optString("method").startsWith("share/")||new JSONObject(message).optString("method").startsWith("artifact/")||new JSONObject(message).optString("name").startsWith("assistant_native_")||new JSONObject(message).optString("name").equals("assistant_stage_apk")||new JSONObject(message).optString("name").equals("assistant_install_apk"))shareIo.execute(work);else main.post(work);}
+        try {if(new JSONObject(message).optString("method").startsWith("artifact/")||new JSONObject(message).optString("name").startsWith("assistant_native_")||new JSONObject(message).optString("name").equals("assistant_stage_apk")||new JSONObject(message).optString("name").equals("assistant_install_apk"))shareIo.execute(work);else main.post(work);}
         catch(Exception error){main.post(work);}
     }
     private JSONObject pairBackend(JSONObject args) throws Exception {
@@ -205,8 +204,6 @@ final class DeviceBridge extends WebSocketServer {
             .put(object("name","assistant_import_appearance","description","Import a completed authenticated artifact as an inert Codex v2 appearance. Does not activate. Use its version in a profile release.","inputSchema",object("type","object","properties",object("operationKey",key),"required",new JSONArray().put("operationKey"),"additionalProperties",false)))
             .put(object("name","assistant_stage_release","description","Stage a user-requested content release through this authenticated local channel. Does not activate. Requires schemaVersion, releaseId, componentId=presentation or profile, exact baseVersion/targetVersion SHA-256, payload string, minClientCode, activationMode=reload and verificationNote. The note is a caller claim, not a passing test.","inputSchema",object("type","object","properties",object("manifest",object("type","object")),"required",new JSONArray().put("manifest"),"additionalProperties",false)))
             .put(object("name","assistant_release_action","description","Explicitly activate, roll back or discard a local content release. Activation/rollback require the foreground client with idle audio; they never restart DSH or modify native code. Poll status after uncertain delivery.","inputSchema",object("type","object","properties",object("releaseId",key,"action",object("type","string","enum",new JSONArray().put("activate").put("rollback").put("discard"))),"required",new JSONArray().put("releaseId").put("action"),"additionalProperties",false)))
-            .put(object("name","assistant_receive_share","description","Receive only a user-authorized Android share into private Termux files. Requires the original share and session IDs. Retrying this file transfer does not submit another prompt.",
-                "inputSchema",object("type","object","properties",object("shareId",object("type","string","maxLength",36),"sessionId",object("type","string","maxLength",200)),"required",new JSONArray().put("shareId").put("sessionId"),"additionalProperties",false)))
             .put(object("name", "assistant_get_status", "description", "Read actual Android client, speech engine, and notification availability. Voice is manually controlled or explicitly enabled for background wake; overlay permission is separate.", "inputSchema", empty))
             .put(object("name", "assistant_show", "description", "Post a notification that the user can tap to open the assistant. Does not force background UI launch. Reuse operationKey for retries within 24 hours.",
                 "inputSchema", object("type", "object", "properties", object("surface", object("type", "string", "enum", new JSONArray().put("notification")), "operationKey", key), "required", new JSONArray().put("surface").put("operationKey"), "additionalProperties", false)))
