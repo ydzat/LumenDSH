@@ -79,3 +79,20 @@ Remaining duplicate candidates are intentional:
 - Native completion notifications vs tone cues: different audiences (Android notification shade vs audible turn cue).
 
 The native conversation, schedules and share intake no longer have any parallel implementation.
+
+
+## Browse activity (2026-10-28)
+
+`browse` is implemented end to end: schema (up to four activities), read-only
+tool guard (web reads, repository reads, `read_image`, self-notes; no commands or
+repository writes), a dedicated read-only prompt, a client toggle, and the manual
+`/run {activity:"browse"}` route. A verification run reserved its budget and
+delivered the prompt (`ffc4c10d…`), but a queued continuation message arrived
+immediately, so the run settled as `yielded-to-user` with 0 steps before using a
+tool. The research itself then happened in the follow-up turn and produced
+self-note `06398a89` (official slot API: `conversation.input.activity` supplies
+`inputActions`; prefer list ids over replacing shipped cells).
+
+The action audit (`behavior/activity-audit.jsonl`) only records tool calls while
+a run is active; because the run had already settled, this attempt produced no
+audit lines. That is expected, not a bug in the browse guard.
