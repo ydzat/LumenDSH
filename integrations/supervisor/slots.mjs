@@ -125,28 +125,24 @@ async function start() {
 
 async function stop() {
   const state = readState();
-  if (!state) {
-    // An adopted orphan has no state file. Find the listener by its command line
-    // so a host upgrade can still stop it cleanly.
-    const pid = findListener(flags.port);
-    if (pid > 0) {
-      process.kill(pid, 'SIGTERM');
-      const deadline = Date.now() + 10000;
-      while (alive(pid) && Date.now() < deadline) await sleep(200);
-      if (alive(pid)) process.kill(pid, 'SIGKILL');
-      process.stdout.write(JSON.stringify({name: flags.name, stopped: true, adopted: true, pid}) + '\n');
-      return;
-    }
-    throw new Error('Slot ' + flags.name + ' has no state');
+  const pids = new Set();
+  if (state && alive(state.pid)) pids.add(state.pid);
+  // Even with a state file, the tracked pid may be stale and an orphaned
+  // listener can still own the port. Always stop the actual listener too.
+  const listener = findListener(flags.port);
+  if (listener > 0 && listener !== state?.pid) pids.add(listener);
+  if (pids.size === 0) {
+    if (!state) throw new Error('Slot ' + flags.name + ' has no state');
+    try { unlinkSync(stateFile); } catch { /* already gone */ }
+    process.stdout.write(JSON.stringify({name: flags.name, stopped: true, pids: []}) + '\n');
+    return;
   }
-  if (alive(state.pid)) {
-    process.kill(state.pid, 'SIGTERM');
-    const deadline = Date.now() + 10000;
-    while (alive(state.pid) && Date.now() < deadline) await sleep(200);
-    if (alive(state.pid)) process.kill(state.pid, 'SIGKILL');
-  }
+  for (const pid of pids) process.kill(pid, 'SIGTERM');
+  const deadline = Date.now() + 10000;
+  while ([...pids].some(pid => alive(pid)) && Date.now() < deadline) await sleep(200);
+  for (const pid of pids) if (alive(pid)) process.kill(pid, 'SIGKILL');
   try { unlinkSync(stateFile); } catch { /* already gone */ }
-  process.stdout.write(JSON.stringify({name: flags.name, stopped: true}) + '\n');
+  process.stdout.write(JSON.stringify({name: flags.name, stopped: true, pids: [...pids]}) + '\n');
 }
 
 async function status() {
