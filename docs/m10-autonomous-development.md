@@ -14,6 +14,28 @@ mode, growth stages, self document, `extend_self`). M10 puts that machinery to
 work. The first phase is a set of explicit user requirements; after that the
 loop decides what to build from real experience.
 
+## M10 is the foundation, not the destination
+
+The end state is a nearly fully autonomous companion: the user mostly talks by
+voice, the habitat is the default surface, and the official WebUI is a precision
+console. M10 does not build that product. It builds the ground the agent needs to
+build it autonomously:
+
+| Pillar | Status | Remaining for M10 |
+| --- | --- | --- |
+| Autonomy loop | policy, candidates, experiences, situation implemented; paused | resume safely; it currently cannot read the web |
+| Phone control | local adb over 127.0.0.1:5555 (until reboot); a11y/MediaProjection fallback | reboot recovery; one-tap a11y enable |
+| Console | official WebUI embedded and usable | composer injection plugin; mobile shell |
+| Self-built plugins | community plugins installable; no own scaffold yet | `@lumendsh/webui` scaffold + build/load path |
+| Self-upgrade | slots, watchdog, silent install | an end-to-end autonomous build → install → restart run |
+| Research | web tools exist but autonomous runs deny them | bounded read-only network allowlist with audit |
+| Observability | experience stream, runs, pause switch, restart nudge | activity timeline and failure visibility |
+| Docs/tests | design docs + 30 tests | acceptance cases for the pillars above |
+
+Completion of M10 means: the agent can wake on its own, operate the phone, write
+and install a plugin, build/install/restart itself, read documentation, and do all
+of it visibly, pausably and reversibly.
+
 ## Phases
 
 ### Phase A — user requirements (current)
