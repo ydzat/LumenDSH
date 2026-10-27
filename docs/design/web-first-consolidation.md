@@ -1,7 +1,11 @@
 # Web-first consolidation (0.10.x → 0.11)
 
-Status: design review, 2026-10-27. Supersedes the client-layout assumptions in
-`architecture.md` where they conflict; it does not reopen milestone evidence.
+Status: design review, 2026-10-27. **Direction corrected**: the product target is
+voice-first with the habitat as the default surface and the official WebUI as a
+precision console, not the other way round — see
+[autonomous companion](autonomous-companion.md). The parallel-implementation
+inventory below still stands; its "WebUI main screen" framing is superseded.
+It does not reopen milestone evidence.
 This document exists because the client changed from "native habitat with a
 secondary transcript" to "official DSH WebUI embedded in WebView, with a native
 habitat shell". Several modules written for the old shape now exist in parallel
@@ -14,11 +18,11 @@ with official pages or with each other.
 - **当前实现**：官方 WebUI 成了主界面（会话、设置、插件、日程都由官方页面提供），
   原生端仍保留一整套旧形态（原生对话、日程、模型设置、记忆页、分享弹窗等）。
   结果：**两套主页、两套会话、三套日程、两个麦克风入口**，连接状态与设置分类也分叉。
-- **结论**：不是"删掉 WebUI 回到原生"，也不是"删掉原生全用网页"，而是明确分工：
-  **WebUI = 工作台（会话/设置/插件/日程/审批），Habitat = 存在感（角色/首页/峰谷/语音），
-  Native shell = 设备与生命周期（权限、TTS、安装、设备桥），Companion = 自主活动策略，
-  ADB/a11y = 设备操控**。凡是官方页面已经做好的，一律不再自制；凡是必须出现在官方页面里的，
-  用我们自己的客户端插件组实现。
+- **结论（已修正）**：不是"删掉 WebUI 回到原生"，也不是"删掉原生全用网页"。默认界面是
+  **Habitat + 语音**（角色、峰谷、对话、播报），**WebUI 是按需召唤的精确控制台**
+  （会话/设置/插件/日程/审批/长文本）；Native shell 负责设备与生命周期；Companion 负责
+  自主活动。凡是官方页面已经做好的不再自制；必须进官方页面的能力用最小插件组实现。
+  详见 [autonomous companion](autonomous-companion.md)。
 - **行动**：先做一个最小插件组（composer 注入 + 移动端壳 + 状态/存在感），再按清单删除平行实现；
   删除前保留开关与回退路径。
 
@@ -55,7 +59,7 @@ with official pages or with each other.
 | # | 平行实现 | 证据 | 决策 |
 | --- | --- | --- | --- |
 | P1 | 原生对话视图 vs 官方 WebUI 会话 | `MainActivity` transcript/消息/审批；`WebChatActivity` | **删原生对话视图**；审批、任务控制、复制等全部留在官方页面；原生只保留语音发送入口 |
-| P2 | 两套"首页"：原生 Habitat vs WebUI 落地页 | 首页显示"本机连接中断"，同一时刻 WebUI 正常 | **WebUI 为主屏**；Habitat 改为"角色空间"（可返回的次级页/悬浮存在），并统一连接状态来源 |
+| P2 | 两套"首页"：原生 Habitat vs WebUI 落地页 | 首页显示"本机连接中断"，同一时刻 WebUI 正常 | **Habitat + 语音为默认**，WebUI 为控制台；统一连接状态来源，控制台可一键回语音 |
 | P3 | 原生定时任务 vs 官方"自动化任务" vs companion 活动策略 | `ScheduledTaskStore`、`SettingsDrawer` 任务页；官方 automation 页；`policy.mjs` | **删原生定时任务**；用户任务交官方页面，Agent 自主活动交 companion；两类在文案与入口上明确区分 |
 | P4 | 时段链路四段式：插件 → Watcher → Bridge 回退 → 宿主 → 首页 | `PeriodWatcher`、`PeriodBridge`、`host.mjs` `/period`、`HabitatView` | **保留插件单源 + 一处回退**；回退必须在 UI 标注"近似（无节假日）"，并删除重复的窗口计算（只留一份） |
 | P5 | 语音输入三入口 | 官方实验插件；浮动麦克风；`VoiceInput`/唤醒服务 | **保留系统识别（浮动麦克风）+ 唤醒服务**；官方插件保留但默认关闭（本地模型不可用）；删除 Activity 内重复的识别路径 |
@@ -105,7 +109,7 @@ with official pages or with each other.
 ## 7. 迁移顺序（可回退）
 
 1. **P0 插件组脚手架**：建立 `@lumendsh/webui` 三个包的最小骨架，先只启用 `webui-composer`，
-   让分享/语音走注入；保留现有路径作开关回退。
+   让分享/语音走注入；保留现有路径作开关回退。控制台是召唤式，不抢默认入口。
 2. **P1 状态统一**：宿主 `/status` 增加 `surface`（web/habitat）与 `channel`（adb/a11y）字段；
    原生首页与 WebUI 顶部读同一份数据。
 3. **P2 删除平行 UI**：按第 4 节顺序删原生对话、定时任务、模型/记忆/会话页、分享弹窗；

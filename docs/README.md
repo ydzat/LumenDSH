@@ -29,7 +29,8 @@ recovery, and artifact handoff are [verified within D01-D04 scope](../tests/m2-e
 
 1. [Decisions](decisions.md): agreed scope and remaining technical choices.
 2. [Architecture](architecture.md): responsibility and state ownership.
-   [Web-first consolidation](design/web-first-consolidation.md): how the embedded WebUI, the native habitat and the official pages divide responsibility in 0.10.x.
+   [Web-first consolidation](design/web-first-consolidation.md): parallel implementations and cleanup in 0.10.x.
+   [Autonomous companion](design/autonomous-companion.md): the voice-first target (habitat default, WebUI as a precision console, idle autonomy).
 3. Contracts: [session](contracts/session.md), [device tools](contracts/device-tools.md), [assistant packages](contracts/assistant-packages.md), [updates](contracts/updates.md).
 4. [Development plan](development-plan.md): ordered work and milestone gates.
 5. [Acceptance scenarios](../tests/acceptance.md): evidence needed before claiming a feature works.
