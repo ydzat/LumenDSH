@@ -62,6 +62,9 @@ test('develop activity admits bounded repository tools and refuses escalation', 
   const budget = new TurnBudget(limits, 'develop');
   assert.equal(budget.tool('read', {file_path:'README.md'}), undefined);
   assert.equal(budget.tool('glob', {pattern:'docs/*.md'}), undefined);
+  assert.equal(budget.tool('web_search', {queries:['dsh plugin api']}), undefined);
+  assert.equal(budget.tool('web_fetch', {url:'https://example.com/docs'}), undefined);
+  assert.equal(budget.tool('read_image', {file_path:'screen.png'}), undefined);
   assert.equal(budget.tool('bash', {command:'git status --short'}), undefined);
   assert.equal(budget.tool('bash', {command:'node tests/relay-check.mjs'}), undefined);
   assert.equal(budget.tool('write', {file_path:'docs/x.md'}), undefined);
@@ -72,7 +75,6 @@ test('develop activity admits bounded repository tools and refuses escalation', 
   assert.match(budget.tool('bash', {command:'curl https://example.com'}), /only allowlisted/);
   assert.match(budget.tool('bash', {command:'sudo id'}), /only allowlisted/);
   assert.match(budget.tool('bash', {command:'rm -rf /'}), /only allowlisted/);
-  assert.match(budget.tool('web_search'), /only repository/);
   const publisher = new TurnBudget({...limits, writes:5}, 'develop');
   assert.equal(publisher.tool('bash', {command:'git commit -m x'}), undefined);
 });

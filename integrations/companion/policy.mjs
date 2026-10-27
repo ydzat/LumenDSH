@@ -127,7 +127,7 @@ export class TurnBudget {
     this.tools++; if (WRITE_TOOLS.has(name)) this.writes++;
   }
   developTool(name, input) {
-    if (['read','glob','grep'].includes(name)) { this.tools++; return; }
+    if (['read','glob','grep','read_image','web_search','web_fetch'].includes(name)) { this.tools++; return; }
     if (['write','edit'].includes(name)) {
       if (this.writes >= this.limits.writes) return 'Autonomous write budget exhausted.';
       this.tools++; this.writes++; return;
