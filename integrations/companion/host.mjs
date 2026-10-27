@@ -442,6 +442,7 @@ export function apply(ctx, config = {}) {
     finally { tickingDev = false; }
   }
 
+  let composerSeq = 0, composerPending = null;
   const snapshot = () => ({schemaVersion: 1, policy, revision: store.revision(policy),
     plan: state.plan, daily: state.daily, runs: state.runs, lastError: state.lastError ?? null,
     active: active?.record.id ?? null, period: state.period ?? null, versions: (() => {
@@ -461,6 +462,10 @@ export function apply(ctx, config = {}) {
       }
       if (req.method === 'GET' && route === '/sliver-wolf/companion/status') return reply(200, snapshot());
       if (req.method === 'GET' && route === '/sliver-wolf/companion/period') return reply(200, state.period ?? {phase: null});
+      if (req.method === 'GET' && route === '/sliver-wolf/companion/composer/pending') {
+        const pending = composerPending; composerPending = null;
+        return reply(200, pending ?? {seq: 0, text: ''});
+      }
       if (req.method === 'POST' && route === '/sliver-wolf/companion/screen') {
         const chunks = []; let bytes = 0;
         for await (const chunk of req) { bytes += chunk.length; if (bytes > 8 * 1024 * 1024) return reply(413, {error: 'Screen capture too large'}); chunks.push(chunk); }
@@ -468,7 +473,7 @@ export function apply(ctx, config = {}) {
         writeFileSync(file, Buffer.concat(chunks), {mode: 0o600});
         return reply(200, {ok: true, path: file, bytes});
       }
-      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection','/sliver-wolf/companion/period','/sliver-wolf/companion/log'].includes(route)) return reply(404, {error:'Unknown operation'});
+      if (req.method !== 'POST' || !['/sliver-wolf/companion/policy','/sliver-wolf/companion/restore','/sliver-wolf/companion/model-selection','/sliver-wolf/companion/period','/sliver-wolf/companion/log','/sliver-wolf/companion/composer'].includes(route)) return reply(404, {error:'Unknown operation'});
       const chunks = []; let bytes = 0;
       for await (const chunk of req) { bytes += chunk.length; if (bytes > 16384) return reply(413, {error:'Policy too large'}); chunks.push(chunk); }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -481,6 +486,12 @@ export function apply(ctx, config = {}) {
         try { size = statSync(file).size; } catch { size = 0; }
         if (size < 512 * 1024) appendFileSync(file, new Date().toISOString() + ' ' + message + '\n', {mode: 0o600});
         return reply(200, {ok: true});
+      }
+      if (route.endsWith('/composer')) {
+        const text = String(body?.text ?? '').slice(0, 8192);
+        if (!text) throw new Error('Composer text required');
+        composerPending = {seq: ++composerSeq, text};
+        return reply(200, {ok: true, seq: composerSeq});
       }
       if (route.endsWith('/period')) {
         // Written by the Android client from the tide plugin's own client state

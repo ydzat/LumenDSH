@@ -1,0 +1,4 @@
+# @lumendsh/webui-composer: injects pending share/voice text into the composer.
+- insert:
+    - id: lumendsh-webui-composer
+      name: "@lumendsh/webui-composer"

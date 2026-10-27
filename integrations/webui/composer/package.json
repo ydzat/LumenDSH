@@ -1,0 +1,17 @@
+{
+  "name": "@lumendsh/webui-composer",
+  "version": "0.1.0",
+  "description": "LumenDSH WebUI composer bridge: inserts share/voice text into the official composer through inputActions.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./client": { "default": "./lib/client.js" },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web" }
+  },
+  "license": "MIT"
+}
