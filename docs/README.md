@@ -33,6 +33,7 @@ recovery, and artifact handoff are [verified within D01-D04 scope](../tests/m2-e
    [Web-first consolidation](design/web-first-consolidation.md): parallel implementations and cleanup in 0.10.x.
    [Autonomous companion](design/autonomous-companion.md): the voice-first target (habitat default, WebUI as a precision console, idle autonomy).
    [M10 task graph](design/m10-task-graph.md): the partial order of migration and foundation work.
+   [M10 acceptance](design/m10-acceptance.md): what was verified, with evidence paths.
 3. Contracts: [session](contracts/session.md), [device tools](contracts/device-tools.md), [assistant packages](contracts/assistant-packages.md), [updates](contracts/updates.md).
 4. [Development plan](development-plan.md): ordered work and milestone gates.
 5. [Acceptance scenarios](../tests/acceptance.md): evidence needed before claiming a feature works.
