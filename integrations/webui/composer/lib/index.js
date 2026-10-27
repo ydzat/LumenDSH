@@ -1,3 +1,7 @@
-// Host half is intentionally empty: the bridge polls the companion host route
-// from the client bundle. Kept so the package can be loaded as a profile layer.
-export default {}
+// Host half: the bridge itself lives in the client bundle, so the host entry
+// only declares the plugin and keeps a disposable hook for future server work.
+export const inject = []
+
+export function apply(_ctx) {
+  // no host services needed yet
+}

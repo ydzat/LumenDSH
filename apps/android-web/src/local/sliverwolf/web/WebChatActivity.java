@@ -142,7 +142,7 @@ public final class WebChatActivity extends Activity {
             }
             @Override public void onPageFinished(WebView view, String url) {
                 CrashLog.mark(WebChatActivity.this, "page:" + url);
-                if (!pendingShare.isEmpty()) { final String share = pendingShare; pendingShare = ""; injectText(share); new android.os.Handler(getMainLooper()).postDelayed(() -> injectText(share), 2500); }
+                if (!pendingShare.isEmpty()) { final String share = pendingShare; pendingShare = ""; postComposer(share); }
                 view.evaluateJavascript("document.title+'|'+location.href+'|'+(document.body?document.body.innerText.slice(0,160):'nobody')", value -> CrashLog.mark(WebChatActivity.this, "dom:" + value));
                 view.evaluateJavascript("(function(){function t(){try{var s=window.__liangwenTide&&window.__liangwenTide.state&&window.__liangwenTide.state();if(s&&s.phase)SliverWolfNative.report(JSON.stringify({phase:s.phase,flipAt:s.flipAt||0}));}catch(e){}}t();setInterval(t,10000);})()", null);
             }
@@ -220,10 +220,31 @@ public final class WebChatActivity extends Activity {
 
     private void forwardVoice(String text) {
         if (text == null || text.trim().isEmpty()) return;
-        startActivity(new android.content.Intent(this, MainActivity.class)
-            .setAction("local.sliverwolf.voice")
-            .putExtra(android.content.Intent.EXTRA_TEXT, text.trim()));
-        finish();
+        postComposer(text.trim());
+    }
+
+    private void postComposer(String text) {
+        if (text == null || text.isEmpty()) return;
+        new Thread(() -> {
+            try {
+                android.content.SharedPreferences session = getSharedPreferences("session", 0);
+                String cookie = session.getString("backendCookie", "");
+                int port = session.getInt("backendPort", 3080);
+                if (cookie.isEmpty()) { CrashLog.mark(this, "composer:no-cookie"); return; }
+                java.net.HttpURLConnection connection = (java.net.HttpURLConnection) new java.net.URL(
+                    "http://127.0.0.1:" + port + "/sliver-wolf/companion/composer").openConnection();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Cookie", cookie);
+                connection.setRequestProperty("Content-Type", "application/json");
+                connection.setConnectTimeout(4000); connection.setReadTimeout(6000);
+                connection.setDoOutput(true);
+                byte[] body = new org.json.JSONObject().put("text", text).toString().getBytes("UTF-8");
+                try (java.io.OutputStream out = connection.getOutputStream()) { out.write(body); }
+                int status = connection.getResponseCode();
+                CrashLog.mark(this, "composer:post:" + status);
+                connection.disconnect();
+            } catch (Exception error) { CrashLog.mark(this, "composer:error:" + error.getMessage()); }
+        }).start();
     }
 
     private void injectText(String text) {
