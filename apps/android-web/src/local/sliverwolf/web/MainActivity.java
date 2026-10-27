@@ -173,10 +173,10 @@ public final class MainActivity extends Activity {
         manualCapture=false;
         if(!voiceSession.equals(controller.selected)){voiceStatus.setText("会话已变化，识别内容未发送");syncWakeScope();return;}
         if(voiceAutoSend&&sendInteractive(text,true,true)) voiceStatus.setText("已发送，等待回复");
-        else confirmVoice(text,true);
+        else confirmVoice(text);
         syncWakeScope();renderHabitat();
     }
-    private void confirmVoice(String text,boolean home){
+    private void confirmVoice(String text){
         // Confirmation stays on the originating page and never overwrites the chat draft.
         EditText content=new EditText(this);content.setText(text);content.setMinLines(2);
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle(voiceAutoSend?"尚未发送":"确认语音消息").setView(content)
@@ -186,7 +186,7 @@ public final class MainActivity extends Activity {
         dialog.setOnDismissListener(v->{voiceConfirmation=null;syncWakeScope();});dialog.show();dialog.getWindow().setGravity(android.view.Gravity.BOTTOM);dialog.getWindow().setLayout(-1,-2);
         dialog.getButton(-1).setOnClickListener(v->{
             if(!selected.equals(controller.selected)){content.setError("会话已变化，请取消后重新输入");return;}
-            if(sendInteractive(content.getText().toString(),home,true)){voiceStatus.setText("已发送，等待回复");dialog.dismiss();}
+            if(sendInteractive(content.getText().toString(),true,true)){voiceStatus.setText("已发送，等待回复");dialog.dismiss();}
             else content.setError("尚未发送：请等待连接恢复或处理待确认请求");
         });
         voiceStatus.setText("识别完成，等待确认发送");
@@ -195,7 +195,6 @@ public final class MainActivity extends Activity {
         if(OwnerEnrollment.active){voiceStatus.setText("正在录入声纹，请稍候");return;}
         if(petBusy){voiceStatus.setText("配置正在校验，请稍候");return;}
         if(!controller.canSend()||controller.running||!voiceRequest.isEmpty()){voiceStatus.setText("请等待当前任务结束或连接恢复");return;}
-        voiceFromHome=true;
         if(checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},91);return;}
         manualCapture=true;syncWakeScope();deviceBridge.stopSpeaking();voiceSession=controller.selected;voiceAutoSend=interaction.autoSend(voiceFromHome);
         startAfterMicrophoneRelease(android.os.SystemClock.elapsedRealtime()+2500);
@@ -299,7 +298,6 @@ public final class MainActivity extends Activity {
         main.postDelayed(() -> { renderQueued = false; if (!isDestroyed()) render(); }, 80);
     }
     private void render() {
-        if(modelDetails!=null)modelDetails.setText(ModelSettings.describe(controller.modelInfo,controller.modelError));
         updateVoice();
         updateHabitatContent();
         renderHabitat();
@@ -315,93 +313,7 @@ public final class MainActivity extends Activity {
                 .setPositiveButton("安装候选版本",(d,w)->petIo.execute(()->{try{releases.install(deviceBridge.visible&&!deviceBridge.isSpeaking()&&!voiceInput.active()&&!WakeVoiceService.microphoneBusy()&&!deviceBridge.releases.unsettled());}catch(Exception error){main.post(()->petError(error));}})).show());
         }catch(Exception error){main.post(()->petError(error));}});
     }
-    private void showMemory(int page) {
-        final String session = controller.selected;
-        if (session.isEmpty()) { new AlertDialog.Builder(this).setMessage("请先选择会话").setPositiveButton("返回",null).show(); return; }
-        petIo.execute(()->{
-            try {
-                DshTransport transport = new DshTransport(getSharedPreferences("session",MODE_PRIVATE));
-                JSONObject value = transport.memoryRead(page==0 ? "status-summary" : page==1 ? "runtime-memory" : "list", session);
-                StringBuilder text = new StringBuilder();
-                if (page==2) {
-                    JSONArray records=value.getJSONArray("items");
-                    for(int i=0;i<records.length();i++) {
-                        JSONObject record=records.getJSONObject(i);
-                        text.append("来源：").append(record.optString("id",record.optString("documentId","未知"))).append("\n");
-                        text.append(record.optString("memoryBodyName", "长期记忆")).append(" · ").append(record.optString("createdAt", record.optString("created_at"))).append("\n")
-                            .append(record.getString("content")).append("\n\n");
-                    }
-                    if(records.length()==0) text.append("当前工作区暂无长期记忆。 ");
-                    text.append("\n最多显示 100 条；可在对话中检索、更正或删除指定记忆。");
-                } else if (page==1) {
-                    JSONArray records = value.getJSONArray("entries");
-                    for (int i=0;i<records.length();i++) {
-                        JSONObject record = records.getJSONObject(i);
-                        text.append("user".equals(record.getString("target")) ? "用户偏好" : "工作记忆")
-                            .append(" · ").append(record.getString("updated_at")).append("\n")
-                            .append(record.getString("content")).append("\n\n");
-                    }
-                    if (records.length()==0) text.append("尚无工作记忆或用户偏好记录。");
-                    text.append("\n此处仅显示常驻上下文的记忆；长期记忆空间由 Agent 按需召回。");
-                } else {
-                    JSONObject semantic = transport.memoryRead("embedding-status", session);
-                    text.append("语义检索：").append(semantic.getBoolean("available") ? "本地向量服务可用" : "不可用，请恢复向量服务")
-                        .append("\n记忆向量：").append(semantic.getInt("embedded")).append(" / ").append(semantic.getInt("totalInsights"))
-                        .append("\n").append(semantic.getString("model")).append("\n\n");
-                    text.append("Mnemon ").append(value.optString("dshMnemonVersion", "未知版本"))
-                        .append("\n记忆引擎：").append(value.optBoolean("healthy") ? "可用" : "尚未就绪")
-                        .append("\n记忆写入：").append(value.optBoolean("writeEnabled") ? "已启用" : "已暂停")
-                        .append("\n\n沿用当前会话与身份。可以在对话中要求记住、查找或更正信息。");
-                }
-                String body=text.toString();
-                main.post(()->{
-                    if(isDestroyed() || !session.equals(controller.selected)) return;
-                    TextView content=new TextView(this); content.setText(body); content.setTextIsSelectable(true);
-                    int pad=(int)(20*getResources().getDisplayMetrics().density);
-                    content.setPadding(pad,pad,pad,pad);
-                    ScrollView scroll=new ScrollView(this); scroll.addView(content);
-                    AlertDialog.Builder dialog=new AlertDialog.Builder(this).setTitle(page==1?"工作记忆与偏好":"长期记忆")
-                        .setView(scroll).setNegativeButton("返回",null).setNeutralButton("刷新",(d,w)->showMemory(page));
-                    if(page==0) dialog.setPositiveButton("查看记录",(d,w)->new AlertDialog.Builder(this).setTitle("记忆记录").setItems(new String[]{"工作记忆与偏好","长期记忆空间","整理文档与日记"},(pick,index)->{if(index==2)showMemoryDocuments(null);else showMemory(index+1);}).show());
-                    dialog.show();
-                });
-            } catch(Exception error) {
-                main.post(()->{
-                    if(isDestroyed() || !session.equals(controller.selected)) return;
-                    new AlertDialog.Builder(this).setTitle("记忆服务不可用")
-                        .setMessage("尚未启用兼容的 Mnemon 服务，或连接暂时不可用。不会以本地占位记录替代。\n"+error.getClass().getSimpleName())
-                        .setPositiveButton("返回",null).show();
-                });
-            }
-        });
-    }
-    private void showMemoryDocuments(String id) {
-        final String session=controller.selected;
-        petIo.execute(()->{try{
-            JSONObject data=new DshTransport(getSharedPreferences("session",MODE_PRIVATE)).memoryRead(id==null?"documents":"document",session,id);
-            main.post(()->{if(isDestroyed()||!session.equals(controller.selected))return;try{
-                if(id==null) {
-                    JSONArray docs=data.getJSONArray("documents");String[] titles=new String[docs.length()];
-                    for(int i=0;i<titles.length;i++){JSONObject doc=docs.getJSONObject(i);titles[i]=doc.getString("title")+"\n"+doc.getString("updatedAt")+" · "+doc.getString("status");}
-                    AlertDialog.Builder dialog=new AlertDialog.Builder(this).setTitle("整理文档与日记").setNegativeButton("返回",null);
-                    if(titles.length==0)dialog.setMessage("尚无整理文档。不会用预设内容替代。");
-                    else dialog.setItems(titles,(d,index)->{JSONObject doc=docs.optJSONObject(index);showMemoryDocuments(doc.optString("id"));});
-                    dialog.show();
-                } else {
-                    TextView text=new TextView(this);text.setTextIsSelectable(true);text.setPadding(28,16,28,16);
-                    text.setText("来源："+data.getString("id")+"\n更新："+data.getString("updatedAt")+"\n版本："+data.getInt("revision")+
-                        "\n关联会话："+data.getJSONArray("sessionIds").toString()+"\n引用来源："+data.getJSONArray("sourcePaths").toString()+"\n\n"+data.getString("content"));
-                    ScrollView scroll=new ScrollView(this);scroll.addView(text);
-                    new AlertDialog.Builder(this).setTitle(data.getString("title")).setView(scroll).setPositiveButton("返回",null).show();
-                }
-            }catch(Exception e){petError(e);}});
-        }catch(Exception e){main.post(()->petError(e));}});
-    }
-    private TextView modelDetails;
-    private void showModelSettings() {
-        new ModelPicker(this,controller);
-    }
-    private AlertDialog voiceConfirmation;
+                private AlertDialog voiceConfirmation;
     private String agentName(){try{return PresentationSettings.load(this).name;}catch(Exception e){throw new IllegalStateException("Invalid presentation settings",e);}}
     private SettingsDrawer settingsDrawer;
     private InteractionSettings interaction;
@@ -423,7 +335,7 @@ public final class MainActivity extends Activity {
         d.row("角色与空间","形象、名称、动画和预设",()->d.go(this::settingsAppearance));
         d.row("行为与自主活动","表达偏好与活动安排",()->new CompanionSettings(this,petIo,controller.selected).show());
         d.row("通知与后台","悬浮角色与任务提醒",()->d.go(this::settingsBackground));
-        d.section("系统");d.row("连接与系统","设备配对、模型信息、更新与恢复",()->d.go(this::settingsSystem));
+        d.section("系统");d.row("连接与系统","设备配对、更新与恢复",()->d.go(this::settingsSystem));
     }
             private void replyChoice(boolean home){
         String key=home?"homeReply":"chatReply";String value=interaction.values.getString(key,home?"voice":"follow");
@@ -605,7 +517,6 @@ public final class MainActivity extends Activity {
         d.row("重新连接","恢复当前会话连接",controller::connect);
         d.row("断开客户端连接","DSH 与正在执行的任务继续运行",controller::disconnect);
         d.row("设备工具与配对","连接本机 Termux",this::showDeviceTools);
-        d.row("模型与上下文","默认模型、当前会话模型和能力信息",this::showModelSettings);
         d.row("更新与恢复","查看本地候选版本和安装状态",this::showLocalUpdate);
         controller.diagnose();
     }
@@ -1118,19 +1029,7 @@ public final class MainActivity extends Activity {
         habitat.update(controller.connected,listening,speaking,controller.running,
             controller.decisions.size(),controller.taskState(),feedback,spoken,habitatFeed);
     }
-    private void chooseSession() {
-        JSONArray items = controller.sessions;
-        String[] labels = new String[items.length()];
-        for (int i = 0; i < labels.length; i++) {
-            JSONObject item = items.optJSONObject(i);
-            String id=item.optString("sessionId");
-            labels[i] = (id.equals(controller.selected)?"● ":"")+"会话 · "+id.substring(Math.max(0,id.length()-12)) + (item.optBoolean("running") ? " · 执行中" : "");
-        }
-        new AlertDialog.Builder(this).setTitle(labels.length == 0 ? "暂无会话，请重新连接刷新" : "选择已有会话")
-            .setItems(labels, (dialog, which) -> controller.select(items.optJSONObject(which).optString("sessionId")))
-            .setNegativeButton("返回", null).show();
-    }
-    private void showDecision() {
+        private void showDecision() {
         if (controller.decisions.isEmpty()) return;
         Map.Entry<String, JSONObject> entry = controller.decisions.entrySet().iterator().next();
         dialogId = entry.getKey();
