@@ -17,7 +17,7 @@ companion are the post-M10 destination, not this milestone.
 | F1 plugin scaffold | `integrations/webui/{composer,shell}`; `tests/webui-plugins.test.mjs` (2 pass) | packages load, bundle patches resolve |
 | F2 composer injection | host routes `/sliver-wolf/companion/composer` + `/pending`; device screenshot `~/tmp/compose1.png`; share text visible in the official composer | pass |
 | M1 native transcript retired | commit `1cf1922`; home screenshot `~/tmp/m1home2.png` (no message excerpt) | pass |
-| M2 console controls as plugin | commit `c427797`; screenshot `~/tmp/shell2.png`; `LumenShell.home()` returned to habitat | pass |
+| M2 no client controls on the console | commit `c427797` then `fix(webui)` removing the floating buttons; screenshot `~/tmp/nobuttons.png`; back gesture verified console→habitat | pass (final design: no overlay; back gesture returns) |
 | M3 mic convergence | `dsh-voice-input` removed (local model unavailable on android-arm64); shell mic uses system recognition → composer | partial (voice output unchanged) |
 | M5 drawer trimmed | commit `d788268`; screenshot `~/tmp/drawer3.png` | pass (entries); native code deletion still pending |
 | M7 single autonomy control | commit `1a21d0f`; settings page labels master switch + explicit state | pass |
