@@ -47,6 +47,19 @@ Caveat is in the environment, not in the run path.
 - Control console polish and the post-M10 plugin growth.
 
 
+## Follow-up batch (2026-10-27 late)
+
+| Item | Evidence |
+| --- | --- |
+| Single period source | commit `f18c97a`; only the tide plugin's own report drives the habitat |
+| Continuous conversation (optional) | commit `77384af`; 0.10.39 toggle verified |
+| One-tap console on the habitat | commit `4a18f01`; 0.10.40 icon opens the console, back returns |
+| Voice button state colours | commit `7eec8f1`; 0.10.41 |
+| Transient voice feedback line | commit `413413e`; 0.10.42, screenshot `~/tmp/voicenote.png` |
+| Period watcher follows lifecycle | 0.10.43; stops on pause, restarts on resume |
+| Stale pause note removed | commits `d7ab164`, `4686456`; 0.10.44–45 |
+| Autonomous action audit | host writes `behavior/activity-audit.jsonl` for web_*/phone_* tools during runs |
+
 ## Structure cleanup (2026-10-27, after the user's "no redundant parallel implementations" rule)
 
 Old-app leftovers removed from the client:

@@ -267,6 +267,20 @@ export function apply(ctx, config = {}) {
       disposers.push(agent.ctx.on('session/event', (session, event) => {
         const id = session?.header?.id ?? session?.id;
         if (id !== agent.id) return;
+        // Audit autonomous web and phone actions for later review; user turns are
+        // already visible in the conversation and this log only covers runs.
+        if (event?.type === 'tool/call' && active?.agent === agent) {
+          const name = String(event?.data?.name ?? '');
+          if (['web_search','web_fetch','phone_shot','phone_tap','phone_click','phone_text','phone_key','phone_start','phone_install','phone_ui'].includes(name)) {
+            try {
+              const file = path.join(root, 'activity-audit.jsonl');
+              let size = 0; try { size = statSync(file).size; } catch { size = 0; }
+              if (size < 1024 * 1024) appendFileSync(file, JSON.stringify({at: new Date().toISOString(),
+                session: agent.id, activity: active.record.activity, tool: name,
+                input: JSON.stringify(event?.data?.input ?? event?.data?.arguments ?? {}).slice(0, 500)}) + '\n', {mode: 0o600});
+            } catch { /* audit must never break the turn */ }
+          }
+        }
         if (event?.type !== 'turn/end') return;
         if (active) return; // an autonomous activity must not ring on every run
         playTone('done');
