@@ -9,7 +9,7 @@ fi
 printf '%s  %s\n' f0324a637ab47394f8fcd5bdb3a4f36adcaa40db7b89b496877337928ef1db31 "$archive" | sha256sum -c -
 tar -xzf "$archive" -C "$root/bin" mnemon LICENSE
 bash "$(dirname "$0")/install-semantic.sh"
-# Profile changes and service restart are explicit operations in activate.mjs.
+# Profile changes and service restart are explicit operations in activate-host-slot.mjs.
 mkdir -p "$root/probe-home/profiles/web" "$root/probe-workspace"
 if [ ! -f "$root/probe-home/profiles/web/package.json" ]; then
   cp "$HOME/.dsh/profiles/web/package.json" "$root/probe-home/profiles/web/package.json"

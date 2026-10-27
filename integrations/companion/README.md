@@ -23,11 +23,12 @@ Run in the inspected Termux environment with DSH rc.3 already installed:
    activation script, `OUTPUT` is `~/sliver-wolf-companion/prepared-v2`.
    Existing outputs are refused. Copy the prepared patch into the isolated web
    profile's `cordis.patch.yml`, then run `node probe.mjs`.
-3. `activate.mjs` is the explicit one-time backend activation. It requires an idle
-   current service and a successful probe receipt, saves profile configuration,
-   installs the fixed plugin via DSH's own manager, applies the prepared overrides,
-   adds a marked original-persona section to workspace instructions and restarts
-   the same DSH version. It does not copy model credentials or replace sessions.
+3. Deployment goes through `activate-host-slot.mjs` (target slot → verify → relay
+   switch, previous slot kept as rollback). It requires an idle current service and
+   a successful probe receipt, saves profile configuration, installs the fixed
+   plugin via DSH's own manager, applies the prepared overrides, adds a marked
+   original-persona section to workspace instructions and restarts the same DSH
+   version in the target slot. It does not copy model credentials or replace sessions.
 4. Provision a local Mnemon Native space through the authenticated plugin's
    `dshMnemon/write` `body-create` endpoint. Bind `workspaceId` explicitly. The
    deployed owner space is `银狼的共同经历`. An existing space is updated by ID,
@@ -72,12 +73,11 @@ through DSH's durable request header. See `docs/model-configuration.md` for limi
 and the scoped real-model selection check; that check restores the original
 profile override and requires an idle-gated host reload afterward.
 
-`activate-host.mjs` installs this immutable local host plugin via DSH's manager,
-with an idle gate, rollback backup, session preservation and exact document-scope
-checks. `host.mjs` reuses the Whale planner for versioned local activity policy,
-selected-session execution and code-enforced pause/budgets. It supersedes the
-baseline reflection timer as the autonomous policy owner; the existing Android
-scheduler remains for explicit reminders. Policy activation is explicit in the
+`activate-host-slot.mjs` installs this immutable local host plugin via DSH's manager
+in the target slot, with an idle gate, rollback backup, session preservation and
+exact document-scope checks. `host.mjs` reuses the Whale planner for versioned local activity policy,
+selected-session execution and code-enforced pause/budgets. It supersedes the baseline reflection timer as the autonomous policy owner; user
+reminders live in the official automation page, not in a native scheduler. Policy activation is explicit in the
 client settings page and defaults to disabled.
 
 `documents.mjs` wraps the installed official Source SDK and keeps its original

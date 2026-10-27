@@ -133,4 +133,4 @@ A→B switch a watchdog restart keeps B instead of rewriting the relay back to A
   the installer pid) so it cannot race the installer for the slot port. A failed
   activation restores the profile, switches the relay back and stops the target;
   receipts go to `host-activation-slot.json` and `slots/receipts/`.
-  `activate-host.mjs` remains for the old direct-launcher layout.
+  The old direct-launcher activation path was removed; slots are the only upgrade path.
