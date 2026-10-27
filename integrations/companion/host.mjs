@@ -402,6 +402,32 @@ export function apply(ctx, config = {}) {
     finally { ticking = false; }
   }
 
+  async function manualDevelop() {
+    if (active) return {ok: false, reason: 'busy'};
+    if (!policy.enabled || !policy.sessionId) return {ok: false, reason: 'disabled'};
+    const result = await ctx.sessionController.resolveAgent(policy.sessionId);
+    if (!result.agent) return {ok: false, reason: 'session-unavailable'};
+    const agent = result.agent;
+    attach(agent);
+    const now = Date.now();
+    const limits = limitsForActivity(policy.budget, 'develop');
+    const record = {id: randomUUID(), sessionId: agent.id, status: 'reserved', activity: 'develop',
+      startedAt: new Date(now).toISOString(), limits, source: 'manual-verification'};
+    state.runs.push(record); state.runs = state.runs.slice(-100); save();
+    active = {record, agent, budget: new TurnBudget(limits, 'develop')};
+    active.timer = setTimeout(() => stop('time-budget'), limits.seconds * 1000);
+    const situation = buildSituation({notesFile, runs: state.runs, lastError: state.lastError ?? null})
+      + '\n\nThis is a manually triggered verification run; work on the current M10 foundation tasks.';
+    try {
+      await ctx.sessionController.prompt({requestId: record.id, sessionId: agent.id, mode: 'queue',
+        content: [{type: 'text', text: activityPrompt('develop', record, situation)}]}, AbortSignal.timeout(15000));
+      return {ok: true, active: record.id};
+    } catch (error) {
+      settle('delivery-uncertain');
+      return {ok: false, reason: 'delivery-uncertain'};
+    }
+  }
+
   async function devTick(force = false) {
     if (disposed || tickingDev || active || !policy.enabled || policy.paused || !policy.sessionId) return;
     tickingDev = true;
@@ -492,8 +518,7 @@ export function apply(ctx, config = {}) {
         const activity = String(body?.activity ?? 'develop');
         if (activity !== 'develop') throw new Error('Only develop runs can be triggered manually');
         if (active) return reply(409, {ok: false, reason: 'busy'});
-        await devTick(true);
-        return reply(200, {ok: true, active: active?.record.id ?? null});
+        return reply(200, await manualDevelop());
       }
       if (route.endsWith('/composer')) {
         const text = String(body?.text ?? '').slice(0, 8192);
