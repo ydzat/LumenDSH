@@ -78,13 +78,11 @@ public final class MainActivity extends Activity {
         if (checkSelfPermission("com.termux.permission.RUN_COMMAND") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"com.termux.permission.RUN_COMMAND"}, 42);
         }
-        try { PeriodBridge.refresh(this); } catch (Throwable ignored) { }
         getSharedPreferences("session", MODE_PRIVATE).registerOnSharedPreferenceChangeListener((prefs, key) -> {
             if ("backendCookie".equals(key) && !prefs.getString(key, "").isEmpty()) {
                 try { controller.connect(); } catch (Throwable ignored) { }
                 try { PeriodWatcher.start(this, pages, prefs); } catch (Throwable ignored) { }
-                try { PeriodBridge.refresh(this); } catch (Throwable ignored) { }
-            }
+                    }
         });
         getWindow().setStatusBarColor(0xff0c1420); getWindow().setNavigationBarColor(0xff0c1420);
         controller = new SessionController(getSharedPreferences("session", MODE_PRIVATE), this::scheduleRender);
