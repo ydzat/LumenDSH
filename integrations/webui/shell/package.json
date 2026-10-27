@@ -1,0 +1,17 @@
+{
+  "name": "@lumendsh/webui-shell",
+  "version": "0.1.0",
+  "description": "LumenDSH WebUI mobile shell: native home/voice controls over the official page.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./client": { "default": "./lib/client.js" },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web" }
+  },
+  "license": "MIT"
+}

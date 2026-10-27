@@ -1,0 +1,4 @@
+# @lumendsh/webui-shell: native controls rendered by the official page.
+- insert:
+    - id: lumendsh-webui-shell
+      name: "@lumendsh/webui-shell"

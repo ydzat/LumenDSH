@@ -129,6 +129,7 @@ public final class WebChatActivity extends Activity {
                 }
             }
         });
+        web.addJavascriptInterface(new ShellBridge(), "LumenShell");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
 
@@ -186,6 +187,13 @@ public final class WebChatActivity extends Activity {
     private void showFallback(String message) {
         showStatus(message + "\n\n点此打开原生界面");
         status.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
+    }
+
+    /** Native actions exposed to the official page's shell plugin. */
+    public final class ShellBridge {
+        @android.webkit.JavascriptInterface public void home() { runOnUiThread(() -> finish()); }
+        @android.webkit.JavascriptInterface public void voice() { runOnUiThread(WebChatActivity.this::startVoice); }
+        @android.webkit.JavascriptInterface public String capability() { return "shell/1"; }
     }
 
     private void startVoice() {
