@@ -119,3 +119,18 @@ F1 期间可并行：M1（删原生对话）与 F7（状态源）改的是不同
   的抽屉整理，或作为 M4 的一部分。
 - M1 的范围扩大：删除首页消息摘录与"展开当前对话"，不只是删 transcript 页。
 - "工具运行中"状态需要单一来源（并入 F7）。
+
+
+## 8. F5 自升级闭环的入口（2026-10-27）
+
+自主开发轮的 bash 白名单只允许 `git`、`node tooling/`、`bash tooling/` 等仓库命令，
+不允许直接跑 `integrations/supervisor/*` 或任意 HOME 脚本。为了让自主轮能完成
+"构建 → 安装 → 重启"：
+
+1. `bash tooling/android-build/build.sh` 已在白名单内，负责构建；
+2. `phone_install` 工具（adb）负责静默安装；
+3. 新增 `tooling/self-restart.sh`：写续跑标记、延迟 20 秒在轮次结束后重启 host；
+   因为它是 `bash tooling/` 命令，自主轮可以调用。
+
+重启后的续跑由宿主消费标记完成；中断的自主轮按既有 at-most-once 规则不重放，
+下一次唤醒提前。下一步需要一次真实的自主轮来验证这条链路。
