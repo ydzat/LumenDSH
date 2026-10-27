@@ -36,9 +36,9 @@ export function validatePolicy(input) {
   windowsOf(input);
   assert(Number.isFinite(input.skipChance) && input.skipChance >= 0 && input.skipChance <= 1, 'Invalid skip chance');
   integer(input.minGapMin, 1, 10080, 'minimum gap'); integer(input.idleMinutes, 1, 1440, 'idle minutes');
-  assert(Array.isArray(input.activities) && input.activities.length > 0 && input.activities.length <= 3 &&
+  assert(Array.isArray(input.activities) && input.activities.length > 0 && input.activities.length <= 4 &&
     new Set(input.activities).size === input.activities.length &&
-    input.activities.every(x => ['consolidate', 'reflect', 'develop'].includes(x)), 'Invalid activities');
+    input.activities.every(x => ['consolidate', 'reflect', 'develop', 'browse'].includes(x)), 'Invalid activities');
   keys(input.budget, Object.keys(DEFAULT_POLICY.budget));
   for (const [key, low, high] of [['dailyRuns',1,12],['steps',1,32],['toolCalls',1,64],['writes',0,10],['outputTokens',256,16384],['seconds',10,600]])
     integer(input.budget[key], low, high, key);
@@ -120,12 +120,22 @@ export class TurnBudget {
   tool(name, input) {
     if (this.tools >= this.limits.toolCalls) return 'Autonomous tool-call budget exhausted.';
     if (this.activity === 'develop') return this.developTool(name, input);
+    if (this.activity === 'browse') return this.browseTool(name, input);
     if (!READ_TOOLS.has(name) && !WRITE_TOOLS.has(name)) return 'Autonomous local maintenance only permits bounded Mnemon reads and non-destructive writes.';
     if (name === 'mnemon_runtime_memory' && input?.action !== 'add')
       return 'Autonomous maintenance cannot remove or replace existing hot memory; preserve the source evidence.';
     if (WRITE_TOOLS.has(name) && this.writes >= this.limits.writes) return 'Autonomous memory-write budget exhausted.';
     this.tools++; if (WRITE_TOOLS.has(name)) this.writes++;
   }
+  browseTool(name, input) {
+    if (['read','glob','grep','read_image','web_search','web_fetch'].includes(name)) { this.tools++; return; }
+    if (['self_note','self_experience'].includes(name)) {
+      if (this.writes >= this.limits.writes) return 'Browse write budget exhausted.';
+      this.tools++; this.writes++; return;
+    }
+    return 'Browsing is read-only: only web reads, repository reads, read_image and self-notes are allowed.';
+  }
+
   developTool(name, input) {
     if (['read','glob','grep','read_image','web_search','web_fetch'].includes(name)) { this.tools++; return; }
     if (['write','edit'].includes(name)) {
@@ -229,6 +239,14 @@ export function activityPrompt(activity, record, situation = '') {
     'Stop on the first failure and record it instead of retrying. ' +
     `At most ${record.limits.writes} writes, ${record.limits.toolCalls} tool calls and ${record.limits.steps} model steps. ` +
     'Finish with a short factual outcome and the evidence paths.';
+  if (activity === 'browse') return `[Sliver Wolf local activity ${record.id}; browse]\n` +
+    (situation ? situation + '\n\n' : '') +
+    'This is a scheduled read-only browsing activity in our existing conversation, not a new identity or a separate agent. ' +
+    'Decide what is worth learning from the open self-notes or recent experiences, then use web_search and web_fetch to read it. ' +
+    'Do not submit forms, log in, upload, purchase, or execute commands; do not write repository files. ' +
+    'Record at most a few durable findings with source URLs in the self-notes ledger, and skip the note when nothing is worth keeping. ' +
+    `At most ${record.limits.writes} writes, ${record.limits.toolCalls} tool calls and ${record.limits.steps} model steps. ` +
+    'Finish with a short factual outcome and the URLs you actually read.';
   return `[Sliver Wolf local activity ${record.id}; ${activity}]\n` +
     'This is a scheduled activity in our existing conversation, not a new identity. ' +
     'Inspect the available Mnemon sources and semantically recall relevant evidence first. ' +

@@ -7,6 +7,8 @@ import {DEFAULT_POLICY, validatePolicy, PolicyStore, TurnBudget} from '../integr
 import {makePlan, completePlan} from '../integrations/companion/upstream/night-plan.mjs';
 
 test('behavior rejects unknown fields, invalid budgets and missing selected session', () => {
+  assert.equal(validatePolicy({...DEFAULT_POLICY, activities:['consolidate','reflect','develop','browse']}).activities.length, 4);
+  assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['consolidate','reflect','develop','browse','extra']}));
   assert.deepEqual(validatePolicy(DEFAULT_POLICY), DEFAULT_POLICY);
   assert.throws(() => validatePolicy({...DEFAULT_POLICY, enabled:true}));
   assert.throws(() => validatePolicy({...DEFAULT_POLICY, remoteUrl:'https://example.com'}));
@@ -56,6 +58,16 @@ test('develop is accepted in the activity list, up to three distinct entries', (
   assert.deepEqual(validatePolicy(three).activities, ['consolidate','reflect','develop']);
   assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['develop','develop']}));
   assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['develop','unknown']}));
+});
+test('browse is read-only and bounded', () => {
+  const budget = new TurnBudget({...DEFAULT_POLICY.budget, toolCalls: 10, writes: 1}, 'browse');
+  assert.equal(budget.tool('web_search', {queries:['dsh plugins']}), undefined);
+  assert.equal(budget.tool('web_fetch', {url:'https://example.com'}), undefined);
+  assert.equal(budget.tool('read_image', {file_path:'x.png'}), undefined);
+  assert.equal(budget.tool('self_note', {kind:'curiosity', text:'x'}), undefined);
+  assert.match(budget.tool('self_note', {kind:'curiosity', text:'y'}), /budget/);
+  assert.match(budget.tool('bash', {command:'git status'}), /read-only/);
+  assert.match(budget.tool('write', {file_path:'x'}), /read-only/);
 });
 test('develop activity admits bounded repository tools and refuses escalation', () => {
   const limits = {...DEFAULT_POLICY.budget, steps: 8, writes: 2, toolCalls: 20};

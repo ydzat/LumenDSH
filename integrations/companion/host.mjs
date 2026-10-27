@@ -416,7 +416,7 @@ export function apply(ctx, config = {}) {
     finally { ticking = false; }
   }
 
-  async function manualDevelop() {
+  async function manualRun(activity = 'develop') {
     if (active) return {ok: false, reason: 'busy'};
     if (!policy.enabled || !policy.sessionId) return {ok: false, reason: 'disabled'};
     const result = await ctx.sessionController.resolveAgent(policy.sessionId);
@@ -424,17 +424,17 @@ export function apply(ctx, config = {}) {
     const agent = result.agent;
     attach(agent);
     const now = Date.now();
-    const limits = limitsForActivity(policy.budget, 'develop');
-    const record = {id: randomUUID(), sessionId: agent.id, status: 'reserved', activity: 'develop',
+    const limits = limitsForActivity(policy.budget, activity);
+    const record = {id: randomUUID(), sessionId: agent.id, status: 'reserved', activity,
       startedAt: new Date(now).toISOString(), limits, source: 'manual-verification'};
     state.runs.push(record); state.runs = state.runs.slice(-100); save();
-    active = {record, agent, budget: new TurnBudget(limits, 'develop')};
+    active = {record, agent, budget: new TurnBudget(limits, activity)};
     active.timer = setTimeout(() => stop('time-budget'), limits.seconds * 1000);
     const situation = buildSituation({notesFile, runs: state.runs, lastError: state.lastError ?? null})
-      + '\n\nThis is a manually triggered verification run; work on the current M10 foundation tasks.';
+      + '\n\nThis is a manually triggered verification run.';
     try {
       await ctx.sessionController.prompt({requestId: record.id, sessionId: agent.id, mode: 'queue',
-        content: [{type: 'text', text: activityPrompt('develop', record, situation)}]}, AbortSignal.timeout(15000));
+        content: [{type: 'text', text: activityPrompt(activity, record, situation)}]}, AbortSignal.timeout(15000));
       return {ok: true, active: record.id};
     } catch (error) {
       settle('delivery-uncertain');
@@ -530,9 +530,9 @@ export function apply(ctx, config = {}) {
       }
       if (route.endsWith('/run')) {
         const activity = String(body?.activity ?? 'develop');
-        if (activity !== 'develop') throw new Error('Only develop runs can be triggered manually');
+        if (!['develop', 'browse'].includes(activity)) throw new Error('Only develop and browse runs can be triggered manually');
         if (active) return reply(409, {ok: false, reason: 'busy'});
-        return reply(200, await manualDevelop());
+        return reply(200, await manualRun(activity));
       }
       if (route.endsWith('/composer')) {
         const text = String(body?.text ?? '').slice(0, 8192);
