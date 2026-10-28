@@ -7,8 +7,8 @@ import {DEFAULT_POLICY, validatePolicy, PolicyStore, TurnBudget} from '../integr
 import {makePlan, completePlan} from '../integrations/companion/upstream/night-plan.mjs';
 
 test('behavior rejects unknown fields, invalid budgets and missing selected session', () => {
-  assert.equal(validatePolicy({...DEFAULT_POLICY, activities:['consolidate','reflect','develop','browse']}).activities.length, 4);
-  assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['consolidate','reflect','develop','browse','extra']}));
+  assert.equal(validatePolicy({...DEFAULT_POLICY, activities:['consolidate','reflect','develop','browse','chat']}).activities.length, 5);
+  assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['consolidate','reflect','develop','browse','chat','extra']}));
   assert.deepEqual(validatePolicy(DEFAULT_POLICY), DEFAULT_POLICY);
   assert.throws(() => validatePolicy({...DEFAULT_POLICY, enabled:true}));
   assert.throws(() => validatePolicy({...DEFAULT_POLICY, remoteUrl:'https://example.com'}));
@@ -58,6 +58,14 @@ test('develop is accepted in the activity list, up to three distinct entries', (
   assert.deepEqual(validatePolicy(three).activities, ['consolidate','reflect','develop']);
   assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['develop','develop']}));
   assert.throws(() => validatePolicy({...DEFAULT_POLICY, activities:['develop','unknown']}));
+});
+test('proactive chat can read context but not act', () => {
+  const budget = new TurnBudget({...DEFAULT_POLICY.budget, toolCalls: 8, writes: 1}, 'chat');
+  assert.equal(budget.tool('read', {file_path:'x'}), undefined);
+  assert.equal(budget.tool('mnemon_recall', {query:'x'}), undefined);
+  assert.equal(budget.tool('self_note', {kind:'idea', text:'x'}), undefined);
+  assert.match(budget.tool('bash', {command:'git status'}), /no commands/);
+  assert.match(budget.tool('web_search', {queries:['x']}), /no commands/);
 });
 test('browse is read-only and bounded', () => {
   const budget = new TurnBudget({...DEFAULT_POLICY.budget, toolCalls: 10, writes: 1}, 'browse');

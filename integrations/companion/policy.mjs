@@ -36,9 +36,9 @@ export function validatePolicy(input) {
   windowsOf(input);
   assert(Number.isFinite(input.skipChance) && input.skipChance >= 0 && input.skipChance <= 1, 'Invalid skip chance');
   integer(input.minGapMin, 1, 10080, 'minimum gap'); integer(input.idleMinutes, 1, 1440, 'idle minutes');
-  assert(Array.isArray(input.activities) && input.activities.length > 0 && input.activities.length <= 4 &&
+  assert(Array.isArray(input.activities) && input.activities.length > 0 && input.activities.length <= 5 &&
     new Set(input.activities).size === input.activities.length &&
-    input.activities.every(x => ['consolidate', 'reflect', 'develop', 'browse'].includes(x)), 'Invalid activities');
+    input.activities.every(x => ['consolidate', 'reflect', 'develop', 'browse', 'chat'].includes(x)), 'Invalid activities');
   keys(input.budget, Object.keys(DEFAULT_POLICY.budget));
   for (const [key, low, high] of [['dailyRuns',1,12],['steps',1,32],['toolCalls',1,64],['writes',0,10],['outputTokens',256,16384],['seconds',10,600]])
     integer(input.budget[key], low, high, key);
@@ -121,12 +121,22 @@ export class TurnBudget {
     if (this.tools >= this.limits.toolCalls) return 'Autonomous tool-call budget exhausted.';
     if (this.activity === 'develop') return this.developTool(name, input);
     if (this.activity === 'browse') return this.browseTool(name, input);
+    if (this.activity === 'chat') return this.chatTool(name, input);
     if (!READ_TOOLS.has(name) && !WRITE_TOOLS.has(name)) return 'Autonomous local maintenance only permits bounded Mnemon reads and non-destructive writes.';
     if (name === 'mnemon_runtime_memory' && input?.action !== 'add')
       return 'Autonomous maintenance cannot remove or replace existing hot memory; preserve the source evidence.';
     if (WRITE_TOOLS.has(name) && this.writes >= this.limits.writes) return 'Autonomous memory-write budget exhausted.';
     this.tools++; if (WRITE_TOOLS.has(name)) this.writes++;
   }
+  chatTool(name, input) {
+    if (['read','glob','grep','read_image','mnemon_recall','mnemon_related'].includes(name)) { this.tools++; return; }
+    if (['self_note','self_experience'].includes(name)) {
+      if (this.writes >= this.limits.writes) return 'Chat write budget exhausted.';
+      this.tools++; this.writes++; return;
+    }
+    return 'Proactive chat may only read context and record a note; no commands, web or repository writes.';
+  }
+
   browseTool(name, input) {
     if (['read','glob','grep','read_image','web_search','web_fetch','rea'].includes(name)) { this.tools++; return; }
     if (['self_note','self_experience'].includes(name)) {
@@ -239,6 +249,13 @@ export function activityPrompt(activity, record, situation = '') {
     'Stop on the first failure and record it instead of retrying. ' +
     `At most ${record.limits.writes} writes, ${record.limits.toolCalls} tool calls and ${record.limits.steps} model steps. ` +
     'Finish with a short factual outcome and the evidence paths.';
+  if (activity === 'chat') return `[Sliver Wolf local activity ${record.id}; chat]\n` +
+    (situation ? situation + '\n\n' : '') +
+    'This is a quiet moment in our existing conversation, not a new identity or a scheduled reminder. ' +
+    'If something genuinely worth sharing comes from a real recent experience, an open self-note or the current context, reply with ONE short, warm Chinese message and nothing else. ' +
+    'Do not invent events, do not ask for a task, do not mention this being scheduled, and do not send a greeting when there is nothing to say. ' +
+    'If nothing is worth saying, reply with exactly QUIET and nothing else. ' +
+    `At most ${record.limits.writes} notes and ${record.limits.steps} model steps.`;
   if (activity === 'browse') return `[Sliver Wolf local activity ${record.id}; browse]\n` +
     (situation ? situation + '\n\n' : '') +
     'This is a scheduled read-only browsing activity in our existing conversation, not a new identity or a separate agent. ' +
