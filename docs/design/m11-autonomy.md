@@ -60,3 +60,16 @@ Steps 2 and 3 are independent of 1; 4 is client-only; 5 depends on 1.
   decides.
 - Third-party apps can change their UI; a failing `phone_task` must fail safely
   (it returns home) rather than retry indefinitely.
+
+## Progress log
+
+- 2026-10-28: develop cadence defaults were 0/0/0, so `devTick` re-fired two seconds
+  after each run and produced runs about every 15 seconds. Defaults are now
+  30 min gap / 15 min idle / 3 per day, and the live policy was corrected
+  (`831d9ef`).
+- 2026-10-28: the nudge queued a synthetic "continue" message while autonomy was
+  enabled; the next reserved run saw it as human input and ended
+  `yielded-to-user` at step 0-1. The nudge now skips when a run is active and when
+  autonomy is enabled (`f27fd73`).
+- Verified: manual run `78c9d8c9` is executing tools (`trace-report` shows
+  `develop | 78c9d8c9 | running | bash×2`) instead of yielding.
