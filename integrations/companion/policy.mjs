@@ -10,7 +10,7 @@ export const DEFAULT_POLICY = Object.freeze({schemaVersion: 1, agentName: 'é“¶ç‹
   windows: [{start: '09:00', end: '22:00', wakes: 2}], skipChance: 0.2,
   minGapMin: 180, idleMinutes: 20, activities: ['consolidate', 'reflect'],
   budget: {dailyRuns: 2, steps: 8, toolCalls: 16, writes: 3, outputTokens: 4096, seconds: 180},
-  develop: {gapMin: 0, idleMinutes: 0, dailyRuns: 0}});
+  develop: {gapMin: 30, idleMinutes: 15, dailyRuns: 3}});
 
 function keys(value, allowed) {
   assert(value && typeof value === 'object' && !Array.isArray(value), 'Expected object');
