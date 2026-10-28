@@ -212,6 +212,7 @@ final class DeviceBridge extends WebSocketServer {
             .put(object("name", "assistant_stop_speaking", "description", "Stop current explicit playback; optional operationId restricts the target. Does not require a model response or microphone access.", "inputSchema", object("type", "object", "properties", object("operationKey", key, "operationId", object("type", "string", "maxLength", 80)), "required", new JSONArray().put("operationKey"), "additionalProperties", false)));
     }
     private JSONObject call(String name, JSONObject args) throws Exception {
+        if("assistant_foreground".equals(name)){arguments(args);return ScreenControlService.foreground();}
         if(name.startsWith("assistant_screen_")){
             if("assistant_screen_capture".equals(name)){
             byte[] png=ScreenCaptureService.capture();
@@ -219,6 +220,7 @@ final class DeviceBridge extends WebSocketServer {
             return postScreen(png);
         }
         if("assistant_screen_status".equals(name))return object("enabled",ScreenControlService.enabled());
+            if("assistant_foreground".equals(name))return ScreenControlService.foreground();
             if("assistant_screen_dump".equals(name))return ScreenControlService.dump(120);
             if("assistant_screen_click".equals(name)){arguments(args,"text");return ScreenControlService.clickText(args.getString("text"));}
             if("assistant_screen_tap".equals(name)){arguments(args,"x","y");return ScreenControlService.tap((float)args.getDouble("x"),(float)args.getDouble("y"));}
@@ -255,7 +257,7 @@ final class DeviceBridge extends WebSocketServer {
             return object("appVersion", context.getPackageManager().getPackageInfo(context.getPackageName(),0).versionName, "uiVisible", visible,
                 "notificationsEnabled", context.getSystemService(NotificationManager.class).areNotificationsEnabled(),
                 "voice", speech.status(), "microphone", "foreground-user-controlled", "microphoneActive", microphoneActive.getAsBoolean(),
-                "wake", WakeVoiceService.diagnostics(), "overlay", context.getSharedPreferences("overlay",0).getBoolean("enabled",false)?"enabled":"disabled", "artifactTransfer", "authenticated-chunks");
+                "wake", WakeVoiceService.diagnostics(), "foreground", ScreenControlService.foreground(), "overlay", context.getSharedPreferences("overlay",0).getBoolean("enabled",false)?"enabled":"disabled", "artifactTransfer", "authenticated-chunks");
         }
         if ("assistant_speak".equals(name)) return speech.speak(args);
         if ("assistant_stop_speaking".equals(name)) return speech.stop(args);

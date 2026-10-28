@@ -19,11 +19,44 @@ import java.util.ArrayDeque;
  */
 public final class ScreenControlService extends AccessibilityService {
     private static volatile ScreenControlService instance;
+    private volatile String foregroundPackage = "", foregroundActivity = "", foregroundTitle = "";
+    private volatile long foregroundAt = 0;
 
     static boolean enabled() { return instance != null; }
 
     @Override public void onServiceConnected() { super.onServiceConnected(); instance = this; }
-    @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
+    @Override public void onAccessibilityEvent(AccessibilityEvent event) {
+        // Real-time foreground awareness: a window-state change is the only no-root
+        // signal that arrives when the user moves between apps.
+        try {
+            if (event == null || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
+            String pkg = event.getPackageName() == null ? "" : event.getPackageName().toString();
+            if (pkg.isEmpty() || pkg.equals(getPackageName())) return;
+            String title = "";
+            java.util.List<CharSequence> texts = event.getText();
+            if (texts != null) for (CharSequence text : texts) {
+                if (text != null && text.length() > 0) { title = text.toString(); break; }
+            }
+            CharSequence cls = event.getClassName();
+            foregroundPackage = pkg;
+            foregroundActivity = cls == null ? "" : cls.toString();
+            foregroundTitle = title.length() > 120 ? title.substring(0, 120) : title;
+            foregroundAt = System.currentTimeMillis();
+        } catch (Exception ignored) { /* awareness must never crash the service */ }
+    }
+
+    /** Last observed foreground app; empty fields when the service is off. */
+    static JSONObject foreground() throws Exception {
+        ScreenControlService service = instance;
+        JSONObject result = new JSONObject();
+        result.put("enabled", service != null);
+        if (service == null) return result;
+        result.put("package", service.foregroundPackage);
+        result.put("activity", service.foregroundActivity);
+        result.put("title", service.foregroundTitle);
+        result.put("at", service.foregroundAt);
+        return result;
+    }
     @Override public void onInterrupt() { }
     @Override public void onDestroy() { instance = null; super.onDestroy(); }
 
