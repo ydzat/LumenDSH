@@ -98,6 +98,23 @@ historian healthy — with two open items.
 Not acted on: global domains are all disabled until the user approves members
 (`/ctx-global enable`), which is by design.
 
+## Machine domain kept disabling itself (2026-10-28)
+
+The operator enabled the machine global domain (`/ctx-global enable dir:global:machine`),
+and it flipped back to disabled within the same minute. Root cause was in the
+adapter, not the command:
+
+- Mount-time projection (`memory-lane.ts`) reads an absent switch as `true`
+  (`liveBoolean(..., true)`), so it enables the domain.
+- The pre-step projection (`pre-step.ts`) spread the switch only when it was
+  defined; with `memory: {}` it passed `{}`, and `syncMachineDomain` reads
+  `enabled === true`, so every execute pass **disabled** the domain again.
+
+Fixed `pre-step.ts` to always pass `liveBoolean(config.memory?.global?.machine?.enabled, true)`.
+Consequence to remember: the machine domain is a **config projection**, so `enabled`
+must be controlled through config (or the plugin settings card), not with
+`/ctx-global disable` — a command-level disable is re-projected on the next pass.
+
 ## Rollback
 
 Remove the two patch rows above, `dsh plugin --profile web remove
