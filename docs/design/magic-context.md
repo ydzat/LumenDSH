@@ -46,22 +46,18 @@ Restart the slot to load it. Verification: the activity log
 `CompactionEngine mounted on ctx.compaction`; the host's own `compaction-basic`
 checkpoints stop appearing.
 
-## Phone-width UI: the status drawer
+## Phone-width UI: taskbar-style overflow
 
-The composer dock carries the official context meter and any plugin pills (Magic
-Context included). In portrait they do not fit, and the official meter is placed
-in the dock corner, so an in-flow pill lands on top of it. The shell plugin makes
-the whole bar a drawer instead of patching one plugin's element:
+The composer dock stays where it is and keeps the official figures; a chevron
+pinned to the bottom-right corner (the Windows taskbar overflow analogue) opens a
+small flyout listing the items that do not fit there. The rule is structural, not
+per-plugin: any dock child that carries the plugin surface marker
+(`data-mc-surface`, the shell contract plugin pills use) moves to the tray, so a
+plugin pill can never sit on top of the official meter.
 
-- collapsed: the dock is hidden and a single `状态 ▲` handle sits above the
-  composer;
-- open (`body.lumendsh-dock-open`): the dock itself becomes a fixed, wrapped,
-  scrollable sheet above the composer, so every current and future dock child
-  (rounds, context, cache, Magic Context) shows in the drawer;
-- no gesture is involved — the handle is a button, which matters because the
-  bottom-of-screen swipe is the system close gesture on this phone.
-
-Tapping `状态 ▼` collapses it again.
+- collapsed: dock as usual plus a `⌃` button in the bottom-right corner;
+- open: a compact flyout above the button with one line per hidden item;
+- no gestures; the button toggles it (bottom swipes close apps on this phone).
 
 ## Rollback
 
