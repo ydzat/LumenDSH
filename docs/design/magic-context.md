@@ -46,23 +46,22 @@ Restart the slot to load it. Verification: the activity log
 `CompactionEngine mounted on ctx.compaction`; the host's own `compaction-basic`
 checkpoints stop appearing.
 
-## Phone-width UI patch
+## Phone-width UI: the status drawer
 
-On the phone the plugin rendered its telemetry pill in the composer dock, where
-it overlapped the official context figures in portrait (the official meter is
-positioned in that corner, so an in-flow sibling lands on top of it). The shell
-plugin now keeps the dock untouched and lifts the Magic Context pill out of it:
+The composer dock carries the official context meter and any plugin pills (Magic
+Context included). In portrait they do not fit, and the official meter is placed
+in the dock corner, so an in-flow pill lands on top of it. The shell plugin makes
+the whole bar a drawer instead of patching one plugin's element:
 
-```css
-[data-composer-dock] [data-mc-surface] {
-  position: fixed !important; right: 10px !important;
-  bottom: 150px !important; z-index: 45 !important;
-}
-```
+- collapsed: the dock is hidden and a single `状态 ▲` handle sits above the
+  composer;
+- open (`body.lumendsh-dock-open`): the dock itself becomes a fixed, wrapped,
+  scrollable sheet above the composer, so every current and future dock child
+  (rounds, context, cache, Magic Context) shows in the drawer;
+- no gesture is involved — the handle is a button, which matters because the
+  bottom-of-screen swipe is the system close gesture on this phone.
 
-The pill is a button above the composer: tapping it opens the plugin's panel;
-the dock keeps only the official rounds/context/percentage figures, and no
-gesture is involved.
+Tapping `状态 ▼` collapses it again.
 
 ## Rollback
 

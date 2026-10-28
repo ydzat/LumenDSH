@@ -23,17 +23,30 @@ window.__ModuleLoader__.load({
       if (typeof document === 'undefined' || document.getElementById('lumendsh-shell-css')) return
       const style = document.createElement('style')
       style.id = 'lumendsh-shell-css'
-      // The composer dock carries the official context meter and any plugin
-      // pills (Magic Context). On a phone they do not fit side by side, so the
-      // row scrolls horizontally instead of overlapping; the gesture is a
-      // horizontal swipe inside the page, never the system bottom gesture.
+      // The bottom status bar becomes a drawer: the composer dock holds the
+      // official context meter and any plugin pills, which do not fit on a
+      // phone. Collapsed, the bar is replaced by one small handle button; open,
+      // the whole dock reflows into a scrollable sheet above the composer. This
+      // is generic — it never targets one plugin's element.
       style.textContent = [
-        '[data-composer-dock]{overflow-x:auto!important;overflow-y:hidden!important;',
-        'flex-wrap:nowrap!important;scrollbar-width:none!important;',
-        '-webkit-overflow-scrolling:touch!important;overscroll-behavior-x:contain!important}',
-        '[data-composer-dock]::-webkit-scrollbar{display:none!important;height:0!important}',
-        '[data-composer-dock]>*{flex:0 0 auto!important;min-width:max-content!important}',
-        '[data-composer-dock] [data-mc-surface]{position:fixed!important;right:10px!important;bottom:150px!important;z-index:45!important}',
+        '[data-composer-dock]{display:none!important}',
+        'body.lumendsh-dock-open [data-composer-dock]{display:flex!important;',
+        'position:fixed!important;left:8px!important;right:8px!important;',
+        'bottom:calc(172px + env(safe-area-inset-bottom))!important;',
+        'max-height:45vh!important;overflow-y:auto!important;flex-wrap:wrap!important;',
+        'align-items:center!important;gap:10px 16px!important;padding:12px 14px!important;',
+        'background:rgba(18,18,22,.97)!important;',
+        'border:1px solid rgba(127,127,127,.28)!important;border-radius:14px!important;',
+        'box-shadow:0 12px 32px rgba(0,0,0,.45)!important;z-index:70!important;',
+        'font-size:12px!important;line-height:18px!important}',
+        'body.lumendsh-dock-open [data-composer-dock]>*{flex:0 0 auto!important;min-width:max-content!important}',
+        '#lumendsh-dock-toggle{position:fixed!important;right:10px!important;',
+        'bottom:calc(128px + env(safe-area-inset-bottom))!important;z-index:71!important;',
+        'height:28px!important;padding:0 12px!important;border-radius:14px!important;',
+        'border:1px solid rgba(127,127,127,.3)!important;background:rgba(24,24,28,.92)!important;',
+        'color:#cfd3dc!important;font-size:12px!important;display:flex!important;',
+        'align-items:center!important;gap:6px!important;user-select:none!important}',
+        '#lumendsh-dock-toggle:active{transform:scale(.97)}',
       ].join('')
       document.head.appendChild(style)
     }
@@ -56,6 +69,17 @@ window.__ModuleLoader__.load({
           hideTideCapsule()
           const observer = new MutationObserver(() => hideTideCapsule())
           observer.observe(document.body, {childList: true, subtree: true})
+          if (document.getElementById('lumendsh-dock-toggle') === null) {
+            const toggle = document.createElement('button')
+            toggle.id = 'lumendsh-dock-toggle'
+            toggle.type = 'button'
+            toggle.textContent = '状态 ▲'
+            toggle.addEventListener('click', () => {
+              const open = document.body.classList.toggle('lumendsh-dock-open')
+              toggle.textContent = open ? '状态 ▼' : '状态 ▲'
+            })
+            document.body.appendChild(toggle)
+          }
         }
         if (document.body) start()
         else document.addEventListener('DOMContentLoaded', start, {once: true})
