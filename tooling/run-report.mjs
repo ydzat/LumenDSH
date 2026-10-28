@@ -18,7 +18,7 @@ for (const run of runs) {
   const seconds = start && end ? Math.round((end - start) / 1000) : null;
   console.log([run.activity, run.status, seconds === null ? '' : seconds + 's',
     'steps=' + (run.steps ?? '-'), 'tools=' + (run.tools ?? '-'), run.startedAt?.slice(11, 19),
-    run.source ?? ''].filter(Boolean).join(' · '));
+    run.source ?? '', run.failureCode ? 'code=' + run.failureCode : ''].filter(Boolean).join(' · '));
 }
 const day = Date.now() - 86400000;
 const recent = (status.runs ?? []).filter(run => ms(run.startedAt) >= day);
