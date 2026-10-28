@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseUi, parseBounds, findElement, requireElement, elementSignature, act} from '../integrations/phone/ui-loop.mjs';
+import {parseUi, parseBounds, findElement, requireElement, elementSignature, act, safeHome, waitFor, withRecovery} from '../integrations/phone/ui-loop.mjs';
 
 const XML = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
 <hierarchy rotation="0"><node index="0" text="" resource-id="root" class="android.widget.FrameLayout" content-desc="" clickable="false" bounds="[0,0][1080,2232]">
@@ -58,4 +58,31 @@ test('act re-resolves a target that moved between observe and tap', async () => 
   assert.equal(result.attempts, 2, 'the moved target must be re-resolved once');
   assert.equal(taps.length, 1);
   assert.equal(taps[0].x, 372, 'tap lands on the re-resolved center');
+});
+
+test('safeHome presses HOME and waitFor finds a selector', async () => {
+  const frames = [`<node index="0" text="" resource-id="sw" class="android.widget.Switch" clickable="true" bounds="[0,0][100,100]" />`];
+  const keys = [];
+  const adb = args => {
+    if (args[1] === 'input' && args[2] === 'keyevent') { keys.push(args[3]); return ''; }
+    if (args[1] === 'uiautomator') return '';
+    if (args[1] === 'cat') return frames[0];
+    return '';
+  };
+  const home = await safeHome(adb);
+  assert.equal(keys.at(-1), '3');
+  assert.equal(home.elements.length, 1);
+  const found = await waitFor(adb, {resourceId: 'sw'}, {timeoutMs: 1000});
+  assert.equal(found.element.resourceId, 'sw');
+});
+
+test('waitFor times out with the last observation and withRecovery returns home', async () => {
+  const adb = args => {
+    if (args[1] === 'uiautomator') return '';
+    if (args[1] === 'cat') return '<hierarchy></hierarchy>';
+    return '';
+  };
+  await assert.rejects(() => waitFor(adb, {text: 'missing'}, {timeoutMs: 400}), /timeout waiting/);
+  await assert.rejects(() => withRecovery(adb, async () => { throw new Error('task failed'); }),
+    error => error.message === 'task failed' && Boolean(error.safeHome?.elements));
 });

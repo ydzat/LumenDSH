@@ -80,4 +80,6 @@ Hard floors (always critical):
 - The app's accessibility/MediaProjection channel exists but is disabled, so the
   adb-independent motor path is not yet usable.
 - No automatic "safe-home" recovery after a failed physical task yet; the runner
-  currently only presses Home at the end.
+  currently only presses Home at the end. `integrations/phone/ui-loop.mjs` now
+  provides `safeHome`, `waitFor` and `withRecovery`, but the eval runner does not
+  wrap its tasks with them yet.

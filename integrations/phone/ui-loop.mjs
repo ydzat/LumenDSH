@@ -108,3 +108,34 @@ export async function act(adb, selector, options = {}) {
   }
   throw new Error('stale target: element kept changing before the tap');
 }
+
+// Return to the home screen and settle. The safe-home routine for failed tasks.
+export async function safeHome(adb) {
+  adb(['shell', 'input', 'keyevent', '3']);
+  return waitStable(adb);
+}
+
+// Poll until a selector appears, or fail with the last observation attached.
+export async function waitFor(adb, selector, {timeoutMs = 8000, intervalMs = 300} = {}) {
+  const started = Date.now();
+  let last = null;
+  while (Date.now() - started < timeoutMs) {
+    last = await screenSignature(adb);
+    const matches = findElement(last.elements, selector);
+    if (matches.length === 1) return {element: matches[0], observation: last};
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  const error = new Error('timeout waiting for ' + JSON.stringify(selector));
+  error.observation = last;
+  throw error;
+}
+
+// Run a physical task; on failure return home and attach that observation to the
+// error so the caller can report where the body ended up.
+export async function withRecovery(adb, task) {
+  try { return await task(); }
+  catch (error) {
+    try { error.safeHome = await safeHome(adb); } catch { error.safeHome = null; }
+    throw error;
+  }
+}
