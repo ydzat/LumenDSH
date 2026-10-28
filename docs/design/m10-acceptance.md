@@ -106,6 +106,12 @@ reports `wake.hits=1`, `recognized=1`, `ownerRejected=0`,
 passed the owner check and handed the utterance to recognition. Background
 keyword wake remains opt-in; the page pauses it while the UI is visible.
 
+Continuous conversation was then tested successfully on the device: after a
+spoken reply the habitat reopened the microphone and the next sentence was
+recognized without touching the screen. Together with wake word, spoken reply
+and mic-tap barge-in, the voice loop (wake → act → speak → listen) now works on
+the habitat; the console stays text-first by design.
+
 ## Version bump defect (fixed)
 
 Manifest version edits after 0.10.27 silently did nothing because each bump
