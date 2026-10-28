@@ -30,6 +30,7 @@ public final class MainActivity extends Activity {
     private String voiceSession = "", voiceRequest = "";
     private boolean voiceAutoSend;
     private boolean speakingBefore, continuousPending;
+    private long consoleStartSeq = -1, consoleSpokenTurn = -1;
     private final java.util.List<String> companionTimeline = new ArrayList<>();
     private HabitatView habitat;
     private String renderedPresentation="", renderedProfile="";
@@ -57,6 +58,7 @@ public final class MainActivity extends Activity {
                     }, 700);
                 }
                 speakingBefore = speaking;
+                maybeSpeakConsoleReply(speaking);
                 updateVoice(); syncWakeScope(); renderHabitat(); updateConnectionDetails(); main.postDelayed(this, 250);
             }
         }
@@ -174,6 +176,36 @@ public final class MainActivity extends Activity {
             handler.postDelayed(this, 30000);
         }};
         handler.post(poll);
+    }
+
+    private void maybeSpeakConsoleReply(boolean speaking) {
+        if (interaction == null || !interaction.consoleVoice() || speaking || manualCapture || !voiceRequest.isEmpty()) return;
+        if (deviceBridge == null || !controller.connected || controller.running) return;
+        long endSeq = -1; String reply = "";
+        long turn = -1;
+        for (java.util.Map.Entry<Long, org.json.JSONObject> entry : controller.conversation.events.entrySet()) {
+            org.json.JSONObject event = entry.getValue(); org.json.JSONObject data = event.optJSONObject("data");
+            if (data == null) continue;
+            String type = event.optString("type");
+            if ("turn/start".equals(type)) { turn = data.optInt("turn", -1); reply = ""; }
+            else if ("assistant/message".equals(type)) {
+                org.json.JSONObject message = data.optJSONObject("message");
+                org.json.JSONArray blocks = message == null ? null : message.optJSONArray("content");
+                StringBuilder text = new StringBuilder();
+                if (blocks != null) for (int i = 0; i < blocks.length(); i++) {
+                    org.json.JSONObject block = blocks.optJSONObject(i);
+                    if (block != null && "text".equals(block.optString("type"))) text.append(block.optString("text")).append('\n');
+                }
+                if (text.length() > 0) reply = text.toString().trim();
+            } else if ("turn/end".equals(type)) {
+                if (consoleStartSeq < 0) consoleStartSeq = entry.getKey();
+                endSeq = entry.getKey();
+            }
+        }
+        if (consoleStartSeq < 0) return;
+        if (endSeq <= consoleStartSeq || endSeq == consoleSpokenTurn || reply.isEmpty()) return;
+        consoleSpokenTurn = endSeq;
+        try { deviceBridge.speakReply("console-" + endSeq, reply); } catch (Exception ignored) { }
     }
 
     private void showCompanionTimeline() {
@@ -386,6 +418,8 @@ public final class MainActivity extends Activity {
         d.choice("识别语言",language.equals("en-US")?"英语":"中文",new String[]{"中文","英语"},language.equals("en-US")?1:0,i->interaction.values.edit().putString("inputLanguage",i==1?"en-US":"zh-CN").apply());
         d.note("唤醒词：嗨，"+agentName()+"。当前唤醒模型支持中文名称。");
         d.toggle("连续对话","播报结束后自动再次聆听",interaction.continuous(),on->interaction.values.edit().putBoolean("continuous",on).apply());
+        d.section("控制台");
+        d.toggle("朗读控制台回复","用当前声音朗读官方界面里的文字回复",interaction.consoleVoice(),on->interaction.values.edit().putBoolean("consoleVoice",on).apply());
         d.toggle("后台关键词唤醒",WakeVoiceService.status(),getSharedPreferences("wake",0).getBoolean("enabled",false),on->{
             if(on&&!wakeReady()){d.refresh();return;}getSharedPreferences("wake",0).edit().putBoolean("enabled",on).apply();ensureWakeService();});
         d.row("主人声纹",new OwnerVoiceStore(this).exists()?"已录入 · 唤醒时验证主人":"尚未录入",()->startActivity(new android.content.Intent(this,OwnerVoiceActivity.class)));
