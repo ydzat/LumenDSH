@@ -56,6 +56,22 @@ pill surfaces (`data-mc-surface`) are hidden so they cannot overlap the official
 meter; expanded, they appear next to it. The chevron is the only control, because
 bottom swipes close apps on this phone.
 
+## Historian fix (empty system messages)
+
+The historian replays a prefix of the session as an LLM request. Older sessions
+contain `system/message` nodes with empty content (v2→v3 conversion artifacts);
+the DeepSeek adapter rejects those once they sit in history
+(`DeepSeek Messages cannot represent empty in-history system update`), so every
+historian run failed at chunk 1/4 and the error count grew.
+
+Patch in the vendored checkout (`~/magic-context/src/dsh/seams.ts`,
+`spanRequestMessages`): drop `system/message` events whose text is empty from the
+replay. Rebuild with `node node_modules/typescript/bin/tsc -p tsconfig.build.json`
+and restart the slot.
+
+Verified after the restart: `historian chunk 1/4 digested (importance 82)` and no
+new `ERROR` rows since.
+
 ## Rollback
 
 Remove the two patch rows above, `dsh plugin --profile web remove
