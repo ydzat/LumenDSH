@@ -46,18 +46,16 @@ Restart the slot to load it. Verification: the activity log
 `CompactionEngine mounted on ctx.compaction`; the host's own `compaction-basic`
 checkpoints stop appearing.
 
-## Phone-width UI: taskbar-style overflow
+## Phone-width UI: taskbar-style expansion
 
-The composer dock stays where it is and keeps the official figures; a chevron
-pinned to the bottom-right corner (the Windows taskbar overflow analogue) opens a
-small flyout listing the items that do not fit there. The rule is structural, not
-per-plugin: any dock child that carries the plugin surface marker
-(`data-mc-surface`, the shell contract plugin pills use) moves to the tray, so a
-plugin pill can never sit on top of the official meter.
-
-- collapsed: dock as usual plus a `⌃` button in the bottom-right corner;
-- open: a compact flyout above the button with one line per hidden item;
-- no gestures; the button toggles it (bottom swipes close apps on this phone).
+The dock keeps its place and the official figures. A chevron pinned to the
+bottom-right corner (the Windows taskbar analogue) lifts the **same dock** — real
+child nodes, no clones or text copies — into a floating panel above the composer
+(`body.lumendsh-dock-open [data-composer-dock] { position: fixed; … }`). Inside
+the panel the children wrap and scroll, so the plugin pill sits next to the
+official meter instead of on top of it; collapsed, plugin pill surfaces
+(`data-mc-surface`) are hidden. The button toggles the panel; no gesture is used
+because bottom swipes close apps on this phone.
 
 ## Rollback
 
