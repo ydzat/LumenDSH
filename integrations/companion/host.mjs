@@ -268,6 +268,7 @@ export function apply(ctx, config = {}) {
     clearTimeout(current.timer);
     Object.assign(current.record, {status, endedAt: new Date().toISOString(),
       steps: current.budget.steps, tools: current.budget.tools, writesAttempted: current.budget.writes});
+    traceLine(current.record, 'end', {status, steps: current.budget.steps, tools: current.budget.tools});
     const failed = ['failed', 'delivery-uncertain'].includes(status);
     recordExperience({kind: failed ? 'failure' : 'result',
       summary: `${current.record.activity} ${status}`,
@@ -383,7 +384,8 @@ export function apply(ctx, config = {}) {
       }));
       disposers.push(agent.ctx.tools.guard(execution => {
         if (active?.agent !== agent || active.turn === undefined) return;
-        traceTool(active.record, execution);
+        traceLine(active.record, 'tool', {tool: execution.name,
+          args: JSON.stringify(execution.arguments ?? {}).slice(0, 600)});
         return active.budget.tool(execution.name,execution.arguments);
       }));
       disposers.push(agent.ctx.on('agent/turn-stopping', ({turn}) => {
@@ -414,17 +416,16 @@ export function apply(ctx, config = {}) {
     throw new Error('Selected conversation unavailable: ' + policy.sessionId);
   }
 
-  // One JSONL line per tool call of an active autonomous run: the local trace the
-  // observability work builds on. Tracing must never break a tool call.
-  function traceTool(record, execution) {
+  // One JSONL line per lifecycle event or tool call of an autonomous run: the
+  // local trace the observability work builds on. Tracing never breaks a call.
+  function traceLine(record, type, fields = {}) {
     try {
       const day = new Date().toISOString().slice(0, 10);
       const file = path.join(root, 'trace-' + day + '.jsonl');
       try { if (statSync(file).size > 5 * 1024 * 1024) return; }
       catch { /* file does not exist yet */ }
       appendFileSync(file, JSON.stringify({at: new Date().toISOString(), run: record.id,
-        activity: record.activity, tool: execution.name,
-        args: JSON.stringify(execution.arguments ?? {}).slice(0, 600)}) + '\n', {mode: 0o600});
+        activity: record.activity, type, ...fields}) + '\n', {mode: 0o600});
     } catch { /* ignore trace failures */ }
   }
 
@@ -475,6 +476,7 @@ export function apply(ctx, config = {}) {
       for (const day of Object.keys(state.daily)) if (day < dayOf(now - 7 * 86400000)) delete state.daily[day];
       state.runs.push(record); state.runs = state.runs.slice(-100);
       save(); // Reserve before I/O. An uncertain delivery is not automatically retried.
+      traceLine(record, 'start', {limits});
       active = {record, agent, budget: new TurnBudget(limits, record.activity)};
       active.timer = setTimeout(() => stop('time-budget'), limits.seconds * 1000);
       try {
@@ -497,6 +499,7 @@ export function apply(ctx, config = {}) {
     const record = {id: randomUUID(), sessionId: agent.id, status: 'reserved', activity,
       startedAt: new Date(now).toISOString(), limits, source: 'manual-verification'};
     state.runs.push(record); state.runs = state.runs.slice(-100); save();
+    traceLine(record, 'start', {limits, source: 'manual-verification'});
     active = {record, agent, budget: new TurnBudget(limits, activity)};
     active.timer = setTimeout(() => stop('time-budget'), limits.seconds * 1000);
     const situation = buildSituation({notesFile, runs: state.runs, lastError: state.lastError ?? null})
