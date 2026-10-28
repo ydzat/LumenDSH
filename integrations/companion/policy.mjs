@@ -128,7 +128,7 @@ export class TurnBudget {
     this.tools++; if (WRITE_TOOLS.has(name)) this.writes++;
   }
   browseTool(name, input) {
-    if (['read','glob','grep','read_image','web_search','web_fetch'].includes(name)) { this.tools++; return; }
+    if (['read','glob','grep','read_image','web_search','web_fetch','rea'].includes(name)) { this.tools++; return; }
     if (['self_note','self_experience'].includes(name)) {
       if (this.writes >= this.limits.writes) return 'Browse write budget exhausted.';
       this.tools++; this.writes++; return;
@@ -137,7 +137,7 @@ export class TurnBudget {
   }
 
   developTool(name, input) {
-    if (['read','glob','grep','read_image','web_search','web_fetch'].includes(name)) { this.tools++; return; }
+    if (['read','glob','grep','read_image','web_search','web_fetch','rea'].includes(name)) { this.tools++; return; }
     if (['write','edit'].includes(name)) {
       if (this.writes >= this.limits.writes) return 'Autonomous write budget exhausted.';
       this.tools++; this.writes++; return;

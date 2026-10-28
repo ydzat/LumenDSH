@@ -77,6 +77,7 @@ test('develop activity admits bounded repository tools and refuses escalation', 
   assert.equal(budget.tool('web_search', {queries:['dsh plugin api']}), undefined);
   assert.equal(budget.tool('web_fetch', {url:'https://example.com/docs'}), undefined);
   assert.equal(budget.tool('read_image', {file_path:'screen.png'}), undefined);
+  assert.equal(budget.tool('rea', {command:'inspect-apk-signature', path:'/storage/emulated/0/Download/x.apk'}), undefined);
   assert.equal(budget.tool('bash', {command:'git status --short'}), undefined);
   assert.equal(budget.tool('bash', {command:'node tests/relay-check.mjs'}), undefined);
   assert.equal(budget.tool('write', {file_path:'docs/x.md'}), undefined);

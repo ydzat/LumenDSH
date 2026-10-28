@@ -89,6 +89,50 @@ export function apply(ctx, config = {}) {
     {apk: {type: 'string'}}, (p) => ['install', String(p.apk)], 'installed');
   phoneTool('phone_ui', 'Dump the visible UI hierarchy of the phone through adb (uiautomator).',
     {}, () => ['ui'], 'ui dumped');
+  const REA_COMMANDS = new Set(['inspect-apk-signature','inspect-android-package',
+    'inspect-android-class','inspect-android-method','analyze','decompile',
+    'analyze-javascript-application','analyze-web-bundle']);
+  const REA_ROOTS = ['/storage/emulated/0/Download/','/data/data/com.termux/files/home/tmp/',
+    '/data/data/com.termux/files/home/sliver-wolf-dev/artifacts'];
+  ctx.tools.register({
+    name: 'rea',
+    description: 'Run one read-only REA reverse-engineering command on the analysis server. The file is copied to the server first. Commands: inspect-apk-signature, inspect-android-package, inspect-android-class (className), inspect-android-method (className, methodName), analyze, decompile (procedure), analyze-javascript-application, analyze-web-bundle.',
+    parameters: {type: 'object', additionalProperties: false, required: ['command', 'path'],
+      properties: {command: {type: 'string', enum: [...REA_COMMANDS]}, path: {type: 'string'},
+        className: {type: 'string'}, methodName: {type: 'string'}, procedure: {type: 'string'}}},
+    output: output({text: {type: 'string'}}),
+    async execute(parameters, exec) {
+      const command = String(parameters.command ?? '');
+      const source = String(parameters.path ?? '');
+      if (!REA_COMMANDS.has(command)) throw new Error('REA command is not allowed');
+      if (!REA_ROOTS.some(prefix => source.startsWith(prefix))) throw new Error('REA path must be under an allowed root');
+      const remote = '/tmp/rea-input-' + String(source.split('/').pop() ?? 'artifact').replace(/[^A-Za-z0-9._-]/g, '_');
+      try {
+        execFileSync('scp', ['-q', source, 'server:' + remote], {timeout: 120000});
+      } catch (error) {
+        throw new Error('REA upload failed: ' + String(error.message));
+      }
+      const args = [command, remote];
+      if (parameters.className) args.push('--class', String(parameters.className));
+      if (parameters.methodName) args.push('--method', String(parameters.methodName));
+      if (parameters.procedure) args.push('--procedure', String(parameters.procedure));
+      let text;
+      try {
+        text = execFileSync('ssh', ['-o', 'BatchMode=yes', 'server', 'rea', ...args],
+          {encoding: 'utf8', timeout: 600000, maxBuffer: 32 * 1024 * 1024});
+      } catch (error) {
+        text = 'REA failed: ' + String(error.stderr ?? error.message ?? error);
+      }
+      try {
+        const log = path.join(root, 'activity-audit.jsonl');
+        let size = 0; try { size = statSync(log).size; } catch { size = 0; }
+        if (size < 1024 * 1024) appendFileSync(log, JSON.stringify({at: new Date().toISOString(),
+          tool: 'rea', command, source, activity: active?.record.activity ?? null}) + '\n', {mode: 0o600});
+      } catch { /* audit must not break the call */ }
+      requireOwn(exec);
+      return {text: String(text).slice(0, 30000)};
+    }
+  });
   ctx.tools.register({
     name: 'self_experience',
     description: 'Record a real experience (failure, correction, friction, observation, capability-gap, extension, review) into the append-only stream that derives future development candidates.',
