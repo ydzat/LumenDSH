@@ -94,6 +94,24 @@ The user's framing is right: the phone is the **body**, and this agent is its
    approvals are disabled.
 5. A failed task ends in the safe-home routine above, not in an unbounded retry.
 
+## 2d. Motor-bus findings (2026-10-28)
+
+`tooling/body-check.mjs` probes the body independently of adb. After the reboot:
+
+- **adb**: disconnected (`adb devices` has no `127.0.0.1:5555`); `adb connect` alone
+  does not restore it, and `winpc` is unreachable, so the USB path is unavailable.
+- **bridge 3084**: open; **host 3080**: reachable; battery readable through
+  `termux-battery-status` (99%).
+- **`phone_*` tools**: still time out, i.e. they route through the adb path rather
+  than through the app bridge. The body therefore has *two* channels on paper but
+  only one motor path in practice.
+
+Consequence: the immediate work item is to give the app bridge a real
+adb-independent motor path (accessibility taps / MediaProjection capture already
+exist in the client), and make `phone-eval` able to run over either backend. Until
+then a reboot strands motor control, which is exactly the embodied failure the
+safety invariants are meant to prevent.
+
 ## 3. Gap → action
 
 | Gap | Existing option | Decision |
