@@ -32,6 +32,17 @@ export async function runTask(adb, steps, {onStep = () => {}} = {}) {
           (step.any ?? []).some(text => element.text.includes(text) || element.desc.includes(text)));
         entry.text = step.any;
         if (!matched) throw new Error('expected text not found: ' + (step.any ?? []).join(', '));
+      } else if (step.type === 'expectGone') {
+        const state = await screenSignature(adb);
+        const present = state.elements.find(element =>
+          (step.any ?? []).some(text => element.text.includes(text) || element.desc.includes(text)));
+        entry.text = step.any;
+        if (present) throw new Error('unexpected text still present: ' + present.text);
+      } else if (step.type === 'swipe') {
+        const from = step.from ?? {}, to = step.to ?? {};
+        adb(['shell', 'input', 'swipe', String(from.x), String(from.y), String(to.x), String(to.y),
+          String(step.durationMs ?? 300)]);
+        entry.from = from; entry.to = to;
       } else if (step.type === 'home') {
         await safeHome(adb);
       } else throw new Error('unknown step: ' + step.type);

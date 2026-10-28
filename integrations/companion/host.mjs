@@ -99,13 +99,16 @@ export function apply(ctx, config = {}) {
       const steps = parameters.steps;
       if (!Array.isArray(steps) || !steps.length || steps.length > 12) throw new Error('steps must contain 1..12 steps');
       for (const step of steps) {
-        if (!['start', 'tap', 'type', 'key', 'waitFor', 'expect', 'home'].includes(step?.type))
+        if (!['start', 'tap', 'type', 'key', 'waitFor', 'expect', 'expectGone', 'swipe', 'home'].includes(step?.type))
           throw new Error('unsupported step type: ' + String(step?.type));
         if (step.type === 'start' && !Array.isArray(step.args)) throw new Error('start requires args');
         if (step.type === 'tap' && (step.selector === null || typeof step.selector !== 'object')) throw new Error('tap requires a selector');
         if (step.type === 'type' && typeof step.text !== 'string') throw new Error('type requires text');
         if (step.type === 'key' && !Number.isInteger(step.code)) throw new Error('key requires an integer code');
         if (step.type === 'expect' && !Array.isArray(step.any)) throw new Error('expect requires any[]');
+        if (step.type === 'expectGone' && !Array.isArray(step.any)) throw new Error('expectGone requires any[]');
+        if (step.type === 'swipe' && (!Number.isFinite(step.from?.x) || !Number.isFinite(step.to?.x)))
+          throw new Error('swipe requires from/to coordinates');
       }
       const file = path.join(os.tmpdir(), 'phone-task-' + randomUUID() + '.json');
       writeFileSync(file, JSON.stringify({id: 'host-phone-task', steps}), {mode: 0o600});
