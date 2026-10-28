@@ -89,16 +89,22 @@ export async function waitStable(adb, {timeoutMs = 4000, intervalMs = 250, sampl
   return last ?? await screenSignature(adb);
 }
 
-// Act on a selector: observe, revalidate, tap, wait for stability, observe again.
+// Act on a selector: observe, revalidate immediately before the tap (a target that
+// moved or was replaced is stale), tap, wait for stability, observe and verify.
 export async function act(adb, selector, options = {}) {
-  const before = await screenSignature(adb);
-  const target = requireElement(before.elements, selector);
-  const signature = elementSignature(target);
   const verify = options.verify;
-  adb(['shell', 'input', 'tap', String(target.bounds.centerX), String(target.bounds.centerY)]);
-  const after = await waitStable(adb);
-  const stillThere = after.elements.some(element => elementSignature(element) === signature);
-  const check = verify ? verify(after.elements) : {ok: true};
-  return {ok: Boolean(check.ok), target, before, after, stillThere, detail: check.detail ?? null,
-    changed: before.signature !== after.signature};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const before = await screenSignature(adb);
+    const target = requireElement(before.elements, selector);
+    const signature = elementSignature(target);
+    const confirm = await screenSignature(adb);
+    const current = confirm.elements.find(element => elementSignature(element) === signature);
+    if (!current) continue; // stale: re-resolve once, then give up.
+    adb(['shell', 'input', 'tap', String(current.bounds.centerX), String(current.bounds.centerY)]);
+    const after = await waitStable(adb);
+    const check = verify ? verify(after.elements) : {ok: true};
+    return {ok: Boolean(check.ok), target, before, after, attempts: attempt + 1,
+      detail: check.detail ?? null, changed: before.signature !== after.signature};
+  }
+  throw new Error('stale target: element kept changing before the tap');
 }

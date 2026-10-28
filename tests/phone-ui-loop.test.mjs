@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseUi, parseBounds, findElement, requireElement, elementSignature} from '../integrations/phone/ui-loop.mjs';
+import {parseUi, parseBounds, findElement, requireElement, elementSignature, act} from '../integrations/phone/ui-loop.mjs';
 
 const XML = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
 <hierarchy rotation="0"><node index="0" text="" resource-id="root" class="android.widget.FrameLayout" content-desc="" clickable="false" bounds="[0,0][1080,2232]">
@@ -41,4 +41,21 @@ test('elementSignature changes when geometry moves, which is the stale-target si
   const moved = parseUi(XML.replace('[882,312][1026,456]', '[882,400][1026,544]'))
     .find(element => element.resourceId === 'com.android.settings:id/switch_widget');
   assert.notEqual(elementSignature(before), elementSignature(moved));
+});
+
+test('act re-resolves a target that moved between observe and tap', async () => {
+  const at = x => `<node index="0" text="" resource-id="sw" class="android.widget.Switch" clickable="true" bounds="[${x},300][${x + 144},444]" />`;
+  const frames = [at(100), at(300), at(300), at(300), at(300), at(300), at(300)];
+  let dump = 0;
+  const taps = [];
+  const adb = args => {
+    if (args[1] === 'uiautomator') { dump++; return ''; }
+    if (args[1] === 'cat') return frames[Math.min(dump - 1, frames.length - 1)];
+    if (args[1] === 'input' && args[2] === 'tap') { taps.push({x: Number(args[3]), y: Number(args[4])}); return ''; }
+    return '';
+  };
+  const result = await act(adb, {resourceId: 'sw'});
+  assert.equal(result.attempts, 2, 'the moved target must be re-resolved once');
+  assert.equal(taps.length, 1);
+  assert.equal(taps[0].x, 372, 'tap lands on the re-resolved center');
 });
