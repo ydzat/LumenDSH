@@ -72,6 +72,32 @@ and restart the slot.
 Verified after the restart: `historian chunk 1/4 digested (importance 82)` and no
 new `ERROR` rows since.
 
+## Doctor follow-ups (2026-10-28)
+
+`scripts/dsh-doctor.mjs` is the read-only health report MC ships; run it after any
+配置 or upgrade. Verdict before the follow-ups: engine mounted, memory lane 12 rows,
+historian healthy — with two open items.
+
+1. **Vector lane could never bootstrap** (doctor §7, WARN). `resolveSharedSpace`
+   closed the gate whenever the corpus had no vectors (`no dominant embedding
+   space`), while `planBackfill` refused without a dominant space — for a fresh
+   single-writer corpus that is a deadlock, and the 12 memories stayed at 0%
+   coverage. Patched `src/dsh/memory-lane.ts` to record the first writer
+   (`first-writer`) as the embedder's own identity on an empty store, and
+   `src/core/vector-lane.ts` `planBackfill` accepts that `modelId` fallback.
+   Parity then passes trivially (the same embedder wrote and reads), and later
+   spaces still need the 0.99 cosine proof.
+2. **Profile hygiene** (doctor §8, blocking). `@deepseek-ai/cosmokit` and
+   `@deepseek-ai/schemastery` had been hoisted into
+   `~/.dsh/profiles/web/node_modules/@deepseek-ai`. DSH prefers profile-local
+   same-name packages, so a host upgrade would shadow its own copies and fail
+   boot with "1 required plugin did not activate". Moved them to
+   `~/agent-workspace/backup-profile-deepseek-ai-20261028`; host installation
+   scope provides the same versions.
+
+Not acted on: global domains are all disabled until the user approves members
+(`/ctx-global enable`), which is by design.
+
 ## Rollback
 
 Remove the two patch rows above, `dsh plugin --profile web remove
