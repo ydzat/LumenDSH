@@ -57,7 +57,7 @@ final class CompanionSettings {
         drawer.row("高级活动限制","空闲时间、频率、模型与工具预算",()->drawer.go(this::advancedPage));
         drawer.row("最近活动","查看实际执行记录",()->drawer.go(()->{drawer.title("最近活动");try{drawer.note(history(state));}catch(Exception e){error(e);}}));
         drawer.row("历史版本","恢复已保存的行为配置",()->versions(state));
-        drawer.row("立即运行一次","按当前预算跑一次受控自主开发（验证用）",()->{
+        drawer.row("立即运行一次","按当前预算跑一次受控活动（开发/浏览，验证用）",()->{
             drawer.note("已提交，运行结果写入“最近活动”…");
             io.execute(()->{try{JSONObject result=transport.companion("run",new JSONObject().put("activity","develop"));
                 activity.runOnUiThread(()->drawer.note("结果："+result.toString()));}catch(Exception e){error(e);}});
