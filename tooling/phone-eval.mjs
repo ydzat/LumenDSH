@@ -5,6 +5,7 @@
 import {execFileSync} from 'node:child_process';
 import {readFileSync, writeFileSync, statSync, mkdirSync} from 'node:fs';
 import path from 'node:path';
+import {screenSignature, act, requireElement} from '../integrations/phone/ui-loop.mjs';
 
 const home = process.env.HOME;
 const serial = process.env.PHONE_SERIAL || '127.0.0.1:5555';
@@ -55,27 +56,18 @@ for (const task of spec.tasks) {
       } else if (action.type === 'bt_toggle') {
         // Low-risk connectivity change (no paired device): toggle through the
         // Settings switch (observe → act → verify), then restore the original state.
-        const state = () => adb(['shell', 'settings', 'get', 'global', 'bluetooth_on']).trim();
-        const before = state();
-        const flip = () => {
-          adb(['shell', 'am', 'start', '-a', 'android.settings.BLUETOOTH_SETTINGS']);
-          adb(['shell', 'sleep', '1']);
-          adb(['shell', 'uiautomator', 'dump', '/sdcard/bt-eval.xml'], 45000);
-          const xml = adb(['shell', 'cat', '/sdcard/bt-eval.xml']);
-          const tag = xml.split('<node').find(part => part.includes('switch_widget') && part.includes('android.widget.Switch'));
-          const bounds = tag && tag.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-          if (!bounds) throw new Error('bluetooth switch not found');
-          const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
-          const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2);
-          adb(['shell', 'input', 'tap', String(x), String(y)]);
-          adb(['shell', 'sleep', '2']);
-          return state();
-        };
-        const after = flip();
-        let restored = after;
-        if (after !== before) restored = flip();
-        if (restored !== before) throw new Error('bluetooth restore failed');
-        output += 'bt before=' + before + ' after=' + after + ' restored=' + restored;
+        const selector = {resourceId: 'com.android.settings:id/switch_widget', clickable: true};
+        const stateOf = elements => requireElement(elements, selector).checked;
+        adb(['shell', 'am', 'start', '-a', 'android.settings.BLUETOOTH_SETTINGS']);
+        const initial = await screenSignature(adb);
+        const before = stateOf(initial.elements);
+        const flipped = await act(adb, selector, {verify: elements => ({ok: stateOf(elements) !== before,
+          detail: 'checked ' + before + ' -> ' + stateOf(elements)})});
+        if (!flipped.ok) throw new Error('bluetooth did not toggle');
+        const restored = await act(adb, selector, {verify: elements => ({ok: stateOf(elements) === before,
+          detail: 'restored ' + stateOf(elements)})});
+        if (!restored.ok) throw new Error('bluetooth restore failed');
+        output += 'bt before=' + before + ' restored=' + stateOf(restored.after.elements);
       } else if (action.type === 'wait') {
         execFileSync(process.execPath, ['-e', `setTimeout(()=>{},${Number(action.ms) || 1000})`]);
       }
