@@ -50,13 +50,24 @@ function slotState(name) {
   catch { return null; }
 }
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
-function answers(host, port) {
+function answersOnce(host, port, timeout = 3000) {
   return new Promise((resolve) => {
-    const request = http.get({host, port, path: '/', timeout: 1500},
+    const request = http.get({host, port, path: '/', timeout},
       (response) => { response.resume(); resolve(true); });
     request.on('error', () => resolve(false));
     request.on('timeout', () => { request.destroy(); resolve(false); });
   });
+}
+// A loaded phone stalls the loopback listener for seconds at a time. Treating one
+// slow probe as "nothing is listening" used to spawn a second host against the
+// live port, fail with EADDRINUSE and hand the watchdog a restart loop that also
+// dropped every connected WebSocket client. Adoption now retries before deciding.
+async function answers(host, port, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    if (await answersOnce(host, port)) return true;
+    if (i + 1 < attempts) await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
 }
 
 // Follow the slot the relay is currently serving, not a hardcoded A. Otherwise a
@@ -87,8 +98,14 @@ if (!slot || !alive(slot.pid)) {
       '--workspace', flags.workspace, '--stable-port', String(flags.port),
       '--state-dir', flags.stateDir], {encoding: 'utf8', timeout: 180000});
     if (started.status !== 0) {
-      process.stderr.write('stack: slot start failed\n' + (started.stderr || started.stdout));
-      process.exit(1);
+      // Losing the race with a listener that came up between the probe and the
+      // spawn is adoption, not a fatal stack failure.
+      if (await answers(activeHost, activePort)) {
+        process.stderr.write('stack: adopting listener that won the start race on ' + activeHost + ':' + activePort + '\n');
+      } else {
+        process.stderr.write('stack: slot start failed\n' + (started.stderr || started.stdout));
+        process.exit(1);
+      }
     }
   }
 }
@@ -108,8 +125,11 @@ try { relayPid = Number(readFileSync(relayPidFile, 'utf8').trim()); } catch { re
 let relay = null;
 if (relayPid > 0 && alive(relayPid) && await answers('127.0.0.1', flags.port)) {
   process.stderr.write('stack: adopting existing relay pid ' + relayPid + '\n');
+  let relayMisses = 0;
   setInterval(async () => {
-    if (!alive(relayPid) || !(await answers('127.0.0.1', flags.port))) process.exit(1);
+    if (alive(relayPid) && await answers('127.0.0.1', flags.port)) { relayMisses = 0; return; }
+    relayMisses++;
+    if (relayMisses >= 3) process.exit(1);
   }, 10000);
 } else {
   relay = spawn(process.execPath, [relayScript, '--port', String(flags.port), '--state-dir', flags.relayDir],

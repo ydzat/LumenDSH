@@ -28,7 +28,7 @@ if command -v tmux >/dev/null 2>&1 && tmux has-session -t =dsh 2>/dev/null; then
 fi
 
 setsid nohup node "$DEV/integrations/supervisor/supervise.mjs" --port "$PORT" \
-  --interval-ms 5000 --timeout-ms 3000 --fail-threshold 3 --startup-grace-ms 180000 \
+  --interval-ms 5000 --timeout-ms 8000 --fail-threshold 3 --startup-grace-ms 180000 \
   --state-dir "$STACK_STATE" -- \
   node "$DEV/integrations/supervisor/stack.mjs" --port "$PORT" --slot-name A --slot-port "$SLOT_PORT" \
   --runtime "$RUNTIME" --home "$HOME/.dsh" --workspace "$HOME/agent-workspace" \

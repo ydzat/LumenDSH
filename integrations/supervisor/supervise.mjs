@@ -119,7 +119,12 @@ function startChild() {
 
 function probe() {
   return new Promise((resolve) => {
-    const request = http.get({host: '127.0.0.1', port: flags.port, path: '/', timeout: flags.timeoutMs},
+    // A phone under load (a long agent turn, model calls, many tool jobs) stalls
+    // the loopback listener for seconds. A 3 s probe then reports a healthy
+    // entrance as dead, the watchdog terminates the stack, and every connected
+    // client loses the WebSocket it was typing into. Keep the configured floor
+    // for a real outage but never probe faster than 8 s.
+    const request = http.get({host: '127.0.0.1', port: flags.port, path: '/', timeout: Math.max(flags.timeoutMs, 8000)},
       (response) => { response.resume(); resolve(true); });
     request.on('timeout', () => { request.destroy(); resolve(false); });
     request.on('error', () => resolve(false));
