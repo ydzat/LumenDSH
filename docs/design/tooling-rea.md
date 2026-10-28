@@ -9,13 +9,20 @@ agent-facing reverse-engineering CLI/MCP server: APK signatures and resources,
 adb device inspection, JavaScript/Electron analysis, native binaries through
 Ghidra/Hopper/IDA, and many static format readers.
 
-## Installation here
+## Installation
 
-- Local install: `~/rea-tools` (`npm install rea-agents@6.8.0 --omit=optional`,
-  149 packages, no native build failure).
-- Wrapper: `~/agent-workspace/rea.sh <command>` (calls the package's
-  `scripts/rea.mjs`).
-- Node 24.22.1 satisfies the engine range exactly.
+- **Server (full version)**: `npm install -g rea-agents@6.8.0` on the Debian
+  server (x86_64, node 22.23.4). JADX headless 0.7.1 from
+  [jadx-headless-mcp](https://github.com/1013503897/jadx-headless-mcp) at
+  `/opt/rea/jadx-headless-mcp-0.7.1-all.jar` (`REA_JADX_MCP_JAR`); Ghidra
+  12.1.4 at `/opt/ghidra_12.1.4_PUBLIC` (`GHIDRA_INSTALL_DIR`); Temurin JDK 21
+  at `/opt/java21/jdk-21.0.13+9` (`JAVA_HOME`). All three in `/etc/environment`.
+- **Phone (limited)**: `~/rea-tools` (`npm install rea-agents@6.8.0
+  --omit=optional`), wrapper `~/agent-workspace/rea.sh <command>`. Node 24.22.1
+  satisfies the engine range exactly.
+- **DSH skill**: `~/.dsh/skills/rea-reverse-engineering/SKILL.md` (repo copy at
+  `integrations/skills/rea-reverse-engineering/SKILL.md`), discovered and loaded
+  by the agent's skill tool.
 
 ## What works on android-arm64 / Termux
 
@@ -24,8 +31,8 @@ Ghidra/Hopper/IDA, and many static format readers.
 | `inspect-apk-signature <apk>` | works (signing schemes, signer digests) |
 | `inspect-adb-package <serial> <pkg>` | works against `127.0.0.1:5555` (version, install times, flags) |
 | `inspect-adb-client` | works (finds Termux adb) |
-| `inspect-android-package` (JADX decode) | **unsupported**: "JADX subprocess ownership is unsupported on android/arm64" |
-| Native decompilation | unavailable (no Ghidra/Hopper/IDA on the phone) |
+| `inspect-android-package` (JADX decode) | **unsupported on the phone**, works on the server (jadx 0.7.1) |
+| Native decompilation | unavailable on the phone; Ghidra 12.1.4 works on the server |
 
 `rea doctor` classifies the host as `unsupported_host`; the static readers above
 still run. Treat native/JADX paths as unavailable on-device; run those on a Linux
@@ -45,3 +52,13 @@ if a workflow genuinely needs the MCP ergonomics.
 - `rea.sh inspect-adb-package 127.0.0.1:5555 local.sliverwolf.web`
   → evidence `ev_6b9911…`, confirms `0.10.48-dev` (104), installed 2026-10-26,
   last update 2026-10-28 01:10.
+
+
+## Full-version verification (2026-10-28)
+
+- `rea inspect-android-package /tmp/lumendsh.apk` on the server → evidence
+  `ev_61eef4…`, provider `jadx` 0.7.1, sha256 `e5eaeca5…` (our 0.10.48 APK).
+- `rea analyze /bin/true` on the server → evidence `ev_233442…`, provider
+  `ghidra`, ELF x86_64.
+- `rea doctor` on the server: host/node/jadx/ghidra checks healthy; Hopper (macOS)
+  and IDA (commercial) remain unavailable by design.
