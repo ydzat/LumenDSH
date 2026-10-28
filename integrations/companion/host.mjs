@@ -401,6 +401,18 @@ export function apply(ctx, config = {}) {
   for (const agent of ctx.agents.list()) attach(agent);
   ctx.on('agent/created', ({agent}) => attach(agent));
 
+  // A host restart can briefly expose the session index before the selected
+  // conversation is resolvable; retry instead of failing the run immediately.
+  async function resolveSelected(attempts = 3) {
+    let last;
+    for (let i = 0; i < attempts; i++) {
+      last = await ctx.sessionController.resolveAgent(policy.sessionId);
+      if (last?.agent) return last;
+      if (i < attempts - 1) await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    throw new Error('Selected conversation unavailable: ' + policy.sessionId);
+  }
+
   async function tick() {
     if (disposed || ticking || active || !policy.enabled || policy.paused) return;
     ticking = true;
@@ -429,9 +441,7 @@ export function apply(ctx, config = {}) {
       }
       if (!['wake', 'skip'].includes(state.plan.action) || state.plan.fired || state.plan.atMs > now) return;
       if (state.plan.action === 'skip') { state.plan = completePlan(state.plan, now); save(); return; }
-      const result = await ctx.sessionController.resolveAgent(policy.sessionId);
-      if (!result.agent) throw new Error('Selected conversation unavailable');
-      const agent = result.agent;
+      const agent = (await resolveSelected()).agent;
       attach(agent);
       // Restart begins a fresh inactivity interval; it cannot immediately wake an
       // old conversation merely because there is no process-local activity cache.
@@ -463,9 +473,9 @@ export function apply(ctx, config = {}) {
   async function manualRun(activity = 'develop') {
     if (active) return {ok: false, reason: 'busy'};
     if (!policy.enabled || !policy.sessionId) return {ok: false, reason: 'disabled'};
-    const result = await ctx.sessionController.resolveAgent(policy.sessionId);
-    if (!result.agent) return {ok: false, reason: 'session-unavailable'};
-    const agent = result.agent;
+    let agent;
+    try { agent = (await resolveSelected()).agent; }
+    catch { return {ok: false, reason: 'session-unavailable'}; }
     attach(agent);
     const now = Date.now();
     const limits = limitsForActivity(policy.budget, activity);
@@ -498,9 +508,7 @@ export function apply(ctx, config = {}) {
       const candidate = pickCandidate(candidates, {runs: state.runs}) ??
         (force ? {id: 'manual', kind: 'manual'} : undefined);
       if (!candidate) { state.lastQuietAt = new Date(now).toISOString(); save(); return; }
-      const result = await ctx.sessionController.resolveAgent(policy.sessionId);
-      if (!result.agent) throw new Error('Selected conversation unavailable');
-      const agent = result.agent;
+      const agent = (await resolveSelected()).agent;
       attach(agent);
       if (agent.status !== 'idle') return;
       if (!state.lastActivity[agent.id]) state.lastActivity[agent.id] = now;
