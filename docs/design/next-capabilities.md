@@ -149,6 +149,10 @@ First recorded run, adb online and the app bridge open:
   verify the new state, then toggle back and assert the original state returned.
 - `svc bluetooth` / `cmd bluetooth_manager` do not work on this ROM; the UI path
   is the reliable one. That is a useful hint for other settings toggles.
+- The loop is now shared code: `integrations/phone/ui-loop.mjs` parses UIAutomator
+  into compact elements with stable signatures, revalidates a target before
+  tapping, waits for screen stability and takes a verify callback. Both the eval
+  task and `tooling/phone-loop.mjs` use it; unit tests 5/5.
 - Evidence: `~/sliver-wolf-companion/behavior/phone-eval-2026-10-28.jsonl`.
 
 ## 4. Recommended order
