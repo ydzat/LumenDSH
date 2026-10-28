@@ -140,9 +140,9 @@ safety invariants are meant to prevent.
 
 First recorded run, adb online and the app bridge open:
 
-- 8/8 tasks passed: home reachable, open Settings, WLAN page visible (read-only),
-  Bluetooth toggle with restore, battery readable, client version, screenshot,
-  safe home.
+- 9/9 tasks passed: home reachable, open Settings, WLAN page visible (read-only),
+  Bluetooth toggle with restore, app info page, battery readable, client version,
+  screenshot, safe home.
 - The Bluetooth task is the first real observe → act → verify loop: read
   `settings global bluetooth_on`, open Bluetooth settings, locate
   `com.android.settings:id/switch_widget` in the UIAutomator dump, tap its center,

@@ -27,6 +27,12 @@
       "check": {"type": "output_matches", "any": ["bt before="]}
     },
     {
+      "id": "app_details",
+      "goal": "打开本应用的应用信息页",
+      "actions": [{"type": "start", "args": ["-a", "android.settings.APPLICATION_DETAILS_SETTINGS", "-d", "package:local.sliverwolf.web"]}, {"type": "ui"}],
+      "check": {"type": "ui_matches", "any": ["LumenDSH", "0.10", "应用信息"]}
+    },
+    {
       "id": "battery_readable",
       "goal": "读取电量状态",
       "actions": [{"type": "shell", "args": ["dumpsys", "battery"]}],
