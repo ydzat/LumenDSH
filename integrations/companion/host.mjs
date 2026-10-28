@@ -89,6 +89,37 @@ export function apply(ctx, config = {}) {
     {apk: {type: 'string'}}, (p) => ['install', String(p.apk)], 'installed');
   phoneTool('phone_ui', 'Dump the visible UI hierarchy of the phone through adb (uiautomator).',
     {}, () => ['ui'], 'ui dumped');
+  ctx.tools.register({
+    name: 'phone_task',
+    description: 'Run a bounded declarative phone task with verification: steps of start/tap/type/key/waitFor/expect/home. Stops on the first failure and returns home; returns the step report.',
+    parameters: {type: 'object', additionalProperties: false, required: ['steps'],
+      properties: {steps: {type: 'array', maxItems: 12, items: {type: 'object', additionalProperties: true}}}},
+    output: output({text: {type: 'string'}}),
+    async execute(parameters, exec) {
+      const steps = parameters.steps;
+      if (!Array.isArray(steps) || !steps.length || steps.length > 12) throw new Error('steps must contain 1..12 steps');
+      for (const step of steps) {
+        if (!['start', 'tap', 'type', 'key', 'waitFor', 'expect', 'home'].includes(step?.type))
+          throw new Error('unsupported step type: ' + String(step?.type));
+        if (step.type === 'start' && !Array.isArray(step.args)) throw new Error('start requires args');
+        if (step.type === 'tap' && (step.selector === null || typeof step.selector !== 'object')) throw new Error('tap requires a selector');
+        if (step.type === 'type' && typeof step.text !== 'string') throw new Error('type requires text');
+        if (step.type === 'key' && !Number.isInteger(step.code)) throw new Error('key requires an integer code');
+        if (step.type === 'expect' && !Array.isArray(step.any)) throw new Error('expect requires any[]');
+      }
+      const file = path.join(os.tmpdir(), 'phone-task-' + randomUUID() + '.json');
+      writeFileSync(file, JSON.stringify({id: 'host-phone-task', steps}), {mode: 0o600});
+      const cli = path.join(os.homedir(), 'sliver-wolf-dev', 'tooling', 'phone-task.mjs');
+      let text;
+      try {
+        text = execFileSync(process.execPath, [cli, file], {encoding: 'utf8', timeout: 180000, maxBuffer: 4 * 1024 * 1024});
+      } catch (error) {
+        text = 'phone task failed: ' + String(error.stdout ?? error.message ?? error).slice(0, 4000);
+      } finally { try { rmSync(file, {force: true}); } catch { /* temp cleanup */ } }
+      requireOwn(exec);
+      return {text: String(text).slice(0, 12000)};
+    }
+  });
   const REA_COMMANDS = new Set(['inspect-apk-signature','inspect-android-package',
     'inspect-android-class','inspect-android-method','analyze','decompile',
     'analyze-javascript-application','analyze-web-bundle']);
