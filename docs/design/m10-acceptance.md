@@ -118,3 +118,29 @@ Manifest version edits after 0.10.27 silently did nothing because each bump
 replaced a previous string that no longer existed, so every build kept
 `versionCode=83 / 0.10.27-dev` while the code changed. Fixed by setting
 `0.10.47 / 103` explicitly; future bumps read the current value first.
+
+## Post-M10 infrastructure (2026-10-28 afternoon)
+
+Beyond the M10 foundation, these pieces were built and verified on the device:
+
+- **observe→act→verify** (`integrations/phone/ui-loop.mjs`): UIAutomator parsing,
+  stable signatures, stale-target revalidation, post-action stability, stuck
+  detection, `safeHome`/`waitFor`/`withRecovery`. Unit tests 9/9; live Bluetooth
+  toggle false→true→false.
+- **Declarative tasks** (`integrations/phone/task-runner.mjs`,
+  `tooling/phone-task.mjs`): start/tap/type/key/waitFor/expect/home, fail-fast and
+  safe-home. The `phone_task` host tool runs 1–12 validated steps; a real task
+  (open WLAN settings → wait for the page text → verify → home) returned TASK OK,
+  evidence `behavior/phone-task-2026-10-28.jsonl`.
+- **Run trace**: the host writes `behavior/trace-<date>.jsonl` with
+  start/tool/end events; `tooling/trace-report.mjs` summarises status, duration,
+  steps and per-tool counts. Verified with a manual run (start + end lines).
+- **Supervisor fix**: a surviving relay could keep the 3080 lock, so a restarted
+  stack spawned a second relay, failed, and the watchdog re-started it every 30 s.
+  `stack.mjs` now adopts a live relay and only exits when it or the port goes away.
+- **Embodiment safety**: `docs/design/embodiment-safety.md` defines the body model,
+  the CVSS-style five-axis rubric, the hard floors, and the self-review routine for
+  connectivity changes; Bluetooth toggling is low risk while nothing is paired.
+
+Commits: `66a06eb`, `a8d2bd2`, `2bef4c8`, `56b62fe`, `c1bbb2a`, `635d75f`,
+`2eb9861`, `1b52d27`, `2ba0de2`.
