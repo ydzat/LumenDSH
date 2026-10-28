@@ -159,6 +159,14 @@ First recorded run, adb online and the app bridge open:
 
 ## 3c. Community plugin verdict (closing the 12:02 question)
 
+- `dsh-android` (184★, `@zseven-w/dsh-android` 0.1.0-rc.12): the strongest direct
+  candidate — 20 tools including `android_ui_tree`, `android_tap_element` by
+  resource-id/text with `expect_text`/`expect_gone`, `android_wait_for`, row
+  actions, OCR and logs, plus a live-stream sidebar panel. Install tested on
+  2026-10-28 in a scratch profile: `dsh plugin add` succeeded and `--dump-config`
+  shows the layer. **Not adopted**: authored against DSH 0.1.5-rc.1 (our runtime
+  is 0.2.1-rc.3), it adds 20 tools to every turn, and its control plane duplicates
+  our device bridge. Keep as the reference design; steal its tool semantics.
 - `dsh-mobile-gui-agent`: closest in capability (observe→act→verify, stale-element
   protection, approvals) but targets DSH 0.1.0-rc.5/6, assumes a desktop adb host
   and its own `mobile_gui_agent` conversation panel. With our 0.2.1-rc.3 runtime,
@@ -170,7 +178,8 @@ First recorded run, adb online and the app bridge open:
 - Verdict: **build the minimal in-repo path** — `integrations/phone/ui-loop.mjs`
   (observe→act→verify primitives), `integrations/phone/task-runner.mjs`
   (declarative task steps), `tooling/phone-task.mjs` (CLI + evidence). Expose the
-  runner as a host tool after the next deploy.
+  runner as a host tool after the next deploy; adopt `expect_text`-style
+  verification from `dsh-android`.
 
 ## 4. Recommended order
 
