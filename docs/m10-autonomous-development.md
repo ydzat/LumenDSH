@@ -1,6 +1,6 @@
 # M10: Autonomous iterative development (0.10.x)
 
-Status: active, opened 2026-10-26. Target client line: **0.10.x**
+Status: **complete** (foundation), 2026-10-28. Target client line: **0.10.x**
 (`versionName 0.10.0-dev`, `versionCode` bumped on each build). The project is
 expected to stay on 0.10.x for a while, so patches accumulate instead of jumping
 minor versions.
@@ -204,3 +204,28 @@ Current autonomous state at wrap-up: policy `paused=true`, `enabled=true`,
 period `valley`. No background jobs or pending nudge flags. The old
 `local.sliverwolf.assistant` client is uninstalled; the device bridge points at
 the new client on port 3084.
+
+
+## Completion (2026-10-28)
+
+M10 is closed as the foundation milestone:
+
+- Client 0.10.48 (104) installed; official WebUI console, voice-first habitat,
+  wake word and continuous conversation all verified on device.
+- The console has no client-drawn controls; back returns to the habitat; one-tap
+  console entry lives on the habitat.
+- Native transcript, schedules, share inbox, memory/model/session pages and the
+  model picker are deleted; settings are app-only; schedules live in the official
+  automation page and the share path goes through the composer queue.
+- Self-built plugins (`@lumendsh/webui-composer`, `@lumendsh/webui-shell`) load
+  from the profile with a contract test.
+- Autonomy: `browse` (read-only) added, action audit written, a real develop run
+  completed 12 steps/12 tools, restart/continuation reliable, and REA is exposed
+  as a controlled analysis tool.
+- Tests: 36 passing, 0 failing.
+
+Known limitation: a manually triggered autonomous run can still be interrupted by
+queued continuation messages; the capability itself is proven by the completed run.
+
+Everything beyond this point (proactive chat, mobile shell, presence timeline
+polish) is the 0.11+ product direction, not this milestone.

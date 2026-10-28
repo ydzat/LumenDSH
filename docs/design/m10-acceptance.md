@@ -1,7 +1,7 @@
 # M10 acceptance record (2026-10-27)
 
-Status: foundation batch verified on device; one caveat (F5 end-to-end autonomous
-run is interrupted by queued continuation messages — see §Caveat).
+Status: **complete**, 2026-10-28. Foundation verified on device; one completed
+autonomous run is recorded, and the earlier interruption caveat stays documented.
 
 ## What "done" means for M10
 
