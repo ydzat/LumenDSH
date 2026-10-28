@@ -383,6 +383,7 @@ export function apply(ctx, config = {}) {
       }));
       disposers.push(agent.ctx.tools.guard(execution => {
         if (active?.agent !== agent || active.turn === undefined) return;
+        traceTool(active.record, execution);
         return active.budget.tool(execution.name,execution.arguments);
       }));
       disposers.push(agent.ctx.on('agent/turn-stopping', ({turn}) => {
@@ -411,6 +412,20 @@ export function apply(ctx, config = {}) {
       if (i < attempts - 1) await new Promise(resolve => setTimeout(resolve, 1000));
     }
     throw new Error('Selected conversation unavailable: ' + policy.sessionId);
+  }
+
+  // One JSONL line per tool call of an active autonomous run: the local trace the
+  // observability work builds on. Tracing must never break a tool call.
+  function traceTool(record, execution) {
+    try {
+      const day = new Date().toISOString().slice(0, 10);
+      const file = path.join(root, 'behavior', 'trace-' + day + '.jsonl');
+      try { if (statSync(file).size > 5 * 1024 * 1024) return; }
+      catch { /* file does not exist yet */ }
+      appendFileSync(file, JSON.stringify({at: new Date().toISOString(), run: record.id,
+        activity: record.activity, tool: execution.name,
+        args: JSON.stringify(execution.arguments ?? {}).slice(0, 600)}) + '\n', {mode: 0o600});
+    } catch { /* ignore trace failures */ }
   }
 
   async function tick() {
