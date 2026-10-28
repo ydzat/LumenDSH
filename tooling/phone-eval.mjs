@@ -52,6 +52,15 @@ for (const task of spec.tasks) {
         writeFileSync(target, execFileSync('adb', ['-s', serial, 'exec-out', 'screencap', '-p'],
           {timeout: 45000, maxBuffer: 32 * 1024 * 1024}));
         screenshotBytes = statSync(target).size;
+      } else if (action.type === 'bt_toggle') {
+        // Low-risk connectivity change (no paired device): toggle, verify, restore.
+        const before = adb(['shell', 'settings', 'get', 'global', 'bluetooth_on']).trim();
+        const target = before === '1' ? 'disable' : 'enable';
+        adb(['shell', 'svc', 'bluetooth', target], 20000);
+        adb(['shell', 'sleep', '2'], 10000);
+        const after = adb(['shell', 'settings', 'get', 'global', 'bluetooth_on']).trim();
+        if (before !== after) adb(['shell', 'svc', 'bluetooth', before === '1' ? 'enable' : 'disable'], 20000);
+        output += 'bt before=' + before + ' after=' + after;
       } else if (action.type === 'wait') {
         execFileSync(process.execPath, ['-e', `setTimeout(()=>{},${Number(action.ms) || 1000})`]);
       }

@@ -86,12 +86,15 @@ The user's framing is right: the phone is the **body**, and this agent is its
 
 ## 2c. Embodied safety invariants (hard rules)
 
-1. Never turn off Wi-Fi, mobile data or Bluetooth in a way that could strand the
-   agent; never enable airplane mode.
+Decision model and severity rubric: [embodiment-safety.md](embodiment-safety.md).
+Connectivity changes are self-reviewed with that rubric instead of always asking
+the user; Bluetooth toggling is low risk while no device is paired and must be
+restored immediately.
+
+1. Never turn off Wi-Fi or mobile data; never enable airplane mode.
 2. Never revoke developer options, USB debugging or this app's own permissions.
 3. Never kill the DSH host, the relay or the adb server as part of a task.
-4. Any task that changes connectivity must go through the user, even when other
-   approvals are disabled.
+4. A change scored high or critical in the rubric is proposed, not performed.
 5. A failed task ends in the safe-home routine above, not in an unbounded retry.
 
 ## 2d. Motor-bus findings (2026-10-28)

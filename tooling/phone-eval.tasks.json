@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "safety": "Read-only or non-destructive tasks only. Never toggles Wi-Fi, data, Bluetooth, airplane mode, developer options or permissions.",
+  "safety": "Read-only or non-destructive tasks only. Never toggles Wi-Fi, data, airplane mode, USB debugging or permissions. Bluetooth may be toggled only while no device is paired, and the original state is restored immediately.",
   "tasks": [
     {
       "id": "home_reachable",
@@ -19,6 +19,12 @@
       "goal": "打开设置中的 WLAN 页面（只查看，不开关）",
       "actions": [{"type": "start", "args": ["-a", "android.settings.WIFI_SETTINGS"]}, {"type": "ui"}],
       "check": {"type": "ui_matches", "any": ["WLAN", "Wi-Fi", "WiFi"]}
+    },
+    {
+      "id": "bluetooth_toggle",
+      "goal": "临时切换蓝牙并恢复原状态（当前未连接蓝牙设备，属低风险）",
+      "actions": [{"type": "bt_toggle"}],
+      "check": {"type": "output_matches", "any": ["bt before="]}
     },
     {
       "id": "battery_readable",
