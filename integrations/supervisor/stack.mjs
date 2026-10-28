@@ -98,14 +98,29 @@ writeFileSync(temp, JSON.stringify({host: activeHost, port: activePort,
   generation: Date.now(), slot: activeName}, null, 2) + '\n', {mode: 0o600});
 renameSync(temp, activeFile);
 
-const relay = spawn(process.execPath, [relayScript, '--port', String(flags.port), '--state-dir', flags.relayDir],
-  {stdio: 'inherit'});
-relay.on('exit', (code, signal) => {
-  process.stderr.write(`stack: relay exited code=${code} signal=${signal}\n`);
-  process.exit(code ?? 1);
-});
+// An orphan relay may still hold the stable port and its lock after this stack
+// restarts (the relay child outlives its parent). Adopt it instead of spawning a
+// second relay that can only fail with "Relay already running", which would send
+// the watchdog into a 30-second restart loop.
+const relayPidFile = path.join(flags.relayDir, 'relay.pid');
+let relayPid = 0;
+try { relayPid = Number(readFileSync(relayPidFile, 'utf8').trim()); } catch { relayPid = 0; }
+let relay = null;
+if (relayPid > 0 && alive(relayPid) && await answers('127.0.0.1', flags.port)) {
+  process.stderr.write('stack: adopting existing relay pid ' + relayPid + '\n');
+  setInterval(async () => {
+    if (!alive(relayPid) || !(await answers('127.0.0.1', flags.port))) process.exit(1);
+  }, 10000);
+} else {
+  relay = spawn(process.execPath, [relayScript, '--port', String(flags.port), '--state-dir', flags.relayDir],
+    {stdio: 'inherit'});
+  relay.on('exit', (code, signal) => {
+    process.stderr.write(`stack: relay exited code=${code} signal=${signal}\n`);
+    process.exit(code ?? 1);
+  });
+}
 function shutdown() {
-  relay.kill('SIGTERM');
+  relay?.kill('SIGTERM');
   setTimeout(() => process.exit(0), 1000);
 }
 process.on('SIGINT', shutdown);
