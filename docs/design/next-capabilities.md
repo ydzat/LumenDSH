@@ -136,26 +136,23 @@ safety invariants are meant to prevent.
 | Declarative tool policy | `dsh-tool-policy`, `dsh-permission-rules` | Keep our policy; borrow the "default deny + explicit allow" framing in docs. |
 | Self-modifying plugins | `dsh-evolve` | Reference only; too risky for the current trust level. |
 
-## 3b. Phone-eval baseline (2026-10-28)
+## 3b. Phone capability checks (2026-10-28)
 
-First recorded run, adb online and the app bridge open:
+A device task suite existed briefly (`phone-eval`, nine tasks, 9/9). It was removed
+on 2026-10-28 to cut redundant testing: the same coverage now comes from real work
+through `phone_task` / `tooling/phone-task.mjs`, which records evidence in
+`behavior/phone-task-<date>.jsonl`.
 
-- 9/9 tasks passed: home reachable, open Settings, WLAN page visible (read-only),
-  Bluetooth toggle with restore, app info page, battery readable, client version,
-  screenshot, safe home.
-- The Bluetooth task is the first real observe → act → verify loop: read
+What the suite established and still holds:
+
+- The shared loop `integrations/phone/ui-loop.mjs` parses UIAutomator into compact
+  elements with stable signatures, revalidates a target before tapping, waits for
+  stability and takes a verify callback; unit tests 9/9.
+- Bluetooth is the reference observe → act → verify case: read
   `settings global bluetooth_on`, open Bluetooth settings, locate
-  `com.android.settings:id/switch_widget` in the UIAutomator dump, tap its center,
-  verify the new state, then toggle back and assert the original state returned.
-- `svc bluetooth` / `cmd bluetooth_manager` do not work on this ROM; the UI path
-  is the reliable one. That is a useful hint for other settings toggles.
-- The loop is now shared code: `integrations/phone/ui-loop.mjs` parses UIAutomator
-  into compact elements with stable signatures, revalidates a target before
-  tapping, waits for screen stability and takes a verify callback. Both the eval
-  task and `tooling/phone-loop.mjs` use it; unit tests 9/9. A stuck screen (two
-  taps with an unchanged signature, checked state included) aborts instead of
-  looping.
-- Evidence: `~/sliver-wolf-companion/behavior/phone-eval-2026-10-28.jsonl`.
+  `com.android.settings:id/switch_widget`, tap, verify, then restore and assert.
+- `svc bluetooth` / `cmd bluetooth_manager` do not work on this ROM; the UI path is
+  the reliable one.
 
 ## 3c. Community plugin verdict (closing the 12:02 question)
 
