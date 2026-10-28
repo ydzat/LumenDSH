@@ -49,11 +49,20 @@ checkpoints stop appearing.
 ## Phone-width UI patch
 
 On the phone the plugin rendered its telemetry pill in the composer dock, where
-it overlapped the official context figures in portrait. `src/client/index.js`
-now returns `null` from `StatusBarBadge` when `window.innerWidth < 520`, and the
-rebuilt `lib/client.js` is served after a page reload. Telemetry stays available
-through `/ctx-status`; a future improvement is a compact pill above the composer
-instead of hiding it.
+it overlapped the official context figures in portrait (the official meter is
+positioned in that corner, so an in-flow sibling lands on top of it). The shell
+plugin now keeps the dock untouched and lifts the Magic Context pill out of it:
+
+```css
+[data-composer-dock] [data-mc-surface] {
+  position: fixed !important; right: 10px !important;
+  bottom: 150px !important; z-index: 45 !important;
+}
+```
+
+The pill is a button above the composer: tapping it opens the plugin's panel;
+the dock keeps only the official rounds/context/percentage figures, and no
+gesture is involved.
 
 ## Rollback
 

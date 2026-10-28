@@ -23,7 +23,18 @@ window.__ModuleLoader__.load({
       if (typeof document === 'undefined' || document.getElementById('lumendsh-shell-css')) return
       const style = document.createElement('style')
       style.id = 'lumendsh-shell-css'
-      style.textContent = ''
+      // The composer dock carries the official context meter and any plugin
+      // pills (Magic Context). On a phone they do not fit side by side, so the
+      // row scrolls horizontally instead of overlapping; the gesture is a
+      // horizontal swipe inside the page, never the system bottom gesture.
+      style.textContent = [
+        '[data-composer-dock]{overflow-x:auto!important;overflow-y:hidden!important;',
+        'flex-wrap:nowrap!important;scrollbar-width:none!important;',
+        '-webkit-overflow-scrolling:touch!important;overscroll-behavior-x:contain!important}',
+        '[data-composer-dock]::-webkit-scrollbar{display:none!important;height:0!important}',
+        '[data-composer-dock]>*{flex:0 0 auto!important;min-width:max-content!important}',
+        '[data-composer-dock] [data-mc-surface]{position:fixed!important;right:10px!important;bottom:150px!important;z-index:45!important}',
+      ].join('')
       document.head.appendChild(style)
     }
 
