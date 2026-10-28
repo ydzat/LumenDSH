@@ -1,0 +1,10 @@
+{
+  "id": "open-wifi-and-read",
+  "goal": "打开系统 WLAN 页面，确认页面内容，然后回到桌面（只读，不开关任何连接）",
+  "steps": [
+    {"type": "start", "args": ["-a", "android.settings.WIFI_SETTINGS"]},
+    {"type": "waitFor", "selector": {"text": "WLAN"}, "timeoutMs": 8000},
+    {"type": "expect", "any": ["WLAN", "Wi-Fi", "WiFi"]},
+    {"type": "home"}
+  ]
+}

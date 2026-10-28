@@ -138,7 +138,7 @@ export async function waitFor(adb, selector, {timeoutMs = 8000, intervalMs = 300
   while (Date.now() - started < timeoutMs) {
     last = await screenSignature(adb);
     const matches = findElement(last.elements, selector);
-    if (matches.length === 1) return {element: matches[0], observation: last};
+    if (matches.length) return {element: matches[0], observation: last};
     await new Promise(resolve => setTimeout(resolve, intervalMs));
   }
   const error = new Error('timeout waiting for ' + JSON.stringify(selector));

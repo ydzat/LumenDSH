@@ -157,6 +157,21 @@ First recorded run, adb online and the app bridge open:
   looping.
 - Evidence: `~/sliver-wolf-companion/behavior/phone-eval-2026-10-28.jsonl`.
 
+## 3c. Community plugin verdict (closing the 12:02 question)
+
+- `dsh-mobile-gui-agent`: closest in capability (observe→act→verify, stale-element
+  protection, approvals) but targets DSH 0.1.0-rc.5/6, assumes a desktop adb host
+  and its own `mobile_gui_agent` conversation panel. With our 0.2.1-rc.3 runtime,
+  phone-local adb and existing device bridge it would be a parallel control plane.
+  **Reference only, not reused.**
+- `dsh-vision-android` / `modlens`: vision bridges; the model already reads images,
+  so no install for now.
+- `dsh-trace` / `dsh-dashboard`: evaluate for export after the local trace deploys.
+- Verdict: **build the minimal in-repo path** — `integrations/phone/ui-loop.mjs`
+  (observe→act→verify primitives), `integrations/phone/task-runner.mjs`
+  (declarative task steps), `tooling/phone-task.mjs` (CLI + evidence). Expose the
+  runner as a host tool after the next deploy.
+
 ## 4. Recommended order
 
 1. **Phone evaluation harness (P0)** — 5–8 tasks with deterministic success
