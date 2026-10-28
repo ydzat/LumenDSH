@@ -73,3 +73,11 @@ Steps 2 and 3 are independent of 1; 4 is client-only; 5 depends on 1.
   autonomy is enabled (`f27fd73`).
 - Verified: manual run `78c9d8c9` is executing tools (`trace-report` shows
   `develop | 78c9d8c9 | running | bash×2`) instead of yielding.
+- 2026-10-28: the "automatic task" seen in the official UI was the host's own
+  startup nudge (`scheduleStartupNudge`) posting a stale M10 continuation whenever
+  the restart flag existed. It now clears the flag and stays silent while autonomy
+  is enabled, never posts during an active run, and uses M11 wording otherwise
+  (`6fa4578`).
+- 2026-10-28: `phone_task` gained `swipe` and `expectGone`; both verified on device
+  in real tasks: WLAN page → back → `expectGone` on the SSID → home (TASK OK), and
+  Settings → swipe up → `expect` on a lower entry → home (TASK OK).
