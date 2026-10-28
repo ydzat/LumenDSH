@@ -1,0 +1,9 @@
+{
+  "name": "sliver-wolf-speech",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {".": "./index.mjs", "./engine": "./engine.mjs"},
+  "dsh": {"bundle": {"patch": "./cordis.patch.yml"}}
+}

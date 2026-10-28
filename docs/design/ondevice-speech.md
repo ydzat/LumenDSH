@@ -1,124 +1,103 @@
-# 本地语音识别模块（嵌入 app / host 插件，含声纹自学习）
+# 本地语音识别模块（app 内识别 + host 插件分发 + 服务器训练）
 
-Status: 2026-10-29 方案。目标来自用户：识别模块必须**嵌入我们自己的程序（或插件）**、**本地运行**，
-最好能**根据用户的声纹逐渐提升**（不强制）。
+Status: 2026-10-29 方案 v2。用户已确认：引擎本地、嵌入我们自己的程序/插件；声纹自适应做成
+服务器训练服务，手机只负责应用；声纹注册已存在，直接复用。
 
-## 1. 结论先行
+## 1. 结论
 
-识别引擎放 **host 侧插件**（跑在 Termux 里的 DSH host），用官方 sherpa-onnx 的 **Android/Termux
-原生运行库**；app 只负责录音、把 PCM 推到本地回环、把识别结果放回输入框。这样：
+- **识别引擎放 app 内部**。核对代码发现 app 早已带 sherpa-onnx 的 Android JNI 运行时
+  （`~/sliver-wolf-build/deps/wake-1.13.8`：`java.jar` + `jni/arm64-v8a/libsherpa-onnx-jni.so`），
+  并且其中的 `OfflineRecognizer` / `OfflineSenseVoiceModelConfig` / `Vad` /
+  `SpeakerEmbeddingExtractor` / `KeywordSpotter` 全都有——ASR 不需要引入任何新依赖。
+- **host 插件 `integrations/speech`** 负责「只该存在一份」的东西：运行时与模型文件的下载/校验、
+  给 app 的低回环取模型路由、文件转写工具（Agent 用）、个人词典与样本库同步、训练服务客户端。
+- **服务器**提供训练服务：收样本 → 微调 → 导出 ONNX → 用固定测试集做准入门禁 → 发布新模型版本；
+  手机端只做下载与应用/回滚。
+- **声纹复用现有注册**：`OwnerEnrollment` 已经录过（`owner-voice.bin` / `owner-wake.bin`），
+  用 CAM++（`speaker.onnx`）+ 本地 `liblinear/libsvm` 适配器做本人判定，不需要再录一遍，
+  也不需要再问用户。
 
-- 纯本地：音频不出手机，模型不进 APK（APK 不膨胀几十 MB）；
-- 一个引擎同时服务日常口述、文件转写、会议旁听和 Agent 自己的转写工具；
-- 声纹注册/自学习数据集中在一处，方便迭代和备份；
-- 以后即使换成 app 内嵌（AAR），接口不变。
+## 2. 已完成的可行性验证（真机，2026-10-29）
 
-**已经实测**：sherpa-onnx v2.0.1 官方 `android-aarch64-termux-shared` 包直接在本机 Termux 跑起来
-（`sherpa-onnx-version` → 2.0.1 / onnxruntime 1.28.2），自带 `sherpa-onnx-offline-websocket-server`、
-`-vad-with-offline-asr`、`-keyword-spotter`、punctuation、speaker-diarization 等二进制。
+- 官方 `sherpa-onnx-v2.0.1-android-aarch64-termux-shared` 在本机 Termux 直接运行
+  （onnxruntime 1.28.2），自带 `sherpa-onnx-offline`、`-vad-with-offline-asr`、
+  `-keyword-spotter`、`-offline-punctuation`、`-offline-speaker-diarization` 等。
+- 已落盘：`~/.local/share/sliver-wolf/speech/runtime`（16 MB 运行包）。
+- Paraformer-zh small int8：中文句子识别全对（`重点呢想谈三个问题首先呢就是这一轮全球金融动荡的表现`），
+  中英混说也对；**RTF 0.30**（4 线程）、峰值 RSS **约 130 MB**、**模型冷加载约 8.5–10 s**。
+- 已提交的骨架：`integrations/speech`（引擎封装 + 路由 + `speech_transcribe` 工具）与
+  `tooling/speech.mjs`（`status` / `install-runtime` / `prepare` / `transcribe`），
+  真机跑通 `transcribe`。
+- 结论：本地跑得动，准头可用；冷启动决定「引擎必须常驻」，这也是把实时识别放 app（进程内）、
+  把批量文件转写放 host（一次性 CLI 可接受加载时间）的原因。
 
-## 2. 为什么是 sherpa-onnx（而不是自己搭 Python）
+## 3. 分工
 
-| 选项 | 结论 |
-|---|---|
-| **sherpa-onnx 官方 Android/Termux 二进制** | ✅ 直接可用（本轮已验证）；同一套 C API 也能编成 app 的 AAR（官方发布 `sherpa-onnx-2.0.1.aar`，49 MB）；覆盖 ASR / VAD / 标点 / 声纹 / KWS |
-| Python + FunASR / sherpa-onnx wheel | Termux 上装 wheels 困难（无 glibc、需编译），维护成本高，弃 |
-| DSH 官方 voice bundle（sherpa-onnx-node） | npm 只发 linux-x64/arm64(glibc)/win/darwin，Android bionic 加载不了，`node_modules` 里也没有平台包；不可用 |
-| Marmalade STT（第三方 app） | 能用但不是我们的代码，无法做声纹自学习；只作对照基准 |
-
-## 3. 模型选型
-
-| 角色 | 模型 | 体积 | 说明 |
-|---|---|---|---|
-| 主力 ASR | **SenseVoice-Small int8** | ~230 MB（发布包 1 GB，含 fp32） | zh/yue/en/ja/ko，自带标点与数字规整；中文明显强于同尺寸 Whisper；[社区插件](https://github.com/rootryanlau-art/dsh-voice-transcribe)实测 RTF 0.033、样句 CER 0 |
-| 备选 ASR | Paraformer-zh small int8 | ~78 MB | 更省内存，速度快，适合低端/热路径；热词（hotword）原生支持 |
-| VAD | Silero VAD | ~2 MB | 断句、去静音；省电也提高识别质量 |
-| 结束判定 | Smart Turn v3（可选） | ~9 MB | 「说完没有」的判断，减少抢话/截断 |
-| 唤醒 | sherpa-onnx KWS（自定义「银狼」） | ~10 MB | 比现在用整句 ASR 常驻省电、误唤醒更低 |
-| 声纹 | CAM++ / 3D-Speaker embedding | ~7 MB | 注册一次，用于本人门控与自学习数据筛选 |
-
-模型分发：不进 APK，首次使用时下载（带 SHA-256 固定校验，支持镜像），落在
-`~/.local/share/sliver-wolf/speech/models/`，与 DSH 官方 voice bundle 的做法一致。
-
-## 4. 架构
-
-```
-┌────────────── Android app ──────────────┐        ┌──────── Termux: DSH host ────────┐
-│ VoiceInput / WebChatActivity.startVoice │        │ speech 插件（host 侧）            │
-│   录音 16k mono PCM，VAD 前置已可省      │  WS    │  · sherpa-onnx 引擎（进程内/子进程）│
-│   ── binary frames ────────────────────►│◄──────►│  · VAD/断句、标点、数字规整        │
-│   文本/部分结果 ◄──────────────────────│        │  · 声纹 embedding + 个人词典       │
-│   （复用现有本地回环 WS，无新端口）      │        │  · 自学习样本库（本地加密）        │
-└─────────────────────────────────────────┘        │  · 工具：speech_transcribe(file)   │
-                                                   └──────────────────────────────────┘
-```
-
-- **传输**：host 插件注册一条 WS 路由（现有 `ctx.webServer`），app 复用已有本地回环连接；
-  语音帧走二进制，文本结果走 JSON。不新增对外端口。
-- **降级**：host 不可用时 app 落到系统 `SpeechRecognizer`（现状），保证可用性。
-- **不替换唤醒**：唤醒链路先保持现状（已验证可用），模块先接管「唤醒后那一句」和手动麦克风；
-  KWS 作为后续优化，不在这里冒险。
-
-## 5. 声纹自适应（用户的可选项）
-
-三层，逐层上线，默认关闭到开启都可由用户开关：
-
-### L1 · 声纹门控（最有把握，几乎零风险）
-1. 注册：跟读 3 句提示音，约 40 秒，算 CAM++ embedding 存本地。
-2. 每句话算 embedding，与注册向量余弦相似度 ≥ 阈值判为本人。
-3. 用途：只对本人语音做自学习；唤醒词只认本人（可选）；多说话人场景不污染词典。
-
-### L2 · 文本自学习（收益最快，纯本地、可解释）
-1. 记录每次「ASR 原文 → 用户最终发送/修改后的文本」的差异对。
-2. 用拼音/编辑距离对齐，挖出稳定替换对（≥2 次确认才自动生效），存个人词典：
-   `词典 = {错词: 正词, 拼音, 次数, 最后使用}`。
-3. 识别后先过词典（确定性替换），再可选走一次纠错（术语表 + 近几轮上下文）。
-4. 效果可量化：词典命中率、用户二次修改率下降。
-
-### L3 · 声学适配（真·声纹提升，最后做，收益有限但真实）
-1. 积累本人「音频 + 最终文本」对（相似度过滤、去重、只留长句），目标 1–2 小时。
-2. 在服务器（8 核 15 GB，无 GPU）用 FunASR 官方 recipe 做 LoRA/部分层微调 SenseVoice-Small，
-   冻结编码器主体，只训练小适配器；训练在 CPU 上跑夜间任务。
-3. 导出 ONNX int8，在手机固定测试集上验证 CER 必须**严格下降**才发布，否则回滚。
-4. 手机端下载「声纹适配包」（几 MB），加载在基础模型之上；用户可随时删除。
-
-> 诚实预期：L1/L2 通常带来用户可感知的提升（专有名词、数字、口头习惯）；
-> L3 在只有个人数据时，CER 相对下降大约 5–15%，不是魔法，所以放在最后、由指标把关。
-
-## 6. 分期与验收
-
-| 阶段 | 内容 | 验收（真实任务/证据） |
+| 层 | 位置 | 职责 |
 |---|---|---|
-| P0（1–2 天） | 插件骨架：Termux 二进制 + 模型下载校验 + `speech_transcribe(file)` 工具 + 30 句测试集与 CER/RTF 基线 | 手机 CPU 上 RTF ≤0.2；与现用 Google 识别同集对比 CER 有数字 |
-| P1 | 流式 ASR 服务 + app 端录音接入（替换唤醒后那一句） | 真实口述：延迟 ≤1.2 s/句、断句不出错；降级可用 |
-| P2 | 个人词典（L2）+ 标点/数字规整 + 领域词表（银狼、LumenDSH、ZeroTier、GPT-SoVITS…） | 词典命中与二次修改率下降的日志 |
-| P3 | 声纹注册与门控（L1）+ 多说话人过滤 | 本人/非本人相似度分布与误判率 |
-| P4（可选） | 声学适配（L3）+ 适配包下载/回滚 | 固定测试集 CER 严格下降才发布 |
+| 实时识别 | **app**（sherpa-onnx JNI，已在依赖里） | 唤醒后一句 / 按下麦克风：录音 → VAD → OfflineRecognizer → 文本进输入框；声纹门控 |
+| 资源与工具 | **host 插件 `integrations/speech`** | 运行时/模型下载与 SHA 校验、给 app 的 `/sliver-wolf/speech/models/<id>/<file>` 路由、`speech_transcribe` 工具、词典与样本库、训练服务调用 |
+| 训练 | **服务器** | SenseVoice LoRA/部分层微调、导出 int8 ONNX、固定测试集 CER 门禁、版本发布与回滚元数据 |
 
-## 7. 风险与约束
+## 4. 模型
 
-- **内存**：手机可用约 1.5 GB；SenseVoice int8 常驻约 400–600 MB，必须按需加载（说完即释放或 5 分钟空闲卸载），并放在独立进程/服务里，避免拖垮 WebView。
-- **电量**：常驻 ASR 不划算；默认只在「唤醒后 / 按下麦克风」时开引擎，KWS 常驻另评估。
-- **模型许可**：SenseVoice / Paraformer 为 Apache-2.0（FunAudioLLM），再分发需保留 NOTICE；CAM++ 权重 Apache-2.0。打包前逐项核对。
-- **兼容**：Android 10 (SDK 29)、arm64、无 root；官方 Termux 包正是 aarch64。
-- **隐私**：音频与样本默认只在本机；导出训练集是显式动作，带加密与删除入口。
-- **不阻塞**：识别引擎故障时自动回落系统识别，不改变现有交互。
+| 角色 | 模型 | 体积 | 备注 |
+|---|---|---|---|
+| 主力 ASR | SenseVoice-Small int8 | ~230 MB | zh/yue/en/ja/ko，自带标点与数字规整 |
+| 轻量备选 | Paraformer-zh small int8 | ~78 MB | 已实测通过；无标点，需标点模型 |
+| VAD | Silero VAD | ~2 MB | **app 里已有**（`assets/wake/silero_vad.onnx`） |
+| 声纹 | CAM++ speaker.onnx | ~7 MB | **app 里已有**（`assets/wake/speaker.onnx`） |
+| 唤醒 | sherpa-onnx KWS | 已有 | 保持现状，不改唤醒链路 |
+| 结束判定 | Smart Turn（可选） | ~9 MB | 后续再评估，不阻塞 |
 
-## 7.5 本机实测（2026-10-29，真机）
+模型不进 APK：host 下载一次、SHA 校验、app 通过本地回环取（离线网络无碍），
+`~/.local/share/sliver-wolf/speech/models/` 为唯一真源。
 
-| 项 | 结果 |
-|---|---|
-| 运行时 | sherpa-onnx v2.0.1 官方 `android-aarch64-termux-shared`，在 Termux 直接运行（onnxruntime 1.28.2） |
-| 测试模型 | Paraformer-zh small int8（78 MB） |
-| 识别质量（自带 test_wavs） | 中文句子全对：`重点呢想谈三个问题首先呢就是这一轮全球金融动荡的表现`；中英混说也对（`yesterday was 星期一 today is tuesday 明天是星期三`）；**无标点**（需再加标点模型） |
-| 推理速度 | RTF **0.30**（4 线程，10.8 s 音频 ≈ 3 s）；一句 6 s 的话约 1.8 s |
-| 模型加载 | 约 **8.5 s**（110 MB 读盘 + ORT 会话创建）→ 必须常驻进程，不能每句冷启动 |
-| 内存 | 峰值 RSS **约 130 MB**（Paraformer-small；SenseVoice 预计 400–600 MB） |
+## 5. 声纹与自学习（复用现有注册）
 
-结论：本地跑得动、准头可用，瓶颈是「冷启动 8.5 s」和「常驻内存」，因此引擎必须是驻留服务而不是一次性命令。
+### L1 门控（直接用已有注册）
+- 现有：`OwnerSpeaker` 算 CAM++ embedding（VAD 切净语音），`OwnerBackend` 用 liblinear/libsvm
+  训出本人判别器，权重 AES-GCM 加密存 `owner-voice.bin`。
+- 语音识别前/后各做一次判定：只有本人才把「音频 + 最终文本」写进自学习样本，别人说话只识别不学习。
+- 唤醒继续用现有的 `owner-wake.bin`，不重复做。
 
-## 8. 需要你拍板的三点
+### L2 文本自学习（收益最快）
+1. 每次识别后记录 `rawText`；用户发送（或改后发送）记录 `finalText`。
+2. 拼音/编辑距离对齐 diff，累计替换对；同一替换 ≥2 次才自动生效。
+3. 识别结果先过词典（确定性替换），再可选走一次术语表纠错（银狼、LumenDSH、ZeroTier、
+   GPT-SoVITS、magic-context、agent/dev、phone_task…）。
+4. 词典存 host（插件侧 JSON，原子写），app 通过路由拉最新版；可导出/删除。
 
-1. 引擎放 **host 插件**（推荐，文件转写/Agent 工具也能共用）还是 **app 内嵌**（离线独立、但 APK 变大）？
-2. SenseVoice 首次下载约 230 MB（模型包 1 GB，只留 int8），可以接受吗？还是先用 78 MB 的 Paraformer？
-3. 声纹注册流程（跟读 3 句、约 40 秒）是否可以接受？默认关闭、你点头再开。
+### L3 声学适配（服务器训练，手机应用）
+1. app 积累本人「WAV + 确认文本」对（VAD 切段、相似度过滤、去重），达标（约 1–2 小时）后由 host 上传。
+2. 服务器训练服务：`POST /train`（样本包）→ FunASR recipe 做 LoRA/部分层微调 → 导出 int8 ONNX
+   → 在服务器用固定测试集与基线对比，CER 必须严格下降才 `POST /publish`；否则返回失败与原因。
+3. host 收到 `published` 元数据（版本、SHA、CER 对比）→ 下载新模型目录 → 通知 app 切换；
+   app 保留上一版，可一键回滚。
+4. 诚实预期：个人数据量下 CER 相对下降约 5–15%，不是魔法；所以门禁比承诺重要。
+
+## 6. 分期
+
+| 阶段 | 内容 | 验收 |
+|---|---|---|
+| P0（进行中） | `integrations/speech` 插件骨架 + 运行时/模型准备 + `tooling/speech.mjs` CLI；SenseVoice 落地 | `node tooling/speech.mjs status/transcribe` 真机出文本；30 句测试集 CER/RTF 基线 |
+| P1 | app 内 `SpeechEngine`（OfflineRecognizer + VAD + 常驻服务进程）替换 `VoiceInput` 的识别段 | 真实口述：一句 6 s 语音 ≤1.5 s 出字；断句不截断；host 故障时回落系统识别 |
+| P2 | 个人词典（L2）+ 术语表 + 数字/标点规整 | 词典命中日志、二次修改率下降 |
+| P3 | 声纹门控接入现有注册（L1） | 本人/非本人判定分布与误判率 |
+| P4 | 服务器训练服务 + 应用/回滚（L3） | 固定测试集 CER 严格下降才发布 |
+| P5（可选） | 文件/会议批量转写工具、标点模型、Smart Turn | 真实任务 |
+
+## 7. 风险
+
+- **内存**：SenseVoice int8 常驻预计 400–600 MB；必须放在独立进程（`android:process`）里，
+  空闲 5 分钟释放，避免拖垮 WebView（今天刚遇到 WebView 卡死）。
+- **冷启动 8–10 s**：只在 app 打开/唤醒时预热一次；不能每句冷加载。
+- **APK 体积**：模型不进 APK（已按此设计）；运行时已在依赖里，无新增。
+- **许可**：SenseVoice / Paraformer（FunAudioLLM）Apache-2.0、sherpa-onnx Apache-2.0；
+  再分发保留 NOTICE；训练服务只处理本机样本。
+- **降级**：引擎失败自动回落系统 `SpeechRecognizer`；词典/训练不可用不影响基础识别。
+
+## 8. 待办中的决定
+
+- SenseVoice 发布包是 1 GB tar（内含 fp32 894 MB + int8 230 MB）；下载后只保留 int8 并删掉 fp32/脚本，可省约 1 GB。
+- 训练服务部署位置：现有 Debian 服务器（8 核 15 GB，无 GPU），先 CPU 微调；样本与模型留在该机。
