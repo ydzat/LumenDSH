@@ -149,9 +149,10 @@ public final class MainActivity extends Activity {
                         boolean enabled = p != null && p.optBoolean("enabled");
                         org.json.JSONObject period = d.optJSONObject("period");
                         String phase = period == null ? "" : period.optString("phase", "");
-                        String last = "";
+                        String last = "", live = "";
                         java.util.List<String> timeline = new ArrayList<>();
                         org.json.JSONArray runs = d.optJSONArray("runs");
+                        String activeId = d.optString("active", "");
                         if (runs != null && runs.length() > 0) {
                             for (int i = runs.length() - 1; i >= 0 && timeline.size() < 6; i--) {
                                 org.json.JSONObject r = runs.optJSONObject(i);
@@ -162,12 +163,15 @@ public final class MainActivity extends Activity {
                                 String steps = r.has("steps") ? " · " + r.optInt("steps") + " 步/" + r.optInt("tools") + " 工具" : "";
                                 timeline.add(activityLabel(r.optString("activity", "")) + " · " + status + steps + " · " + at);
                                 if (i == runs.length() - 1) last = " · 最近：" + activityLabel(r.optString("activity", "")) + " " + at;
+                                if (live.isEmpty() && activeId.equals(r.optString("id", "")))
+                                    live = " · 正在：" + activityLabel(r.optString("activity", "")) + " " + at;
                             }
                         }
                         companionTimeline.clear();
                         companionTimeline.addAll(timeline);
                         value = (enabled ? (paused ? "自主 已暂停" : "自主 运行中") : "自主 已关闭")
-                            + (phase.equals("peak") ? " · 峰段" : phase.equals("valley") ? " · 谷段" : "") + last;
+                            + (phase.equals("peak") ? " · 峰段" : phase.equals("valley") ? " · 谷段" : "")
+                            + (live.isEmpty() ? last : live);
                     }
                 } catch (Exception error) { value = "自主 状态未知"; }
                 final String shown = value;
