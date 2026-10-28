@@ -43,10 +43,12 @@ export function parseUi(xml) {
   return elements;
 }
 
-// Stable identity of an element for stale-target detection.
+// Stable identity of an element for stale-target detection and change detection.
+// `checked` participates so a toggle is visible as a real screen change.
 export function elementSignature(element) {
   return [element.resourceId, element.className, element.text, element.desc,
-    element.bounds.x1, element.bounds.y1, element.bounds.x2, element.bounds.y2].join('|');
+    element.bounds.x1, element.bounds.y1, element.bounds.x2, element.bounds.y2,
+    element.checked ? 'checked' : 'unchecked'].join('|');
 }
 
 export function findElement(elements, selector) {
@@ -89,6 +91,11 @@ export async function waitStable(adb, {timeoutMs = 4000, intervalMs = 250, sampl
   return last ?? await screenSignature(adb);
 }
 
+const noProgress = new Map();
+
+// Clear per-process stuck counters (tests, or a deliberate retry after a fix).
+export function resetStuckState() { noProgress.clear(); }
+
 // Act on a selector: observe, revalidate immediately before the tap (a target that
 // moved or was replaced is stale), tap, wait for stability, observe and verify.
 export async function act(adb, selector, options = {}) {
@@ -103,8 +110,17 @@ export async function act(adb, selector, options = {}) {
     adb(['shell', 'input', 'tap', String(current.bounds.centerX), String(current.bounds.centerY)]);
     const after = await waitStable(adb);
     const check = verify ? verify(after.elements) : {ok: true};
+    const changed = before.signature !== after.signature;
+    const key = JSON.stringify(selector);
+    if (!changed) {
+      const count = (noProgress.get(key) ?? 0) + 1;
+      noProgress.set(key, count);
+      if (count >= (options.stuckLimit ?? 2)) {
+        throw new Error('stuck: screen unchanged after ' + count + ' taps on ' + key);
+      }
+    } else noProgress.delete(key);
     return {ok: Boolean(check.ok), target, before, after, attempts: attempt + 1,
-      detail: check.detail ?? null, changed: before.signature !== after.signature};
+      detail: check.detail ?? null, changed};
   }
   throw new Error('stale target: element kept changing before the tap');
 }

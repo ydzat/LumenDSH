@@ -152,7 +152,9 @@ First recorded run, adb online and the app bridge open:
 - The loop is now shared code: `integrations/phone/ui-loop.mjs` parses UIAutomator
   into compact elements with stable signatures, revalidates a target before
   tapping, waits for screen stability and takes a verify callback. Both the eval
-  task and `tooling/phone-loop.mjs` use it; unit tests 5/5.
+  task and `tooling/phone-loop.mjs` use it; unit tests 9/9. A stuck screen (two
+  taps with an unchanged signature, checked state included) aborts instead of
+  looping.
 - Evidence: `~/sliver-wolf-companion/behavior/phone-eval-2026-10-28.jsonl`.
 
 ## 4. Recommended order

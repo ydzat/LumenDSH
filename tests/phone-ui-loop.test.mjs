@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseUi, parseBounds, findElement, requireElement, elementSignature, act, safeHome, waitFor, withRecovery} from '../integrations/phone/ui-loop.mjs';
+import {parseUi, parseBounds, findElement, requireElement, elementSignature, act, safeHome, waitFor, withRecovery, resetStuckState} from '../integrations/phone/ui-loop.mjs';
 
 const XML = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
 <hierarchy rotation="0"><node index="0" text="" resource-id="root" class="android.widget.FrameLayout" content-desc="" clickable="false" bounds="[0,0][1080,2232]">
@@ -74,6 +74,18 @@ test('safeHome presses HOME and waitFor finds a selector', async () => {
   assert.equal(home.elements.length, 1);
   const found = await waitFor(adb, {resourceId: 'sw'}, {timeoutMs: 1000});
   assert.equal(found.element.resourceId, 'sw');
+});
+
+test('act detects a stuck screen after repeated no-op taps', async () => {
+  const xml = '<node index="0" text="" resource-id="dead" class="android.widget.Button" clickable="true" bounds="[0,0][100,100]" />';
+  const adb = args => {
+    if (args[1] === 'uiautomator') return '';
+    if (args[1] === 'cat') return xml;
+    return '';
+  };
+  resetStuckState();
+  await act(adb, {resourceId: 'dead'});
+  await assert.rejects(() => act(adb, {resourceId: 'dead'}), /stuck: screen unchanged/);
 });
 
 test('waitFor times out with the last observation and withRecovery returns home', async () => {
