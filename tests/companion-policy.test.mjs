@@ -133,6 +133,10 @@ test('recovery wake brings the next turn forward without replaying the interrupt
   assert.ok(target, 'inside a window a recovery target must exist');
   assert.equal(target.atMs, inside + 60000);
   assert.equal(recoveryTarget(policy, {runs:[{status:'completed'}]}, inside), null);
+  const transport = recoveryTarget(policy, {runs:[{status:'completed'},{status:'failed', failureCode:'TRANSPORT'}]}, inside);
+  assert.ok(transport, 'a transport failure must bring the next wake forward');
+  assert.equal(transport.atMs, inside + 60000);
+  assert.equal(recoveryTarget(policy, {runs:[{status:'failed', failureCode:'OTHER'}]}, inside), null);
   assert.equal(recoveryTarget({...policy, enabled:false}, interrupted, inside), null);
   assert.equal(recoveryTarget({...policy, paused:true}, interrupted, inside), null);
 

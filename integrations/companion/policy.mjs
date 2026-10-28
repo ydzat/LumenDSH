@@ -172,9 +172,14 @@ export class TurnBudget {
 // At-most-once recovery: an interrupted run is never replayed, but the next
 // wake is brought forward so a fresh turn can inspect actual state and continue.
 export function recoveryTarget(policy, state, now = Date.now()) {
-  const interrupted = Array.isArray(state?.runs) &&
-    state.runs.some(run => run.status === 'interrupted-unreplayed');
-  if (!interrupted || !policy.enabled || policy.paused || !policy.sessionId) return null;
+  const runs = Array.isArray(state?.runs) ? state.runs : [];
+  const interrupted = runs.some(run => run.status === 'interrupted-unreplayed');
+  // A transport-level failure is transient: bring the next wake forward instead
+  // of waiting for the next scheduled window. The failed prompt is not replayed;
+  // a fresh turn inspects actual state first.
+  const transport = !interrupted && runs.slice(-3).some(run =>
+    run.status === 'failed' && run.failureCode === 'TRANSPORT');
+  if ((!interrupted && !transport) || !policy.enabled || policy.paused || !policy.sessionId) return null;
   const current = occurrences(policy, now).find(w => w.startsAt <= now && now < w.endsAt);
   if (current) return {atMs: now + 60000, windowKey: current.key, window: current.label};
   const next = occurrences(policy, now).sort((a, b) => a.startsAt - b.startsAt)[0];
