@@ -105,6 +105,13 @@ The user's framing is right: the phone is the **body**, and this agent is its
 - **`phone_*` tools**: still time out, i.e. they route through the adb path rather
   than through the app bridge. The body therefore has *two* channels on paper but
   only one motor path in practice.
+- **App bridge (direct probe)**: `tooling/bridge-probe.mjs` reaches
+  `ws://127.0.0.1:3084/device-tools` and the client exposes
+  `assistant_screen_status`, `assistant_screen_dump`, `assistant_screen_capture`,
+  `assistant_screen_click/tap/type` and `assistant_screen_global`. But
+  `assistant_screen_status` returns `{"enabled":false}` and a dump reports
+  "no active window": the accessibility/MediaProjection channel is installed but
+  not enabled. Enabling it once is the cheapest adb-independent motor path.
 
 Consequence: the immediate work item is to give the app bridge a real
 adb-independent motor path (accessibility taps / MediaProjection capture already
