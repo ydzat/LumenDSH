@@ -1,0 +1,17 @@
+{
+  "started": "2026-10-28T22:28:30.404Z",
+  "finished": "2026-10-28T22:29:26.405Z",
+  "allowed": [
+    "LumenDSH Web",
+    "Termux",
+    "Termux:API"
+  ],
+  "dryRun": false,
+  "muted": 0,
+  "actions": [],
+  "stillEnabled": [
+    "Termux:API",
+    "LumenDSH Web",
+    "Termux"
+  ]
+}
