@@ -26,7 +26,7 @@ companion are the post-M10 destination, not this milestone.
 | F7 status source | commit `141308a`; screenshot `~/tmp/status1.png` shows 「自主 运行中 · 谷段 · 最近：自主开发 02:22」 | pass |
 | F8 activity line | same line + CompanionSettings 「最近活动」 page | pass (latest item) |
 | F10 capsule collision | commit `683db0b`; screenshot `~/tmp/capsule2.png` (header readable) | pass |
-| F5 self-upgrade path | `tooling/self-restart.sh` reachable via `bash tooling/`; build + `phone_install` + delayed restart each verified separately | component pass |
+| F5 autonomous run | develop run at 23:47 completed with 12 steps / 12 tools (visible in the habitat timeline; the slots-alignment commit `91e245a` came from it) | pass (one complete run) |
 | Tests | companion-policy 14, self-iteration 8, situation 3, self-notes 3, develop-situation 2, webui-plugins 2 | 32 pass, 0 fail |
 | Autonomy policy | `paused=false`, activities consolidate/reflect/develop, budget 24/48/10/600s | live |
 
