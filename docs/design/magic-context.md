@@ -49,13 +49,12 @@ checkpoints stop appearing.
 ## Phone-width UI: taskbar-style expansion
 
 The dock keeps its place and the official figures. A chevron pinned to the
-bottom-right corner (the Windows taskbar analogue) lifts the **same dock** — real
-child nodes, no clones or text copies — into a floating panel above the composer
-(`body.lumendsh-dock-open [data-composer-dock] { position: fixed; … }`). Inside
-the panel the children wrap and scroll, so the plugin pill sits next to the
-official meter instead of on top of it; collapsed, plugin pill surfaces
-(`data-mc-surface`) are hidden. The button toggles the panel; no gesture is used
-because bottom swipes close apps on this phone.
+bottom-right corner expands **the dock itself in place** — real child nodes, no
+clones, no floating overlay: the dock wraps and scrolls inside the composer card,
+so the page content above moves up instead of being covered. Collapsed, plugin
+pill surfaces (`data-mc-surface`) are hidden so they cannot overlap the official
+meter; expanded, they appear next to it. The chevron is the only control, because
+bottom swipes close apps on this phone.
 
 ## Rollback
 
