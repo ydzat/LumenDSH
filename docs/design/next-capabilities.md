@@ -60,6 +60,40 @@ itself, chat; voice by default"):
   <https://dshbase.com/zh/plugins/dsh-mobile-gui-agent/>
   <https://dshbase.com/zh/plugins/dsh-vision-android/>
 
+## 2b. Embodied intelligence / robotics view
+
+The user's framing is right: the phone is the **body**, and this agent is its
+**brain**. That changes what "infrastructure" means.
+
+- **Sense–plan–act loop**: the phone needs proprioception (battery, network,
+  foreground app, screen state, sensor availability), exteroception (screenshot,
+  UI hierarchy, notifications) and motor control (tap, text, keys, intents). Today
+  we have motor control and raw sensors, but no body-state model to reason from.
+- **Affordances, not coordinates**: robotics grounds actions in what the
+  environment affords. UIAutomator hierarchy + semantic element ids are our
+  affordances; raw pixel taps are the fallback, exactly the way VLA work combines
+  language, vision and action grounding (RT-2, Mobile-Agent-v3).
+- **Safe states and a reflexive layer**: a robot must not command an action that
+  removes its own sensorimotor loop. On this body that means: **never disable
+  Wi-Fi, never enable airplane mode, never revoke adb/USB debugging, never kill
+  the host process**. This belongs in the policy layer as hard invariants, not in
+  a prompt reminder.
+- **Evaluation like robot benchmarks**: task suites with deterministic success
+  predicates (AndroidWorld-style) are the sim-to-real analogue: a fixed set of
+  embodied tasks whose success rate we track over time.
+- **Recovery**: robots have a safe-home routine; ours is "restore connectivity,
+  return to the habitat, report what happened" after a failed physical task.
+
+## 2c. Embodied safety invariants (hard rules)
+
+1. Never turn off Wi-Fi, mobile data or Bluetooth in a way that could strand the
+   agent; never enable airplane mode.
+2. Never revoke developer options, USB debugging or this app's own permissions.
+3. Never kill the DSH host, the relay or the adb server as part of a task.
+4. Any task that changes connectivity must go through the user, even when other
+   approvals are disabled.
+5. A failed task ends in the safe-home routine above, not in an unbounded retry.
+
 ## 3. Gap → action
 
 | Gap | Existing option | Decision |

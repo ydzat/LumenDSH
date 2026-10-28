@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "safety": "Read-only or non-destructive tasks only. Never toggles Wi-Fi, data, Bluetooth, airplane mode, developer options or permissions.",
+  "tasks": [
+    {
+      "id": "home_reachable",
+      "goal": "回到桌面并读到 UI 树",
+      "actions": [{"type": "key", "code": 3}, {"type": "ui"}],
+      "check": {"type": "ui_nonempty"}
+    },
+    {
+      "id": "open_settings",
+      "goal": "打开系统设置",
+      "actions": [{"type": "start", "args": ["-a", "android.settings.SETTINGS"]}, {"type": "ui"}],
+      "check": {"type": "ui_matches", "any": ["设置", "Settings", "com.android.settings"]}
+    },
+    {
+      "id": "wifi_page_visible",
+      "goal": "打开设置中的 WLAN 页面（只查看，不开关）",
+      "actions": [{"type": "start", "args": ["-a", "android.settings.WIFI_SETTINGS"]}, {"type": "ui"}],
+      "check": {"type": "ui_matches", "any": ["WLAN", "Wi-Fi", "WiFi"]}
+    },
+    {
+      "id": "battery_readable",
+      "goal": "读取电量状态",
+      "actions": [{"type": "shell", "args": ["dumpsys", "battery"]}],
+      "check": {"type": "output_matches", "any": ["level:"]}
+    },
+    {
+      "id": "client_version",
+      "goal": "读取客户端安装版本",
+      "actions": [{"type": "shell", "args": ["dumpsys", "package", "local.sliverwolf.web"]}],
+      "check": {"type": "output_matches", "any": ["versionName="]}
+    },
+    {
+      "id": "screenshot",
+      "goal": "截屏并落盘",
+      "actions": [{"type": "screencap"}],
+      "check": {"type": "bytes_at_least", "value": 10000}
+    },
+    {
+      "id": "back_to_home",
+      "goal": "任务结束后回到桌面（安全归位）",
+      "actions": [{"type": "key", "code": 3}, {"type": "ui"}],
+      "check": {"type": "ui_nonempty"}
+    }
+  ]
+}
