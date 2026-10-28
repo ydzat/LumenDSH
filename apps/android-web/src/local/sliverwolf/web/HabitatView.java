@@ -137,7 +137,13 @@ final class HabitatView extends LinearLayout {
             }
         });
     }
-    void setCompanionStatus(String value) { companionStatus.setText(value == null ? "" : value); }
+    void setCompanionStatus(String value) { setCompanionStatus(value, null); }
+
+    void setCompanionStatus(String value, Runnable onClick) {
+        companionStatus.setText(value == null ? "" : value);
+        companionStatus.setOnClickListener(onClick == null ? null : view -> onClick.run());
+        companionStatus.setClickable(onClick != null);
+    }
 
     private int voiceNoteSeq;
 

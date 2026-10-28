@@ -30,6 +30,7 @@ public final class MainActivity extends Activity {
     private String voiceSession = "", voiceRequest = "";
     private boolean voiceAutoSend;
     private boolean speakingBefore, continuousPending;
+    private final java.util.List<String> companionTimeline = new ArrayList<>();
     private HabitatView habitat;
     private String renderedPresentation="", renderedProfile="";
     private boolean releaseHealthRunning;
@@ -147,25 +148,53 @@ public final class MainActivity extends Activity {
                         org.json.JSONObject period = d.optJSONObject("period");
                         String phase = period == null ? "" : period.optString("phase", "");
                         String last = "";
+                        java.util.List<String> timeline = new ArrayList<>();
                         org.json.JSONArray runs = d.optJSONArray("runs");
                         if (runs != null && runs.length() > 0) {
-                            org.json.JSONObject r = runs.optJSONObject(runs.length() - 1);
-                            if (r != null) {
+                            for (int i = runs.length() - 1; i >= 0 && timeline.size() < 6; i--) {
+                                org.json.JSONObject r = runs.optJSONObject(i);
+                                if (r == null) continue;
                                 String at = r.optString("startedAt", "");
                                 if (at.length() >= 16) at = at.substring(11, 16);
-                                last = " · 最近：" + activityLabel(r.optString("activity", "")) + " " + at;
+                                String status = runStatusLabel(r.optString("status", ""));
+                                String steps = r.has("steps") ? " · " + r.optInt("steps") + " 步/" + r.optInt("tools") + " 工具" : "";
+                                timeline.add(activityLabel(r.optString("activity", "")) + " · " + status + steps + " · " + at);
+                                if (i == runs.length() - 1) last = " · 最近：" + activityLabel(r.optString("activity", "")) + " " + at;
                             }
                         }
+                        companionTimeline.clear();
+                        companionTimeline.addAll(timeline);
                         value = (enabled ? (paused ? "自主 已暂停" : "自主 运行中") : "自主 已关闭")
                             + (phase.equals("peak") ? " · 峰段" : phase.equals("valley") ? " · 谷段" : "") + last;
                     }
                 } catch (Exception error) { value = "自主 状态未知"; }
                 final String shown = value;
-                main.post(() -> { if (!isDestroyed()) habitat.setCompanionStatus(shown); });
+                main.post(() -> { if (!isDestroyed()) habitat.setCompanionStatus(shown, MainActivity.this::showCompanionTimeline); });
             });
             handler.postDelayed(this, 30000);
         }};
         handler.post(poll);
+    }
+
+    private void showCompanionTimeline() {
+        if (companionTimeline.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle("最近活动").setMessage("还没有自主活动记录").setPositiveButton("返回", null).show();
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("最近活动").setItems(companionTimeline.toArray(new String[0]), null)
+            .setPositiveButton("返回", null).show();
+    }
+
+    private String runStatusLabel(String status) {
+        if ("completed".equals(status)) return "完成";
+        if ("yielded-to-user".equals(status)) return "让位于用户";
+        if ("step-budget".equals(status)) return "步数用完";
+        if ("tool-budget".equals(status)) return "工具用完";
+        if ("time-budget".equals(status)) return "超时";
+        if ("failed".equals(status)) return "失败";
+        if ("delivery-uncertain".equals(status)) return "投递未知";
+        if ("interrupted-unreplayed".equals(status)) return "中断未重放";
+        return status;
     }
 
     private String activityLabel(String activity) {
