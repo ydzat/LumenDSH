@@ -16,6 +16,19 @@ REA is installed twice:
   signature reading and adb inspection work on android-arm64; JADX and native
   engines are unsupported there.
 
+## As an agent tool (including autonomous runs)
+
+The companion exposes a `rea` tool: `{command, path, className?, methodName?, procedure?}`.
+It copies the phone file to the analysis server, runs the read-only command and
+returns the evidence (truncated). Allowed commands: inspect-apk-signature,
+inspect-android-package, inspect-android-class, inspect-android-method, analyze,
+decompile, analyze-javascript-application, analyze-web-bundle. Paths must be under
+`/storage/emulated/0/Download/`, `~/tmp/` or the repo artifacts directory. Calls
+from autonomous runs are appended to `behavior/activity-audit.jsonl`.
+
+Prefer the tool in autonomous turns (bash cannot use ssh there); prefer the CLI
+when you need extra flags such as `--filter-output`.
+
 ## Moving files
 
 - APK on the phone: `adb -s 127.0.0.1:5555 pull /data/app/.../base.apk ~/tmp/app.apk`

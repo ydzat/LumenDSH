@@ -62,3 +62,15 @@ if a workflow genuinely needs the MCP ergonomics.
   `ghidra`, ELF x86_64.
 - `rea doctor` on the server: host/node/jadx/ghidra checks healthy; Hopper (macOS)
   and IDA (commercial) remain unavailable by design.
+
+
+## Agent tool (2026-10-28)
+
+`rea` is registered as a companion tool restricted to read-only commands and
+allowed roots; it uploads the file with `scp`, runs `ssh server rea …` and returns
+the evidence, truncating long output. Develop and browse budgets admit it, and
+each call is appended to `behavior/activity-audit.jsonl`.
+
+Verified from the agent: `inspect-android-package` on the 0.10.48 APK returned
+`ev_7747c8…` with the full manifest (package, version 104, permissions, exported
+components) through JADX 0.7.1 on the server.
