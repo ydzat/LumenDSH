@@ -83,3 +83,4 @@ Steps 2 and 3 are independent of 1; 4 is client-only; 5 depends on 1.
   Settings → swipe up → `expect` on a lower entry → home (TASK OK).
 - 2026-10-28: the habitat status line now shows the live activity: 正在：<activity> <time> while a run is active, 最近：<activity> <time> otherwise. Client-only, installed as 0.10.53 (109), verified on device (`c3bd9d6`).
 - 2026-10-28: console safe-area: the WebView container takes the bottom system inset as padding so the composer clears the gesture bar. 0.10.54 (110), verified on device (`b8c2f0f`).
+- 2026-10-28: foreground awareness: the accessibility service records window-state changes (package/activity/title/time), exposed as assistant_foreground and in assistant_get_status. App 0.10.57 (113); requires the user to enable 屏幕读取权限 once before it reports anything (`f2a4c31`).
