@@ -136,6 +136,21 @@ safety invariants are meant to prevent.
 | Declarative tool policy | `dsh-tool-policy`, `dsh-permission-rules` | Keep our policy; borrow the "default deny + explicit allow" framing in docs. |
 | Self-modifying plugins | `dsh-evolve` | Reference only; too risky for the current trust level. |
 
+## 3b. Phone-eval baseline (2026-10-28)
+
+First recorded run, adb online and the app bridge open:
+
+- 8/8 tasks passed: home reachable, open Settings, WLAN page visible (read-only),
+  Bluetooth toggle with restore, battery readable, client version, screenshot,
+  safe home.
+- The Bluetooth task is the first real observe → act → verify loop: read
+  `settings global bluetooth_on`, open Bluetooth settings, locate
+  `com.android.settings:id/switch_widget` in the UIAutomator dump, tap its center,
+  verify the new state, then toggle back and assert the original state returned.
+- `svc bluetooth` / `cmd bluetooth_manager` do not work on this ROM; the UI path
+  is the reliable one. That is a useful hint for other settings toggles.
+- Evidence: `~/sliver-wolf-companion/behavior/phone-eval-2026-10-28.jsonl`.
+
 ## 4. Recommended order
 
 1. **Phone evaluation harness (P0)** — 5–8 tasks with deterministic success

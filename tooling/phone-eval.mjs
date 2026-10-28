@@ -53,14 +53,29 @@ for (const task of spec.tasks) {
           {timeout: 45000, maxBuffer: 32 * 1024 * 1024}));
         screenshotBytes = statSync(target).size;
       } else if (action.type === 'bt_toggle') {
-        // Low-risk connectivity change (no paired device): toggle, verify, restore.
-        const before = adb(['shell', 'settings', 'get', 'global', 'bluetooth_on']).trim();
-        const target = before === '1' ? 'disable' : 'enable';
-        adb(['shell', 'svc', 'bluetooth', target], 20000);
-        adb(['shell', 'sleep', '2'], 10000);
-        const after = adb(['shell', 'settings', 'get', 'global', 'bluetooth_on']).trim();
-        if (before !== after) adb(['shell', 'svc', 'bluetooth', before === '1' ? 'enable' : 'disable'], 20000);
-        output += 'bt before=' + before + ' after=' + after;
+        // Low-risk connectivity change (no paired device): toggle through the
+        // Settings switch (observe → act → verify), then restore the original state.
+        const state = () => adb(['shell', 'settings', 'get', 'global', 'bluetooth_on']).trim();
+        const before = state();
+        const flip = () => {
+          adb(['shell', 'am', 'start', '-a', 'android.settings.BLUETOOTH_SETTINGS']);
+          adb(['shell', 'sleep', '1']);
+          adb(['shell', 'uiautomator', 'dump', '/sdcard/bt-eval.xml'], 45000);
+          const xml = adb(['shell', 'cat', '/sdcard/bt-eval.xml']);
+          const tag = xml.split('<node').find(part => part.includes('switch_widget') && part.includes('android.widget.Switch'));
+          const bounds = tag && tag.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+          if (!bounds) throw new Error('bluetooth switch not found');
+          const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
+          const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2);
+          adb(['shell', 'input', 'tap', String(x), String(y)]);
+          adb(['shell', 'sleep', '2']);
+          return state();
+        };
+        const after = flip();
+        let restored = after;
+        if (after !== before) restored = flip();
+        if (restored !== before) throw new Error('bluetooth restore failed');
+        output += 'bt before=' + before + ' after=' + after + ' restored=' + restored;
       } else if (action.type === 'wait') {
         execFileSync(process.execPath, ['-e', `setTimeout(()=>{},${Number(action.ms) || 1000})`]);
       }
