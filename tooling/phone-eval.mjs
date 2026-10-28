@@ -5,7 +5,7 @@
 import {execFileSync} from 'node:child_process';
 import {readFileSync, writeFileSync, statSync, mkdirSync} from 'node:fs';
 import path from 'node:path';
-import {screenSignature, act, requireElement} from '../integrations/phone/ui-loop.mjs';
+import {screenSignature, act, requireElement, withRecovery} from '../integrations/phone/ui-loop.mjs';
 
 const home = process.env.HOME;
 const serial = process.env.PHONE_SERIAL || '127.0.0.1:5555';
@@ -40,6 +40,7 @@ function adb_devices() {
 for (const task of spec.tasks) {
   let output = '', screenshotBytes = 0, error = '';
   try {
+    await withRecovery(adb, async () => {
     for (const action of task.actions) {
       if (action.type === 'key') adb(['shell', 'input', 'keyevent', String(action.code)]);
       else if (action.type === 'start') adb(['shell', 'am', 'start', ...action.args]);
@@ -81,6 +82,7 @@ for (const task of spec.tasks) {
       if (screenshotBytes < Number(check.value ?? 1)) throw new Error('screenshot too small');
     }
     passed++;
+    });
   } catch (failure) { error = String(failure.message ?? failure).split('\n')[0].slice(0, 200); }
   const result = {at: new Date().toISOString(), id: task.id, goal: task.goal,
     ok: !error, error: error || null, screenshotBytes: screenshotBytes || null};

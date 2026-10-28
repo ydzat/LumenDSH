@@ -79,7 +79,6 @@ Hard floors (always critical):
 - adb drops after every reboot until an external adb runs `adb tcpip 5555`.
 - The app's accessibility/MediaProjection channel exists but is disabled, so the
   adb-independent motor path is not yet usable.
-- No automatic "safe-home" recovery after a failed physical task yet; the runner
-  currently only presses Home at the end. `integrations/phone/ui-loop.mjs` now
-  provides `safeHome`, `waitFor` and `withRecovery`, but the eval runner does not
-  wrap its tasks with them yet.
+- No automatic "safe-home" recovery on a failed physical task yet inside the
+  product (the eval runner now wraps each task with `withRecovery`, which returns
+  home and attaches that observation; the device bridge does not use it yet).
