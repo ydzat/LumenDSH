@@ -1,0 +1,109 @@
+# Next capabilities: what to build, borrow or install
+
+Status: proposal, 2026-10-28. Written after M10 closed, from self-assessment plus a
+survey of the DSH plugin ecosystem, current agent research and industry practice.
+
+## 1. Where we are
+
+M10 delivered the foundation: an official-WebUI console, a voice-first habitat
+(wake word, continuous conversation, TTS), a controlled autonomy loop
+(consolidate / reflect / develop / browse, with budgets and an audit trail), a
+self-built plugin pipeline, a device bridge over adb, a phone build/install path
+and REA for reverse engineering.
+
+What still limits the end state ("idle: play with the phone, browse, develop
+itself, chat; voice by default"):
+
+1. **Phone competence is action-level, not task-level.** We can tap/text/screenshot,
+   but there is no observe → act → verify loop with stale-element protection,
+   semantic UI parsing or success criteria. Community `dsh-mobile-gui-agent`
+   shows what that loop looks like.
+2. **No behavioural evaluation.** We test policy code (36 tests) but never measure
+   "can the agent complete task X on the phone at all". Regression in real
+   capability goes unnoticed; AndroidWorld-style task suites are the academic
+   answer.
+3. **Observability is coarse.** Run status and failure codes exist, but there is no
+   turn/tool trace, no cost/latency dashboard, no way to replay a bad run.
+4. **Memory exists but retrieval quality is unmeasured.** Mnemon is installed
+   (hot memory + documents + recall); nothing measures whether recall actually
+   surfaces the right evidence.
+5. **Discipline is implicit.** The anti-loop rules live in prose; community skill
+   packs (review/plan/test-first) encode similar discipline as enforceable skills.
+6. **Autonomy safety is bespoke.** Our policy budget/guard is custom; industry
+   practice is declarative permission rules plus telemetry.
+
+## 2. Academic, industry and community view
+
+- **Mobile GUI agents (academia)**: AndroidWorld (ICLR 2025) is the reference
+  dynamic benchmark for Android agents; Mobile-Agent-v3 and recent work emphasise
+  perceive → plan → act with verification, and even question whether the screen is
+  always needed (accessibility-tree-only agents). Takeaway: build a small,
+  repeatable task suite and a verify step, not just more taps.
+  <https://proceedings.iclr.cc/paper_files/paper/2025/file/01a83bc2f2732a58e6aa731e659e7101-Paper-Conference.pdf>
+  <https://ar5iv.labs.arxiv.org/html/2508.15144>
+  <https://export.arxiv.org/abs/2606.19388>
+- **Observability (industry)**: OpenTelemetry's GenAI conventions and agent-tracing
+  tooling (Langfuse et al.) converge on spans for turns, model calls and tool
+  calls with inputs/outputs. Takeaway: emit a local trace per run and keep it
+  inspectable; don't invent a proprietary log format.
+  <https://www.morphllm.com/agent-tracing>
+  <https://github.com/rohitg00/ai-engineering-from-scratch/blob/35cab093e93518cf2780efbb4de174d78491edc4/phases/13-tools-and-protocols/20-opentelemetry-genai/docs/en.md>
+- **DSH community**: 353+ indexed plugins. Directly relevant:
+  `dsh-mobile-gui-agent` (observe/act/verify, stale protection, approvals),
+  `dsh-vision-android` (vision + adb tools), `modlens` (vision bridge for
+  text-only models), `dsh-web-ui` (mobile remote), `dsh-trace` (telemetry),
+  `dsh-dashboard` (usage/quality), `dsh-cost-meter` (cost), `dsh-review-skills`
+  and `dsh-superpowers` (engineering discipline skills), `dsh-tool-policy` /
+  `dsh-permission-rules` (declarative tool policy), `dsh-evolve` (hot-mount
+  plugins on itself).
+  <https://github.com/kejixiaoliang/awesome-dsh-plugins>
+  <https://dshbase.com/zh/plugins/dsh-mobile-gui-agent/>
+  <https://dshbase.com/zh/plugins/dsh-vision-android/>
+
+## 3. Gap → action
+
+| Gap | Existing option | Decision |
+| --- | --- | --- |
+| Task-level phone control with verification | `dsh-mobile-gui-agent` (ADB + UIAutomator, observe→act→verify, stale checks, approvals) | **Reference, then extend our bridge** with semantic hierarchy capture, post-action verification and stuck detection. Do not install it as-is: it assumes a desktop adb host and a separate Web panel, while our device bridge already owns the phone. |
+| Vision for image-only UI | `dsh-vision-android`, `modlens` | Install nothing yet; our model accepts images, so screenshots already work. Revisit if we hit canvas/game UI. |
+| Mobile console shell | `dsh-web-ui` (mobile remote) | Uses a different architecture (desktop web). Our WebView shell stays; borrow layout ideas only. |
+| Behavioural evaluation | AndroidWorld (academic), no DSH plugin | **Build**: a small task suite + runner (`tooling/phone-eval.mjs`) with 5–8 deterministic tasks and success checks. |
+| Run/tool tracing | `dsh-trace`, OpenTelemetry GenAI conventions | **Build a minimal local JSONL trace** now; consider `dsh-trace`/Langfuse export later. |
+| Cost/latency visibility | `dsh-dashboard`, `dsh-cost-meter` | Optional install after tracing; not core. |
+| Engineering discipline | `dsh-review-skills`, `dsh-superpowers` | Try `dsh-superpowers`/`dsh-review-skills` as skills; keep our own anti-loop rules authoritative. |
+| Declarative tool policy | `dsh-tool-policy`, `dsh-permission-rules` | Keep our policy; borrow the "default deny + explicit allow" framing in docs. |
+| Self-modifying plugins | `dsh-evolve` | Reference only; too risky for the current trust level. |
+
+## 4. Recommended order
+
+1. **Phone evaluation harness (P0)** — 5–8 tasks with deterministic success
+   predicates (open Settings/Wi-Fi, toggle Bluetooth, open a URL, send a message
+   draft, screenshot-and-verify a text). Run before/after changes; store results
+   as evidence. This turns "phone ability" into something measurable.
+2. **Observe/act/verify upgrade for the device bridge (P0)** — semantic UI
+   hierarchy with element ids, stale-target rejection, post-action screen
+   stabilisation, stuck detection, bounded retries. Reference:
+   `dsh-mobile-gui-agent`'s provider contract.
+3. **Local run trace (P1)** — one JSONL per autonomous run: turn boundaries, tool
+   calls with arguments/结果摘要, model usage; a `tooling/trace-report.mjs` view.
+   Aligns with OpenTelemetry GenAI naming.
+4. **Memory retrieval probe (P1)** — a small set of questions with known answers,
+   run against Mnemon recall; records precision/recall over time.
+5. **Skill discipline (P2)** — install one community skill pack and compare
+   behaviour on a review/plan task; keep only if it improves outcomes.
+6. **Mobile polish (P2)** — remaining touch-target/safe-area work.
+
+## 5. What we will not build
+
+- A second mobile-control framework parallel to the device bridge.
+- A desktop-style console or a new chat UI.
+- A custom telemetry backend before there is one local trace to export.
+
+## 6. First concrete step
+
+`tooling/phone-eval.mjs`:
+- task list in `tooling/phone-eval.tasks.json` (id, goal, steps, success check),
+- driven through the existing `phone_*` bridge tools,
+- writes `behavior/phone-eval-<date>.jsonl` with pass/fail and evidence ids,
+- run manually or from a develop turn (read-only on the phone, no purchases or
+  messages to real contacts).
