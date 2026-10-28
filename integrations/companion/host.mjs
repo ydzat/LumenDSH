@@ -253,14 +253,19 @@ export function apply(ctx, config = {}) {
   const nudgeFlag = path.join(os.homedir(), '.local/state/sliver-wolf-m9/nudge-on-start');
   function scheduleStartupNudge() {
     if (!existsSync(nudgeFlag)) return;
+    // Autonomy resolves its own wake-ups. A synthetic continuation would sit in
+    // the queue and make the next reserved run yield to it instead of working.
+    if (policy.enabled && !policy.paused) { rmSync(nudgeFlag, {force: true}); return; }
+    const text = (process.env.SLIVER_WOLF_NUDGE_TEXT ??
+      '【自动继续】M11：先检查当前进度（git status、最近提交、待办），然后继续 M11 剩余项；每步验证后提交并推送 agent/dev。');
     let attempts = 0;
     const timer = setInterval(async () => {
       attempts += 1;
       const sessionId = policy.sessionId;
-      if (!sessionId) { if (attempts > 8) { clearInterval(timer); } return; }
+      if (!sessionId || active) { if (attempts > 8) { clearInterval(timer); } return; }
       try {
         await ctx.sessionController.prompt({requestId: randomUUID(), sessionId, mode: 'queue',
-          content: [{type: 'text', text: '【自动继续】M10：先检查进度（git status、最近提交、待办），然后继续开发剩余项；每步验证后提交并推送 agent/dev，不需要等我。'}]}, AbortSignal.timeout(15000));
+          content: [{type: 'text', text}]}, AbortSignal.timeout(15000));
         rmSync(nudgeFlag, {force: true});
         clearInterval(timer);
       } catch { if (attempts > 8) clearInterval(timer); }

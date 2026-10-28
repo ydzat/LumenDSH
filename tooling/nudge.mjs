@@ -37,7 +37,7 @@ if (!sessionId) {
 }
 if (!sessionId) throw new Error('No session to nudge');
 
-const text = process.argv[2] || '【自动继续】M10：先检查当前进度（git status、最近提交、待办），然后继续开发剩余项；每步验证后提交并推送 agent/dev，不需要等我。';
+const text = process.argv[2] || '【自动继续】M11：先检查当前进度（git status、最近提交、待办），然后继续 M11 剩余项；每步验证后提交并推送 agent/dev。';
 const reply = await rpc('session/prompt', {request: {sessionId, requestId: randomUUID(),
   mode: 'queue', content: [{type: 'text', text}]}});
 console.log(JSON.stringify({sessionId, ok: reply.result?.ok ?? false, error: reply.result?.error ?? null}));
