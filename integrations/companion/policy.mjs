@@ -36,9 +36,9 @@ export function validatePolicy(input) {
   windowsOf(input);
   assert(Number.isFinite(input.skipChance) && input.skipChance >= 0 && input.skipChance <= 1, 'Invalid skip chance');
   integer(input.minGapMin, 1, 10080, 'minimum gap'); integer(input.idleMinutes, 1, 1440, 'idle minutes');
-  assert(Array.isArray(input.activities) && input.activities.length > 0 && input.activities.length <= 5 &&
+  assert(Array.isArray(input.activities) && input.activities.length > 0 && input.activities.length <= 6 &&
     new Set(input.activities).size === input.activities.length &&
-    input.activities.every(x => ['consolidate', 'reflect', 'develop', 'browse', 'chat'].includes(x)), 'Invalid activities');
+    input.activities.every(x => ['consolidate', 'reflect', 'develop', 'browse', 'chat', 'phone'].includes(x)), 'Invalid activities');
   keys(input.budget, Object.keys(DEFAULT_POLICY.budget));
   for (const [key, low, high] of [['dailyRuns',1,12],['steps',1,32],['toolCalls',1,64],['writes',0,10],['outputTokens',256,16384],['seconds',10,600]])
     integer(input.budget[key], low, high, key);
@@ -122,12 +122,28 @@ export class TurnBudget {
     if (this.activity === 'develop') return this.developTool(name, input);
     if (this.activity === 'browse') return this.browseTool(name, input);
     if (this.activity === 'chat') return this.chatTool(name, input);
+    if (this.activity === 'phone') return this.phoneTool(name, input);
     if (!READ_TOOLS.has(name) && !WRITE_TOOLS.has(name)) return 'Autonomous local maintenance only permits bounded Mnemon reads and non-destructive writes.';
     if (name === 'mnemon_runtime_memory' && input?.action !== 'add')
       return 'Autonomous maintenance cannot remove or replace existing hot memory; preserve the source evidence.';
     if (WRITE_TOOLS.has(name) && this.writes >= this.limits.writes) return 'Autonomous memory-write budget exhausted.';
     this.tools++; if (WRITE_TOOLS.has(name)) this.writes++;
   }
+  phoneTool(name, input) {
+    if (String(name).startsWith('phone_')) {
+      if (this.tools >= this.limits.toolCalls) return 'Phone tool budget exhausted.';
+      this.tools++; return;
+    }
+    if (['read','glob','grep','read_image','self_note','self_experience'].includes(name)) {
+      if (name === 'self_note' || name === 'self_experience') {
+        if (this.writes >= this.limits.writes) return 'Phone write budget exhausted.';
+        this.writes++;
+      }
+      this.tools++; return;
+    }
+    return 'Phone inspection may only observe the phone, read context and record a note; no commands, web or repository writes.';
+  }
+
   chatTool(name, input) {
     if (['read','glob','grep','read_image','mnemon_recall','mnemon_related'].includes(name)) { this.tools++; return; }
     if (['self_note','self_experience'].includes(name)) {
@@ -254,6 +270,14 @@ export function activityPrompt(activity, record, situation = '') {
     'Stop on the first failure and record it instead of retrying. ' +
     `At most ${record.limits.writes} writes, ${record.limits.toolCalls} tool calls and ${record.limits.steps} model steps. ` +
     'Finish with a short factual outcome and the evidence paths.';
+  if (activity === 'phone') return `[Sliver Wolf local activity ${record.id}; phone]\n` +
+    (situation ? situation + '\n\n' : '') +
+    'This is a quiet moment to look at the phone as a body, not a scripted checklist. ' +
+    'First observe the current state (foreground app, notifications, battery, anything unusual) with phone_shot/phone_ui or phone_task observation steps. ' +
+    'Decide whether anything genuinely deserves one bounded read-only action (open a screen, read a message summary, check a setting); if so do exactly one, via phone_task, and verify the result. ' +
+    'If nothing deserves action, say so briefly and stop — do not manufacture work. ' +
+    'Never change connectivity, never send messages or make calls, never purchase, never install anything. ' +
+    `At most ${record.limits.writes} notes and ${record.limits.steps} model steps.`;
   if (activity === 'chat') return `[Sliver Wolf local activity ${record.id}; chat]\n` +
     (situation ? situation + '\n\n' : '') +
     'This is a quiet moment in our existing conversation, not a new identity or a scheduled reminder. ' +
