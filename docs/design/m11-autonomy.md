@@ -82,3 +82,4 @@ Steps 2 and 3 are independent of 1; 4 is client-only; 5 depends on 1.
   in real tasks: WLAN page → back → `expectGone` on the SSID → home (TASK OK), and
   Settings → swipe up → `expect` on a lower entry → home (TASK OK).
 - 2026-10-28: the habitat status line now shows the live activity: 正在：<activity> <time> while a run is active, 最近：<activity> <time> otherwise. Client-only, installed as 0.10.53 (109), verified on device (`c3bd9d6`).
+- 2026-10-28: console safe-area: the WebView container takes the bottom system inset as padding so the composer clears the gesture bar. 0.10.54 (110), verified on device (`b8c2f0f`).
