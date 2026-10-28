@@ -419,7 +419,7 @@ export function apply(ctx, config = {}) {
   function traceTool(record, execution) {
     try {
       const day = new Date().toISOString().slice(0, 10);
-      const file = path.join(root, 'behavior', 'trace-' + day + '.jsonl');
+      const file = path.join(root, 'trace-' + day + '.jsonl');
       try { if (statSync(file).size > 5 * 1024 * 1024) return; }
       catch { /* file does not exist yet */ }
       appendFileSync(file, JSON.stringify({at: new Date().toISOString(), run: record.id,
