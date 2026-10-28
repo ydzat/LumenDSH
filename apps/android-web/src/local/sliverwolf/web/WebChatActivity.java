@@ -75,6 +75,12 @@ public final class WebChatActivity extends Activity {
         root.addView(status, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        // Keep the official composer above the gesture bar: the page is full
+        // height, so the inset is applied as bottom padding on the container.
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(0, 0, 0, insets.getSystemWindowInsetBottom());
+            return insets;
+        });
         CrashLog.mark(this, "webchat:view");
 
         WebSettings settings = web.getSettings();
