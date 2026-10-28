@@ -37,6 +37,7 @@ recovery, and artifact handoff are [verified within D01-D04 scope](../tests/m2-e
    [REA tooling](design/tooling-rea.md): on-device reverse-engineering CLI, what works on Termux.
    [M11 autonomy](design/m11-autonomy.md): the sustainable-autonomy milestone and its exit criteria.
    [Next capabilities](design/next-capabilities.md): post-M10 build/borrow/install analysis (phone eval, tracing, memory probe).
+   [Magic Context](design/magic-context.md): context-management plugin install, takeover and phone UI patch.
    [Embodiment safety](design/embodiment-safety.md): the body model, the CVSS-style change rubric and the hard floors.
 3. Contracts: [session](contracts/session.md), [device tools](contracts/device-tools.md), [assistant packages](contracts/assistant-packages.md), [updates](contracts/updates.md).
 4. [Development plan](development-plan.md): ordered work and milestone gates.
