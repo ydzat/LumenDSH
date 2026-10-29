@@ -253,6 +253,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean sendInteractive(String text,boolean home,boolean voice){
+        if(controller.connected&&controller.selected.isEmpty()){showSessionPicker();return false;}
         if(!controller.send(text))return false;
         if(interaction.speak(home,voice))spokenRequests.put(controller.pendingId,controller.selected);
         if(voice)voiceRequest=controller.pendingId;
@@ -282,6 +283,7 @@ public final class MainActivity extends Activity {
         voiceStatus.setText("识别完成，等待确认发送");
     }
     private void startVoice() {
+        if(controller.connected&&controller.selected.isEmpty()){showSessionPicker();return;}
         if(OwnerEnrollment.active){voiceStatus.setText("正在录入声纹，请稍候");return;}
         if(petBusy){voiceStatus.setText("配置正在校验，请稍候");return;}
         if(!controller.canSend()||controller.running||!voiceRequest.isEmpty()){voiceStatus.setText("请等待当前任务结束或连接恢复");return;}
@@ -411,6 +413,7 @@ public final class MainActivity extends Activity {
         SettingsDrawer d=settingsDrawer;d.title("LumenDSH");
         d.note(agentName()+" · "+(controller.connected?"已连接":"未连接")+" · "+controller.taskState());
         d.section("日常");
+        d.row("主页会话",controller.selected.isEmpty()?"尚未选择 · 触摸和语音需要绑定会话":"选择触摸和语音使用的现有会话",()->{d.dismiss();showSessionPicker();});
         d.row("官方界面","DSH WebUI · 插件与对话",()->{d.dismiss();CrashLog.mark(this,"open-webchat");startActivity(new android.content.Intent(this,WebChatActivity.class));});
         d.row("屏幕读取权限","允许助手截屏识别界面",()->{d.dismiss();try{android.media.projection.MediaProjectionManager manager=(android.media.projection.MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);startActivityForResult(manager.createScreenCaptureIntent(),77);}catch(Throwable ignored){}});
         d.section("偏好");
@@ -944,8 +947,35 @@ public final class MainActivity extends Activity {
             .setMessage(error.getMessage()+"\n当前会话与原有形象未被替换。")
             .setPositiveButton("返回",null).show();
     }
+    private void showSessionPicker(){
+        if(!controller.connected){
+            android.widget.Toast.makeText(this,"请等待 DSH 连接恢复",android.widget.Toast.LENGTH_SHORT).show();return;
+        }
+        ArrayList<String> ids=new ArrayList<>(),labels=new ArrayList<>();
+        for(int i=0;i<controller.sessions.length();i++){
+            JSONObject item=controller.sessions.optJSONObject(i);
+            if(item==null||item.optString("sessionId").isEmpty())continue;
+            String id=item.optString("sessionId"),title=item.optString("title","");
+            JSONObject projection=item.optJSONObject("projections");
+            JSONObject values=projection==null?null:projection.optJSONObject("values");
+            if(title.isEmpty()&&values!=null)title=values.optString("title","");
+            String shortId=id.substring(Math.max(0,id.length()-8));
+            ids.add(id);labels.add((id.equals(controller.selected)?"当前 · ":"")+(title.isEmpty()?"未命名会话":title)+" · "+shortId);
+        }
+        AlertDialog.Builder dialog=new AlertDialog.Builder(this).setTitle("选择主页会话");
+        if(ids.isEmpty())dialog.setMessage("暂无可选会话。可以刷新列表，或明确新建一个会话。");
+        else dialog.setItems(labels.toArray(new String[0]),(d,index)->{
+            controller.select(ids.get(index));
+            voiceStatus.setText("会话已选择，请重新点击角色或麦克风");
+            renderHabitat();
+        });
+        // Choosing a conversation never replays the touch or speech that opened this picker.
+        dialog.setNegativeButton("取消",null).setNeutralButton("刷新列表",(d,w)->controller.refreshSessions())
+            .setPositiveButton("新建会话",(d,w)->controller.create()).show();
+    }
     private void submitCharacterTouch(String action){
         if(controller==null)return;
+        if(controller.connected&&controller.selected.isEmpty()){showSessionPicker();return;}
         if(voiceInput!=null&&voiceInput.active()){
             android.widget.Toast.makeText(this,"正在听你说话，触摸未发送",android.widget.Toast.LENGTH_SHORT).show();return;
         }
