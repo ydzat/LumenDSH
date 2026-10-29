@@ -12,6 +12,9 @@ import path from 'node:path';
 import {CATALOG, ROOT, modelDir, modelReady, prepareModel, runtimeReady, status, transcribeFile} from './engine.mjs';
 
 export const name = 'sliver-wolf-speech';
+// cordis defers apply() until these services exist; accessing webServer at apply
+// time without declaring it fails the plugin (as the first restart proved).
+export const inject = ['webServer', 'connection', 'tools'];
 
 export function apply(ctx, config = {}) {
   const prefix = '/sliver-wolf/speech';
