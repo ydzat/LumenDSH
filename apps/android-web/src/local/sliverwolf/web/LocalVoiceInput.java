@@ -23,9 +23,13 @@ final class LocalVoiceInput {
     private static final long MAX_MS = 20000;
     private static final long MIN_SPEECH_MS = 300;
     private static final long SILENCE_MS = 1200;
+    // The wake service and a tapped microphone both drive this class; only one
+    // AudioRecord may own the device at a time on this ROM.
+    private static volatile LocalVoiceInput current;
 
     private final Context context;
     private final Listener listener;
+    private String lastFailure = "";
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile boolean running;
     private volatile AudioRecord record;
@@ -39,6 +43,9 @@ final class LocalVoiceInput {
     boolean active() {return running;}
 
     void start() {
+        LocalVoiceInput previous = current;
+        if (previous != null && previous != this) previous.stop();
+        current = this;
         stop();
         running = true;
         listener.state("正在准备本地识别…");
@@ -46,15 +53,34 @@ final class LocalVoiceInput {
         worker.start();
     }
 
+    private AudioRecord open(int minimum) throws IOException {
+        RuntimeException last = null;
+        int[] sources = {MediaRecorder.AudioSource.VOICE_RECOGNITION, MediaRecorder.AudioSource.MIC};
+        for (int attempt = 0; attempt < 3; attempt++) {
+            for (int source : sources) {
+                try {
+                    AudioRecord recorder = new AudioRecord(source, RATE, AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT, Math.max(minimum * 2, 6400));
+                    if (recorder.getState() == AudioRecord.STATE_INITIALIZED) return recorder;
+                    recorder.release();
+                } catch (RuntimeException | LinkageError error) {
+                    last = error instanceof RuntimeException ? (RuntimeException) error : new IllegalStateException(String.valueOf(error));
+                }
+            }
+            try { Thread.sleep(250); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); break; }
+        }
+        throw new IOException("audio capture unavailable" + (last == null ? "" : ": " + last.getClass().getSimpleName()), last);
+    }
+
     private void capture() {
-        int minimum = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
         AudioRecord recorder = null;
         try {
-            recorder = new AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, RATE,
-                AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, Math.max(minimum * 2, 6400));
+            int minimum = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+            recorder = open(minimum);
             record = recorder;
-            if (recorder.getState() != AudioRecord.STATE_INITIALIZED) throw new IOException("Microphone unavailable");
-            recorder.startRecording();
+            try { recorder.startRecording(); }
+            catch (IllegalStateException error) { throw new IOException("microphone did not start", error); }
+            if (recorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) throw new IOException("microphone did not start");
             listener.state("正在聆听，请慢慢说…");
             List<short[]> chunks = new ArrayList<>();
             long started = System.currentTimeMillis(), lastSpeech = 0, speechMs = 0;
@@ -98,8 +124,11 @@ final class LocalVoiceInput {
             else main.post(() -> listener.result(text));
         } catch (Exception | LinkageError error) {
             running = false;
+            lastFailure = error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage());
+            try { CrashLog.mark(context, "speech:mic-failed:" + lastFailure); } catch (RuntimeException ignored) {}
             main.post(() -> listener.state("麦克风不可用：" + error.getClass().getSimpleName()));
         } finally {
+            if (current == this) current = null;
             record = null;
             if (recorder != null) {
                 try { recorder.stop(); } catch (RuntimeException ignored) {}
