@@ -13,14 +13,22 @@ final class VoiceInput {
     private final Context context;private final Listener listener;private final AudioManager audio;
     private final Handler main=new Handler();
     private SpeechRecognizer recognizer;
+    private final LocalVoiceInput local;
     private int generation,attempt,retries;
     private boolean running,heard,cued;
     private long readyAt;
-    VoiceInput(Context context,Listener listener){this.context=context;this.listener=listener;audio=context.getSystemService(AudioManager.class);}
-    boolean active(){return running;}
+    VoiceInput(Context context,Listener listener){this.context=context;this.listener=listener;audio=context.getSystemService(AudioManager.class);
+        local=new LocalVoiceInput(context,new LocalVoiceInput.Listener(){
+            public void state(String state){listener.state(state);}
+            public void result(String text){listener.result(text);}
+        });}
+    boolean active(){return running||local.active();}
     void start(){start("zh-CN");}
     void start(String language) {
         stop();
+        // Local engine first: it runs entirely on this phone and needs no network.
+        // The system recognizer stays as the fallback until the model is present.
+        if (SpeechModels.ready(context)) { local.start(); return; }
         if(!SpeechRecognizer.isRecognitionAvailable(context)){listener.state("Recognition service unavailable");return;}
         if(audio.getMode()!=AudioManager.MODE_NORMAL){listener.state("Voice unavailable during a call");return;}
         running=true;heard=false;cued=false;readyAt=0;retries=0;int epoch=generation;
@@ -76,5 +84,5 @@ final class VoiceInput {
     static boolean shouldRetry(int error,boolean heard,long elapsed,int retries) {
         return !heard&&elapsed<10000&&retries<2&&(error==SpeechRecognizer.ERROR_SPEECH_TIMEOUT||error==SpeechRecognizer.ERROR_NO_MATCH);
     }
-    void stop(){generation++;attempt++;running=false;main.removeCallbacksAndMessages(null);releaseRecognizer();}
+    void stop(){generation++;attempt++;running=false;local.stop();main.removeCallbacksAndMessages(null);releaseRecognizer();}
 }

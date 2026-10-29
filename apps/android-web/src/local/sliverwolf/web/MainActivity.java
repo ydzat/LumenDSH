@@ -64,9 +64,21 @@ public final class MainActivity extends Activity {
         }
     };
 
+    /** Fetch the on-device recognizer once, in the background, so the mic is fast later. */
+    private void prepareSpeech() {
+        if (SpeechModels.ready(this)) return;
+        Thread worker = new Thread(() -> {
+            try { SpeechModels.ensure(this, null); CrashLog.mark(this, "speech:model-ready"); }
+            catch (Exception error) { CrashLog.mark(this, "speech:model-failed:" + error.getClass().getSimpleName()); }
+        }, "speech-model");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         CrashLog.install(this);
+        prepareSpeech();
         handleVoice(getIntent(), 0);
         if (getIntent() != null && android.content.Intent.ACTION_SEND.equals(getIntent().getAction())) {
             String shared = getIntent().getStringExtra(android.content.Intent.EXTRA_TEXT);

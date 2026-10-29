@@ -71,22 +71,30 @@ export function apply(ctx, config = {}) {
     }
   }}));
 
-  ctx.tool?.register?.({
+  ctx.tools.register({
     name: 'speech_transcribe',
-    description: 'Transcribe a local 16 kHz mono WAV file with the on-device speech engine. Returns text and elapsed milliseconds.',
+    description: 'Transcribe a local 16 kHz mono WAV file with the on-device speech engine. Returns the text and elapsed milliseconds.',
     parameters: {
       type: 'object',
+      additionalProperties: false,
+      required: ['file'],
       properties: {
         file: {type: 'string', description: 'Absolute path to a 16 kHz mono WAV file'},
         model: {type: 'string', enum: Object.keys(CATALOG), description: 'Recognizer to use'},
         language: {type: 'string', description: 'SenseVoice language hint (zh, en, ja, ko, yue)'}
-      },
-      required: ['file'],
-      additionalProperties: false
+      }
     },
-    execute: async (args) => transcribeFile(String(args.file), {
-      model: String(args.model ?? 'sensevoice-small'), language: String(args.language ?? 'zh')
-    })
+    output: {
+      schema: {type: 'object', additionalProperties: false, required: ['text'],
+        properties: {text: {type: 'string'}, ms: {type: 'number'}, model: {type: 'string'}}},
+      render: (_args, value) => [{type: 'text', text: String(value?.text ?? '')}]
+    },
+    async execute(parameters) {
+      const result = await transcribeFile(String(parameters.file), {
+        model: String(parameters.model ?? 'sensevoice-small'), language: String(parameters.language ?? 'zh')
+      });
+      return result;
+    }
   });
 }
 
