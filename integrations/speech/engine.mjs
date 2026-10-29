@@ -23,6 +23,7 @@ export const CATALOG = {
     directory: 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17',
     model: 'model.int8.onnx',
     tokens: 'tokens.txt',
+    threads: 2,
     sha256: null // filled once the verified archive is measured; see ensure().
   },
   'paraformer-zh-small': {
@@ -34,6 +35,19 @@ export const CATALOG = {
     directory: 'sherpa-onnx-paraformer-zh-small-2024-03-09',
     model: 'model.int8.onnx',
     tokens: 'tokens.txt',
+    threads: 2,
+    sha256: null
+  },
+  'punct-zh-en': {
+    label: 'CT-Transformer punctuation (zh + en)',
+    kind: 'punctuation',
+    bytes: 64 * 1024 * 1024,
+    url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8.tar.bz2',
+    archive: 'tar.bz2',
+    directory: 'sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8',
+    model: 'model.int8.onnx',
+    tokens: null,
+    threads: 2,
     sha256: null
   }
 };
@@ -59,7 +73,7 @@ export function modelReady(id) {
   const entry = CATALOG[id];
   if (!entry) return false;
   const dir = modelDir(id);
-  return existsSync(path.join(dir, entry.model)) && existsSync(path.join(dir, entry.tokens));
+  return existsSync(path.join(dir, entry.model)) && (!entry.tokens || existsSync(path.join(dir, entry.tokens)));
 }
 
 export function status() {
@@ -97,16 +111,16 @@ function run(bin, args, {env, timeoutMs = 120000} = {}) {
 }
 
 /** Decode one 16 kHz mono WAV file and return the recognized text. */
-export async function transcribeFile(file, {model = 'paraformer-zh-small', language = 'zh', threads = 4, timeoutMs} = {}) {
+export async function transcribeFile(file, {model = 'sensevoice-small', language = 'zh', threads, timeoutMs} = {}) {
   if (!runtimeReady()) throw new Error('Speech runtime is not installed; run tooling/speech.mjs install-runtime');
   if (!modelReady(model)) throw new Error('Model not prepared: ' + model);
   if (!existsSync(file)) throw new Error('Audio file not found: ' + file);
   const entry = CATALOG[model];
   const dir = modelDir(model);
-  const args = ['--tokens=' + path.join(dir, entry.tokens), '--num-threads=' + threads];
+  const args = ['--tokens=' + path.join(dir, entry.tokens), '--num-threads=' + (threads ?? entry.threads ?? 2)];
   if (entry.kind === 'sensevoice') {
     args.push('--sense-voice-model=' + path.join(dir, entry.model), '--sense-voice-language=' + language,
-      '--sense-voice-use-inverse-text-normalization=true');
+      '--sense-voice-use-itn=true');
   } else {
     args.push('--paraformer=' + path.join(dir, entry.model));
   }
@@ -152,6 +166,18 @@ export async function prepareModel(id, {onProgress = () => {}} = {}) {
   }
   await run('tar', ['xjf', archive, '-C', MODELS], {timeoutMs: 600000});
   return {ready: modelReady(id), model: id, downloaded: true};
+}
+
+/** Add punctuation to text using the CT-Transformer model. */
+export async function punctuate(text, {timeoutMs = 60000} = {}) {
+  const entry = CATALOG['punct-zh-en'];
+  if (!runtimeReady()) throw new Error('Speech runtime is not installed');
+  if (!modelReady('punct-zh-en')) throw new Error('Punctuation model not prepared: punct-zh-en');
+  const model = path.join(modelDir('punct-zh-en'), entry.model);
+  const out = await run(path.join(RUNTIME, 'bin/sherpa-onnx-offline-punctuation'),
+    ['--ct-transformer=' + model, '--num-threads=' + (entry.threads ?? 2), String(text)],
+    {env: {LD_LIBRARY_PATH: path.join(RUNTIME, 'lib')}, timeoutMs});
+  return out.split('\n').map((x) => x.trim()).filter(Boolean).pop() ?? String(text);
 }
 
 export function statFile(file) {

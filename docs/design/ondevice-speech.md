@@ -22,9 +22,15 @@ Status: 2026-10-29 方案 v2。用户已确认：引擎本地、嵌入我们自�
 - 官方 `sherpa-onnx-v2.0.1-android-aarch64-termux-shared` 在本机 Termux 直接运行
   （onnxruntime 1.28.2），自带 `sherpa-onnx-offline`、`-vad-with-offline-asr`、
   `-keyword-spotter`、`-offline-punctuation`、`-offline-speaker-diarization` 等。
-- 已落盘：`~/.local/share/sliver-wolf/speech/runtime`（16 MB 运行包）。
-- Paraformer-zh small int8：中文句子识别全对（`重点呢想谈三个问题首先呢就是这一轮全球金融动荡的表现`），
-  中英混说也对；**RTF 0.30**（4 线程）、峰值 RSS **约 130 MB**、**模型冷加载约 8.5–10 s**。
+- 已落盘：`~/.local/share/sliver-wolf/speech/runtime`（16 MB 运行包）与三套模型
+  （SenseVoice int8 230 MB / Paraformer int8 80 MB / 标点 int8 77 MB），fp32 与导出脚本已删。
+- 线程数很关键：这台机器 2 线程最快，4/8 线程反而更慢（大小核争用 + 降频）。
+- **SenseVoice-Small int8**（229 MB）：中文带标点与 ITN，输出
+  `重点呢想谈三个问题。首先呢就是这一轮全球金融动荡的表现。`；**RTF 0.32**（2 线程，6 s 语音约 1.9 s）、
+  峰值 RSS **289 MB**、冷加载约 **8.5 s**。
+- **Paraformer-zh small int8**（78 MB）：**RTF 0.11**（2 线程）、RSS 约 130 MB、无标点；
+  搭配 CT-Transformer 标点模型（int8，77 MB，常驻后每句约 0.1–0.2 s）可补回标点。
+- 流式 zipformer-zh-14M 也实测可用（有部分结果），但准确度略低，只作备选。
 - 已提交的骨架：`integrations/speech`（引擎封装 + 路由 + `speech_transcribe` 工具）与
   `tooling/speech.mjs`（`status` / `install-runtime` / `prepare` / `transcribe`），
   真机跑通 `transcribe`。
@@ -43,8 +49,8 @@ Status: 2026-10-29 方案 v2。用户已确认：引擎本地、嵌入我们自�
 
 | 角色 | 模型 | 体积 | 备注 |
 |---|---|---|---|
-| 主力 ASR | SenseVoice-Small int8 | ~230 MB | zh/yue/en/ja/ko，自带标点与数字规整 |
-| 轻量备选 | Paraformer-zh small int8 | ~78 MB | 已实测通过；无标点，需标点模型 |
+| 主力 ASR | SenseVoice-Small int8 | ~230 MB | zh/yue/en/ja/ko，自带标点与数字规整；RTF 0.32（2 线程） |
+| 轻量备选 | Paraformer-zh small int8 | ~78 MB | RTF 0.11；无标点，配标点模型 |
 | VAD | Silero VAD | ~2 MB | **app 里已有**（`assets/wake/silero_vad.onnx`） |
 | 声纹 | CAM++ speaker.onnx | ~7 MB | **app 里已有**（`assets/wake/speaker.onnx`） |
 | 唤醒 | sherpa-onnx KWS | 已有 | 保持现状，不改唤醒链路 |
