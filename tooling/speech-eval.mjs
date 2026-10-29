@@ -7,12 +7,13 @@
 // can be dropped into the corpus directory later with the same JSON shape.
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
-import {CATALOG, transcribeMany} from '../integrations/speech/engine.mjs';
+import {CATALOG, applyLexicon, transcribeMany} from '../integrations/speech/engine.mjs';
 
 const ROOT = process.env.LUMENDSH_SPEECH_EVAL || path.join(process.env.HOME, '.local/share/sliver-wolf/speech/eval');
 const tokenFile = path.join(process.env.HOME, '.local/state/tts-token');
 const endpoint = process.env.LUMENDSH_TTS_URL || 'https://dongzeyang.top/lumendsh-voice/v1/audio/speech';
 const corpus = JSON.parse(readFileSync(path.resolve('integrations/speech/corpus.json'), 'utf8'));
+const lexicon = JSON.parse(readFileSync(path.resolve('integrations/speech/lexicon.json'), 'utf8'));
 
 // Terms whose exact spelling matters to the agent more than ordinary words do.
 const TERMS = ['银狼', 'agent/dev', 'LumenDSH', 'ZeroTier', 'GPT-SoVITS', 'magic-context', 'phone_task', 'termux', 'adb', 'Debian', 'github'];
@@ -91,24 +92,30 @@ async function main() {
     const started = Date.now();
     const texts = await transcribeMany(files, {model});
     const elapsed = Date.now() - started;
-    let distance = 0, length = 0;
-    let termHits = 0, termTotal = 0;
+    let distance = 0, length = 0, lexiconDistance = 0;
+    let termHits = 0, lexiconHits = 0, termTotal = 0;
     const rows = [];
     corpus.sentences.forEach((reference, index) => {
       const hypothesis = texts[index] ?? '';
+      const corrected = applyLexicon(hypothesis, lexicon);
       const score = cer(hypothesis, reference);
+      const fixed = cer(corrected, reference);
       distance += score.distance;
+      lexiconDistance += fixed.distance;
       length += score.length;
       for (const term of TERMS) {
         if (!normalize(reference).includes(normalize(term))) continue;
         termTotal++;
         if (normalize(hypothesis).includes(normalize(term))) termHits++;
+        if (normalize(corrected).includes(normalize(term))) lexiconHits++;
       }
-      rows.push({reference, hypothesis, cer: Number(score.cer.toFixed(3))});
+      rows.push({reference, hypothesis, corrected, cer: Number(score.cer.toFixed(3)), lexiconCer: Number(fixed.cer.toFixed(3))});
     });
     report.models[model] = {
       cer: Number((distance / Math.max(1, length)).toFixed(4)),
+      lexiconCer: Number((lexiconDistance / Math.max(1, length)).toFixed(4)),
       termAccuracy: Number((termHits / Math.max(1, termTotal)).toFixed(3)),
+      lexiconTermAccuracy: Number((lexiconHits / Math.max(1, termTotal)).toFixed(3)),
       termHits, termTotal,
       ms: elapsed,
       rows
@@ -117,7 +124,7 @@ async function main() {
   }
   const file = path.join(ROOT, 'report-' + Date.now() + '.json');
   writeFileSync(file, JSON.stringify(report, null, 1));
-  process.stdout.write(JSON.stringify({report: file, summary: Object.fromEntries(Object.entries(report.models).map(([id, value]) => [id, {cer: value.cer, termAccuracy: value.termAccuracy}]))}) + '\n');
+  process.stdout.write(JSON.stringify({report: file, summary: Object.fromEntries(Object.entries(report.models).map(([id, value]) => [id, {cer: value.cer, lexiconCer: value.lexiconCer, termAccuracy: value.termAccuracy, lexiconTermAccuracy: value.lexiconTermAccuracy}]))}) + '\n');
 }
 
 main().catch((error) => { process.stderr.write('speech-eval: ' + (error.message ?? error) + '\n'); process.exit(1); });

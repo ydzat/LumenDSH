@@ -1,0 +1,17 @@
+{
+ "note": "Canonical spellings the agent must see exactly. Variants are what the recognizer produced in the 2026-10-29 corpus run; this file is the seed of the learned dictionary (L2), not a hand-written rule set.",
+ "entries": [
+  {"canonical": "银狼", "variants": ["银郎", "迎郎", "淫狼", "银浪"]},
+  {"canonical": "agent/dev", "variants": ["一阵断分之上", "agent dev", "AgentDev", "agent 断分"]},
+  {"canonical": "LumenDSH", "variants": ["罗man", "罗门DSH", "lumen dash", "Lumen DSH"]},
+  {"canonical": "ZeroTier", "variants": ["COT", "zero tier", "Zero Tier", "0Tier"]},
+  {"canonical": "magic-context", "variants": ["my着con", "magic con", "magic context"]},
+  {"canonical": "phone_task", "variants": ["蜂塔考", "phone task", "Phone Task"]},
+  {"canonical": "Termux", "variants": ["沉迷Xy", "termux", "Termux x"]},
+  {"canonical": "SenseVoice", "variants": ["三次forest", "sense voice", "Sense Voice"]},
+  {"canonical": "GitHub", "variants": ["电hub", "git hub", "Git Hub"]},
+  {"canonical": "Debian", "variants": ["代编", "debian"]},
+  {"canonical": "GPT-SoVITS", "variants": ["GPT sovits", "GPT sovits", "GPT-SoVITS"]},
+  {"canonical": "adb", "variants": ["ADB", "A D B"]}
+ ]
+}

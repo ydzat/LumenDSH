@@ -1,0 +1,391 @@
+{
+ "createdAt": "2026-10-29T00:42:13.692Z",
+ "voice": "silver-wolf",
+ "sentences": 30,
+ "models": {
+  "sensevoice-small": {
+   "cer": 0.176,
+   "lexiconCer": 0.0269,
+   "termAccuracy": 0.25,
+   "lexiconTermAccuracy": 1,
+   "termHits": 3,
+   "termTotal": 12,
+   "ms": 57342
+  },
+  "paraformer-zh-small": {
+   "cer": 0.1858,
+   "lexiconCer": 0.1834,
+   "termAccuracy": 0.083,
+   "lexiconTermAccuracy": 0.167,
+   "termHits": 1,
+   "termTotal": 12,
+   "ms": 22149
+  }
+ },
+ "rows": {
+  "sensevoice-small": [
+   {
+    "reference": "银狼，帮我看一下今天的日程。",
+    "hypothesis": "银郎帮我看一下今天的日程。",
+    "corrected": "银狼帮我看一下今天的日程。",
+    "cer": 0.083
+   },
+   {
+    "reference": "在 agent/dev 分支上提交这次的修复。",
+    "hypothesis": "在一阵断分之上提交这次的修复。",
+    "corrected": "在agent/dev提交这次的修复。",
+    "cer": 0.5
+   },
+   {
+    "reference": "LumenDSH 的语音识别现在能离线运行了。",
+    "hypothesis": "罗man的语音识别现在能离线运行了。",
+    "corrected": "LumenDSH的语音识别现在能离线运行了。",
+    "cer": 0.286
+   },
+   {
+    "reference": "把 ZeroTier 的连接重新连上。",
+    "hypothesis": "把COT的连接重新连上。",
+    "corrected": "把ZeroTier的连接重新连上。",
+    "cer": 0.375
+   },
+   {
+    "reference": "GPT-SoVITS 的音色换成银狼。",
+    "hypothesis": "GPTsoVITS的音色换成银狼。",
+    "corrected": "GPTsoVITS的音色换成银狼。",
+    "cer": 0
+   },
+   {
+    "reference": "magic-context 插件今天压缩了上下文。",
+    "hypothesis": "my着con插件今天压缩了上下文。",
+    "corrected": "magic-context插件今天压缩了上下文。",
+    "cer": 0.364
+   },
+   {
+    "reference": "phone_task 跑完了记得回家。",
+    "hypothesis": "蜂塔考完了，记得回家。",
+    "corrected": "phone_task完了，记得回家。",
+    "cer": 0.647
+   },
+   {
+    "reference": "帮我在 Termux 里看一下 adb 的设备列表。",
+    "hypothesis": "帮我在沉迷Xy看一下ADB的设备列表。",
+    "corrected": "帮我在Termux看一下adb的设备列表。",
+    "cer": 0.286
+   },
+   {
+    "reference": "记得把手机通知静音这件事记下来。",
+    "hypothesis": "记得把手机通知静音这件事记下来。",
+    "corrected": "记得把手机通知静音这件事记下来。",
+    "cer": 0
+   },
+   {
+    "reference": "明天早上九点提醒我给服务器续费。",
+    "hypothesis": "明天早上9点提醒我给服务器续费。",
+    "corrected": "明天早上9点提醒我给服务器续费。",
+    "cer": 0.067
+   },
+   {
+    "reference": "打开设置里的通知管理。",
+    "hypothesis": "打开设置里的通知管理。",
+    "corrected": "打开设置里的通知管理。",
+    "cer": 0
+   },
+   {
+    "reference": "关掉蓝牙，然后再打开它。",
+    "hypothesis": "关掉蓝牙，然后再打开它。",
+    "corrected": "关掉蓝牙，然后再打开它。",
+    "cer": 0
+   },
+   {
+    "reference": "今天天气怎么样，需要带伞吗。",
+    "hypothesis": "今天天气怎么样？需要带伞吗？",
+    "corrected": "今天天气怎么样？需要带伞吗？",
+    "cer": 0
+   },
+   {
+    "reference": "帮我把这段话翻译成英文。",
+    "hypothesis": "帮我把这段话翻译成英文。",
+    "corrected": "帮我把这段话翻译成英文。",
+    "cer": 0
+   },
+   {
+    "reference": "搜索一下 SenseVoice 的中文识别准确率。",
+    "hypothesis": "搜索一下三次forest中文识别准确率。",
+    "corrected": "搜索一下SenseVoice中文识别准确率。",
+    "cer": 0.455
+   },
+   {
+    "reference": "在 GitHub 上看看有没有新的插件。",
+    "hypothesis": "在电hub上看看有没有新的插件。",
+    "corrected": "在GitHub上看看有没有新的插件。",
+    "cer": 0.176
+   },
+   {
+    "reference": "我的服务器是 Debian 十二。",
+    "hypothesis": "我的服务器是代编12。",
+    "corrected": "我的服务器是Debian12。",
+    "cer": 0.571
+   },
+   {
+    "reference": "把屏幕亮度调低一点。",
+    "hypothesis": "把屏幕亮度调低一点。",
+    "corrected": "把屏幕亮度调低一点。",
+    "cer": 0
+   },
+   {
+    "reference": "给家里发一条消息，说我晚点到。",
+    "hypothesis": "给家里发一条消息，说我晚点的。",
+    "corrected": "给家里发一条消息，说我晚点的。",
+    "cer": 0.077
+   },
+   {
+    "reference": "记录一下我今天学到的东西。",
+    "hypothesis": "记录一下我今天学到的东西。",
+    "corrected": "记录一下我今天学到的东西。",
+    "cer": 0
+   },
+   {
+    "reference": "打开语音识别，然后开始录音。",
+    "hypothesis": "打开语音识别，然后开始录音。",
+    "corrected": "打开语音识别，然后开始录音。",
+    "cer": 0
+   },
+   {
+    "reference": "这个功能的回归测试通过了吗。",
+    "hypothesis": "这个功能的回归测试通过了吗？",
+    "corrected": "这个功能的回归测试通过了吗？",
+    "cer": 0
+   },
+   {
+    "reference": "让我看看设备桥的连接状态。",
+    "hypothesis": "让我看看设备桥的连接状态。",
+    "corrected": "让我看看设备桥的连接状态。",
+    "cer": 0
+   },
+   {
+    "reference": "把刚才的语音转成文字发给我。",
+    "hypothesis": "把刚才的语音转成文字发给我。",
+    "corrected": "把刚才的语音转成文字发给我。",
+    "cer": 0
+   },
+   {
+    "reference": "我需要一个更快的模型。",
+    "hypothesis": "我需要一个更快的模型。",
+    "corrected": "我需要一个更快的模型。",
+    "cer": 0
+   },
+   {
+    "reference": "现在的识别速度可以接受。",
+    "hypothesis": "现在的识别速度可以接受。",
+    "corrected": "现在的识别速度可以接受。",
+    "cer": 0
+   },
+   {
+    "reference": "帮我把客厅的灯打开。",
+    "hypothesis": "帮我把客厅的灯打开。",
+    "corrected": "帮我把客厅的灯打开。",
+    "cer": 0
+   },
+   {
+    "reference": "今天走了多少步。",
+    "hypothesis": "今天走了多少步？",
+    "corrected": "今天走了多少步？",
+    "cer": 0
+   },
+   {
+    "reference": "播放一首周杰伦的歌。",
+    "hypothesis": "播放一首周杰伦的歌。",
+    "corrected": "播放一首周杰伦的歌。",
+    "cer": 0
+   },
+   {
+    "reference": "谢谢，今天就到这里。",
+    "hypothesis": "啊谢谢，今天就到这里。",
+    "corrected": "啊谢谢，今天就到这里。",
+    "cer": 0.125
+   }
+  ],
+  "paraformer-zh-small": [
+   {
+    "reference": "银狼，帮我看一下今天的日程。",
+    "hypothesis": "银郎帮我看一下今天的日程",
+    "corrected": "银狼帮我看一下今天的日程",
+    "cer": 0.083
+   },
+   {
+    "reference": "在 agent/dev 分支上提交这次的修复。",
+    "hypothesis": "在一阵掉分之上提交这次的修复",
+    "corrected": "在一阵掉分之上提交这次的修复",
+    "cer": 0.5
+   },
+   {
+    "reference": "LumenDSH 的语音识别现在能离线运行了。",
+    "hypothesis": "罗门 d r h 的语音识别现在能离线运行了",
+    "corrected": "罗门 d r h 的语音识别现在能离线运行了",
+    "cer": 0.286
+   },
+   {
+    "reference": "把 ZeroTier 的连接重新连上。",
+    "hypothesis": "把 c o t a 的连接重新连上",
+    "corrected": "把 c o t a 的连接重新连上",
+    "cer": 0.375
+   },
+   {
+    "reference": "GPT-SoVITS 的音色换成银狼。",
+    "hypothesis": "g p t 搜 v i t s 的音色换成银蓝",
+    "corrected": "g p t 搜 v i t s 的音色换成银蓝",
+    "cer": 0.188
+   },
+   {
+    "reference": "magic-context 插件今天压缩了上下文。",
+    "hypothesis": "拿着空调的插件今天压缩了上下文",
+    "corrected": "拿着空调的插件今天压缩了上下文",
+    "cer": 0.545
+   },
+   {
+    "reference": "phone_task 跑完了记得回家。",
+    "hypothesis": "松 t 斯考完了记得回家",
+    "corrected": "松 t 斯考完了记得回家",
+    "cer": 0.588
+   },
+   {
+    "reference": "帮我在 Termux 里看一下 adb 的设备列表。",
+    "hypothesis": "帮我再成迷 axi 看一下 a d b 的设备列表",
+    "corrected": "帮我再成迷 axi 看一下 adb 的设备列表",
+    "cer": 0.333
+   },
+   {
+    "reference": "记得把手机通知静音这件事记下来。",
+    "hypothesis": "记得把手机通知静音这件事记下来",
+    "corrected": "记得把手机通知静音这件事记下来",
+    "cer": 0
+   },
+   {
+    "reference": "明天早上九点提醒我给服务器续费。",
+    "hypothesis": "明天早上九点提醒我给服务器续费",
+    "corrected": "明天早上九点提醒我给服务器续费",
+    "cer": 0
+   },
+   {
+    "reference": "打开设置里的通知管理。",
+    "hypothesis": "打开设置里的通知管理",
+    "corrected": "打开设置里的通知管理",
+    "cer": 0
+   },
+   {
+    "reference": "关掉蓝牙，然后再打开它。",
+    "hypothesis": "关掉蓝牙然后再打开它",
+    "corrected": "关掉蓝牙然后再打开它",
+    "cer": 0
+   },
+   {
+    "reference": "今天天气怎么样，需要带伞吗。",
+    "hypothesis": "今天天气怎么样需要带伞吗",
+    "corrected": "今天天气怎么样需要带伞吗",
+    "cer": 0
+   },
+   {
+    "reference": "帮我把这段话翻译成英文。",
+    "hypothesis": "帮我把这段话翻译成英文",
+    "corrected": "帮我把这段话翻译成英文",
+    "cer": 0
+   },
+   {
+    "reference": "搜索一下 SenseVoice 的中文识别准确率。",
+    "hypothesis": "搜索一下三次 force 的中文识别准确率",
+    "corrected": "搜索一下三次 force 的中文识别准确率",
+    "cer": 0.318
+   },
+   {
+    "reference": "在 GitHub 上看看有没有新的插件。",
+    "hypothesis": "在点 help 上看看有没有新的插件",
+    "corrected": "在点 help 上看看有没有新的插件",
+    "cer": 0.353
+   },
+   {
+    "reference": "我的服务器是 Debian 十二。",
+    "hypothesis": "我的服务器是带编十二",
+    "corrected": "我的服务器是带编十二",
+    "cer": 0.429
+   },
+   {
+    "reference": "把屏幕亮度调低一点。",
+    "hypothesis": "把屏幕亮度调低一点",
+    "corrected": "把屏幕亮度调低一点",
+    "cer": 0
+   },
+   {
+    "reference": "给家里发一条消息，说我晚点到。",
+    "hypothesis": "给家里发一条消息说我晚点的",
+    "corrected": "给家里发一条消息说我晚点的",
+    "cer": 0.077
+   },
+   {
+    "reference": "记录一下我今天学到的东西。",
+    "hypothesis": "记录一下我今天学到的东西",
+    "corrected": "记录一下我今天学到的东西",
+    "cer": 0
+   },
+   {
+    "reference": "打开语音识别，然后开始录音。",
+    "hypothesis": "打开语音识别然后开始录音",
+    "corrected": "打开语音识别然后开始录音",
+    "cer": 0
+   },
+   {
+    "reference": "这个功能的回归测试通过了吗。",
+    "hypothesis": "这个功能的回归测试通过了吗",
+    "corrected": "这个功能的回归测试通过了吗",
+    "cer": 0
+   },
+   {
+    "reference": "让我看看设备桥的连接状态。",
+    "hypothesis": "让我看看设备桥的连接状态",
+    "corrected": "让我看看设备桥的连接状态",
+    "cer": 0
+   },
+   {
+    "reference": "把刚才的语音转成文字发给我。",
+    "hypothesis": "把刚才的语音转成文字发给我",
+    "corrected": "把刚才的语音转成文字发给我",
+    "cer": 0
+   },
+   {
+    "reference": "我需要一个更快的模型。",
+    "hypothesis": "我需要一个更快的模型",
+    "corrected": "我需要一个更快的模型",
+    "cer": 0
+   },
+   {
+    "reference": "现在的识别速度可以接受。",
+    "hypothesis": "现在的识别速度可以接受",
+    "corrected": "现在的识别速度可以接受",
+    "cer": 0
+   },
+   {
+    "reference": "帮我把客厅的灯打开。",
+    "hypothesis": "帮我把客厅的灯打开",
+    "corrected": "帮我把客厅的灯打开",
+    "cer": 0
+   },
+   {
+    "reference": "今天走了多少步。",
+    "hypothesis": "今天走了多少步",
+    "corrected": "今天走了多少步",
+    "cer": 0
+   },
+   {
+    "reference": "播放一首周杰伦的歌。",
+    "hypothesis": "播放一首周杰伦的歌",
+    "corrected": "播放一首周杰伦的歌",
+    "cer": 0
+   },
+   {
+    "reference": "谢谢，今天就到这里。",
+    "hypothesis": "啊谢谢今天就到这里",
+    "corrected": "啊谢谢今天就到这里",
+    "cer": 0.125
+   }
+  ]
+ }
+}

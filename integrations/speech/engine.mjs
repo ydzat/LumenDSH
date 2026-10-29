@@ -168,6 +168,20 @@ export async function prepareModel(id, {onProgress = () => {}} = {}) {
   return {ready: modelReady(id), model: id, downloaded: true};
 }
 
+/** Rewrite known mis-recognitions to their canonical spelling (L2 dictionary seed). */
+export function applyLexicon(text, lexicon) {
+  if (!text) return text;
+  let result = String(text);
+  for (const entry of lexicon.entries ?? []) {
+    for (const variant of entry.variants ?? []) {
+      if (!variant) continue;
+      const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      result = result.replace(new RegExp(escaped, 'gi'), entry.canonical);
+    }
+  }
+  return result;
+}
+
 /** Decode many files in one process so the model loads once. */
 export async function transcribeMany(files, {model = 'sensevoice-small', language = 'zh', threads, timeoutMs} = {}) {
   if (!runtimeReady()) throw new Error('Speech runtime is not installed');
