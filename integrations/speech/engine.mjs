@@ -168,6 +168,28 @@ export async function prepareModel(id, {onProgress = () => {}} = {}) {
   return {ready: modelReady(id), model: id, downloaded: true};
 }
 
+/** Decode many files in one process so the model loads once. */
+export async function transcribeMany(files, {model = 'sensevoice-small', language = 'zh', threads, timeoutMs} = {}) {
+  if (!runtimeReady()) throw new Error('Speech runtime is not installed');
+  if (!modelReady(model)) throw new Error('Model not prepared: ' + model);
+  if (!files.length) return [];
+  const entry = CATALOG[model];
+  const dir = modelDir(model);
+  const args = ['--tokens=' + path.join(dir, entry.tokens), '--num-threads=' + (threads ?? entry.threads ?? 2)];
+  if (entry.kind === 'sensevoice') {
+    args.push('--sense-voice-model=' + path.join(dir, entry.model), '--sense-voice-language=' + language,
+      '--sense-voice-use-itn=true');
+  } else {
+    args.push('--paraformer=' + path.join(dir, entry.model));
+  }
+  const started = Date.now();
+  const out = await run(path.join(RUNTIME, 'bin/sherpa-onnx-offline'), [...args, ...files],
+    {env: {LD_LIBRARY_PATH: path.join(RUNTIME, 'lib')}, timeoutMs: timeoutMs ?? 600000});
+  const results = out.split('\n').map((line) => line.trim())
+    .filter((line) => line.startsWith('{')).map((line) => JSON.parse(line));
+  return results.map((result) => String(result.text ?? '').trim());
+}
+
 /** Add punctuation to text using the CT-Transformer model. */
 export async function punctuate(text, {timeoutMs = 60000} = {}) {
   const entry = CATALOG['punct-zh-en'];
